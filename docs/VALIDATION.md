@@ -36,7 +36,7 @@ Browser memeriksa tujuan kembali dengan query lengkap, deep link/reload/aset, en
 
 ## Batas hasil
 
-Ini validasi implementasi lokal, bukan persetujuan go-live di server organisasi. Workflow `.github/workflows/ci.yml` tersedia dan rangkaian perintahnya dijalankan lokal. Hasil GitHub Actions perlu diperiksa setelah push.
+Ini validasi implementasi lokal, bukan persetujuan go-live di server organisasi. Workflow `.github/workflows/ci.yml` juga [lulus di GitHub Actions](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/39795844806) untuk commit awal `c3b704a` pada branch `main` (22 Oktober 2026, durasi 7 menit 54 detik).
 
 Belum dilakukan load test skala produksi, browser selain Chromium, integrasi sertifikat/hostname organisasi, atau uji operator di lapangan. Target pemulihan empat jam perlu diukur ulang menggunakan volume data produksi. Backup lokal sudah diuji; penyalinan terenkripsi ke storage organisasi di luar host tetap merupakan tugas deployment.
 
