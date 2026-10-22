@@ -1,0 +1,43 @@
+{
+  "name": "plant-area-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=26.12.1 <27"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" --workspace-concurrency=1 build",
+    "typecheck": "tsc --noEmit && pnpm --filter \"./apps/*\" typecheck",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "db:generate:auth": "drizzle-kit generate --config packages/auth-core/drizzle.config.ts",
+    "db:generate:bag": "drizzle-kit generate --config packages/bag-core/drizzle.config.ts",
+    "check:export": "node scripts/check-export.mjs",
+    "format": "prettier --write apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml",
+    "format:check": "prettier --check apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.11",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@plant/auth-core": "workspace:*",
+    "@plant/bag-core": "workspace:*",
+    "@plant/contracts": "workspace:*",
+    "@plant/server": "workspace:*",
+    "better-auth": "1.7.12",
+    "drizzle-orm": "0.45.4",
+    "mysql2": "3.24.6"
+  }
+}

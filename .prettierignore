@@ -1,0 +1,11 @@
+.arsip/
+.tools/
+.test-runtime/
+node_modules/
+**/.next/
+**/next-env.d.ts
+**/migrations/
+pnpm-lock.yaml
+test-results/
+playwright-report/
+backups/

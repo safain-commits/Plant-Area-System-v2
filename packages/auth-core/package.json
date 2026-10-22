@@ -1,0 +1,16 @@
+{
+  "name": "@plant/auth-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "dependencies": {
+    "@plant/contracts": "workspace:*",
+    "better-auth": "1.7.12",
+    "drizzle-orm": "0.45.4",
+    "mysql2": "3.24.6"
+  }
+}

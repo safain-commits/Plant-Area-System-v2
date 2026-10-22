@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.tools/
+.env
+.env.*.local
+coverage/
+playwright-report/
+test-results/
+.test-runtime/
+*.tsbuildinfo
+infra/certs/*.key
+infra/certs/*.crt
+backups/
+.arsip/
+tmp/

@@ -1,0 +1,112 @@
+map $login_target $login_destination {
+    default /auth/login;
+    /auth/change-password /auth/change-password;
+    ~^/auth/login\?returnTo= $login_target;
+}
+upstream auth_upstream { server auth:3000; }
+upstream portal_upstream { server portal:3000; }
+upstream bag_upstream { server bag-filter:3000; }
+server {
+    listen 80;
+    server_name _;
+    return 308 ${PUBLIC_ORIGIN}$request_uri;
+}
+server {
+    listen 443 ssl;
+    absolute_redirect off;
+    http2 on;
+    server_name _;
+    ssl_certificate /etc/nginx/certs/tls.crt;
+    ssl_certificate_key /etc/nginx/certs/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    server_tokens off;
+    client_max_body_size 128k;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy same-origin always;
+    add_header Strict-Transport-Security "max-age=15552000" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
+    location ^~ /auth/internal { return 404; }
+    location ^~ /auth/health { return 404; }
+    location ^~ /bag-filter/health { return 404; }
+    location ^~ /health/ { return 404; }
+    location = /gateway-health { access_log off; return 204; }
+    location = /auth { return 308 /auth/login; }
+    location ^~ /auth/ {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://auth_upstream;
+    }
+    location = /_verify_portal {
+        internal;
+        proxy_pass http://auth_upstream/auth/internal/verify;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header X-Plant-Service-Token "${SERVICE_TOKEN}";
+        proxy_set_header X-Plant-App portal;
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+    }
+    location = /_verify_bag {
+        internal;
+        proxy_pass http://auth_upstream/auth/internal/verify;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie $http_cookie;
+        proxy_set_header X-Plant-Service-Token "${SERVICE_TOKEN}";
+        proxy_set_header X-Plant-App bag-filter;
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+    }
+    location ^~ /bag-filter/_next/ {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://bag_upstream;
+    }
+    location ^~ /_next/ {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://portal_upstream;
+    }
+    location ^~ /bag-filter/api/ {
+        auth_request /_verify_bag;
+        error_page 401 = @api_unauthorized;
+        error_page 403 = @api_forbidden;
+        error_page 500 502 504 = @api_unavailable;
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://bag_upstream;
+    }
+    location ^~ /api/ {
+        auth_request /_verify_portal;
+        error_page 401 = @api_unauthorized;
+        error_page 403 = @api_forbidden;
+        error_page 500 502 504 = @api_unavailable;
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://portal_upstream;
+    }
+    location ~ ^/bag-filter(?:/|$) {
+        auth_request /_verify_bag;
+        auth_request_set $login_target $upstream_http_x_auth_redirect;
+        error_page 401 = @login;
+        error_page 403 = @forbidden;
+        error_page 500 502 504 = @unavailable;
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://bag_upstream;
+    }
+    location / {
+        auth_request /_verify_portal;
+        auth_request_set $login_target $upstream_http_x_auth_redirect;
+        error_page 401 = @login;
+        error_page 403 = @forbidden;
+        error_page 500 502 504 = @unavailable;
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://portal_upstream;
+    }
+    location @login { return 303 $login_destination; }
+    location @forbidden { default_type text/html; return 403 '<!doctype html><html lang="id"><meta charset="utf-8"><title>Akses belum diberikan</title><h1>Akses belum diberikan</h1><p>Hubungi admin portal untuk akses aplikasi ini.</p><a href="/">Kembali ke portal</a></html>'; }
+    location @unavailable { default_type text/html; return 503 '<!doctype html><html lang="id"><meta charset="utf-8"><title>Layanan belum tersedia</title><h1>Layanan sementara tidak tersedia</h1><p>Coba lagi beberapa saat kemudian.</p></html>'; }
+    location @api_unauthorized { default_type application/json; return 401 '{"error":"Silakan login atau ganti password sementara.","code":"UNAUTHENTICATED"}'; }
+    location @api_forbidden { default_type application/json; return 403 '{"error":"Akses aplikasi belum diberikan.","code":"FORBIDDEN"}'; }
+    location @api_unavailable { default_type application/json; return 503 '{"error":"Layanan autentikasi tidak tersedia.","code":"AUTH_UNAVAILABLE"}'; }
+}
