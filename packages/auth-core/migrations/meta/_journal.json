@@ -15,6 +15,13 @@
       "when": 1792687900750,
       "tag": "0001_equipment_layout_checkpoint",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792751276068,
+      "tag": "0002_freezing_mercury",
+      "breakpoints": true
     }
   ]
 }

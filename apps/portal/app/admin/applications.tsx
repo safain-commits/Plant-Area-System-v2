@@ -48,20 +48,20 @@ export function Applications() {
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
           >
             <strong>{app.name}</strong>
-            {app.id === 'bag-filter' ? (
+            {['bag-filter', 'consumables'].includes(app.id) ? (
               <Button
                 className={`small ${app.status === 'active' ? 'danger' : 'secondary'}`}
                 busy={busy}
                 onClick={async () => {
                   if (
                     app.status === 'active' &&
-                    !(await confirm('Nonaktifkan Bag Filter? Akses seluruh pengguna akan ditutup.'))
+                    !(await confirm(`Nonaktifkan ${app.name}? Akses seluruh pengguna akan ditutup.`))
                   )
                     return;
                   setBusy(true);
                   setError('');
                   try {
-                    const r = await fetch('/api/admin/applications/bag-filter', {
+                    const r = await fetch(`/api/admin/applications/${app.id}`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ status: app.status === 'active' ? 'disabled' : 'active' }),
@@ -77,7 +77,7 @@ export function Applications() {
                   }
                 }}
               >
-                {app.status === 'active' ? 'Nonaktifkan Bag Filter' : 'Aktifkan Bag Filter'}
+                {(app.status === 'active' ? 'Nonaktifkan ' : 'Aktifkan ') + app.name}
               </Button>
             ) : (
               <span className="badge neutral">Rencana</span>

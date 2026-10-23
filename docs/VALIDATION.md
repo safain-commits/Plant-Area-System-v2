@@ -1,5 +1,33 @@
 # Hasil validasi implementasi v2
 
+## Sidebar dan dashboard Consumable Room — 23 Oktober 2026
+
+Implementasi mengikuti [UI Polish](design/CONSUMABLE-ROOM-UI-POLISH.md). Preview HTTPS lokal telah diperbarui dengan empat image aplikasi. Tidak ada migrasi, perubahan query stok, atau perubahan izin untuk penyempurnaan ini.
+
+- Sidebar mempunyai satu hierarki aplikasi, submenu sesuai aplikasi aktif, penanda halaman, flyout rail, area navigasi yang dapat scroll, serta akun/sesi ringkas di bawah. Halaman Audit Bag Filter sekarang menandai submenu Audit dengan benar.
+- Dashboard Consumables mempunyai satu judul, hero chart dengan tiga KPI, kesiapan saldo awal, perhatian, serta rail aksi/aktivitas. Portal memakai varian ringkas. Chart mempunyai sumbu count integer, panel kuartal, keyboard/tap, dan mempertahankan angka distribusi ekstrem tanpa memperbesar bar kecil atau membuat bar nol.
+- Delapan aktivitas dibatasi scroll internal, dengan deskripsi dua baris, metadata, jumlah, satuan, dan jenis. Nilai koreksi adalah selisih ledger. Skeleton mengikuti susunan halaman; error/retry mempertahankan tahun dan data terakhir. Link perhatian meneruskan filter ketersediaan ke Cek stok.
+
+| Pemeriksaan          | Hasil aktual                                                                                                                                                                                    |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck/format     | Root TypeScript, pemeriksaan TypeScript melalui build empat Next.js, Prettier pada file terkait, dan `git diff --check` lulus                                                                   |
+| Unit                 | 12 tes lulus, termasuk skala sumbu bilangan bulat/baseline nol; seluruh tes domain/warna lama tetap lulus                                                                                       |
+| Build                | Auth, Portal, Bag Filter, Consumables berhasil dibangun sebagai container Node 26.12.1 dengan lockfile frozen                                                                                   |
+| Browser HTTPS        | 9 skenario Chromium lulus dalam satu run: tiga UI polish, dua transaksi/akses Consumables, empat tema/peta/shell; pengujian visual diperiksa kembali setelah menambah screenshot 1920 px        |
+| Sidebar              | Portal, Consumables, Bag Filter, Audit, Profil/Admin; expanded/rail/drawer, focus return, Ctrl+B, empat peran stok, serta batas viewport tinggi 768/900 px lulus                                |
+| Chart                | Loading, semua nol, satu jenis, semua jenis, seimbang, 2/2/2/1.179, rincian keyboard, pergantian tahun, respons HTML gagal, dan retry lulus                                                     |
+| Stok/SSO             | Saldo awal, penerimaan pack, pemakaian pecahan, history, peran/scope/API langsung, pergantian aplikasi, detail sesi WIB, serta logout yang mencabut akses kedua API lulus                       |
+| Responsif/tema       | 1920, 1440, 1024, 768, 390 px; terang/gelap, tanpa overflow horizontal; mobile menyembunyikan sidebar desktop sebelum drawer terpasang agar tidak menambah tinggi halaman saat hydration/resize |
+| Keterbacaan          | Pasangan token/warna dan focus diuji oleh suite tema; teks induk aplikasi baru juga diperiksa langsung minimal 4,5:1 dalam kedua tema. Keyboard/dialog/table chart memakai semantik native      |
+| Referensi Bag Filter | PNG area `.dashboard-grid` pada 1440 px sebelum/sesudah identik: SHA-256 `800fdc126f3d4d3057d2100d39df065af3b189a9d39e3d1afb69d9828b24624e`; sidebar memang berubah sesuai rencana              |
+| Gateway              | Uji pergantian IP dua aplikasi dengan sentinel HTML lulus tanpa restart Nginx; browser juga lulus setelah recreate empat aplikasi                                                               |
+
+Screenshot terang/gelap 1440/1920/390 px diperiksa visual pada `.test-runtime/stock-polish-*.png`; perbandingan Bag Filter pada `.test-runtime/bag-gold-before.png` dan `.test-runtime/bag-gold-polish.png`. Screenshot sintetis memakai interception respons pada browser pengujian; angka tersebut tidak menjadi data produksi. Fixture baru dan suite transaksi browser membersihkan akun/lokasi/material/movement miliknya berdasarkan ID. Fixture historis preview tidak dihapus dan pemisahan preview pilot menjadi pekerjaan lingkungan tersendiri.
+
+Saat pengerjaan, aturan CSS legacy pada link bersarang sempat membuat label induk terlalu pucat; specificity diperbaiki. Selector error awal juga sempat mencakup live region Next.js; pengujian kemudian dibatasi ke alert ringkasan dan seluruh run akhir lulus. Perubahan viewport sempat menambah ruang sidebar desktop sebelum hydration; CSS mobile dan penantian layout pada screenshot diperbaiki.
+
+Batas: belum menjalankan NVDA/VoiceOver atau Firefox/Safari. Integrasi MySQL penuh dan backup/restore tidak diulang karena schema/query tidak berubah; alur transaksi dan guard tetap diuji terhadap MySQL lewat browser. Tidak menjalankan ulang suite platform yang mengubah password akun pilot; SSO/logout diuji dengan akun sementara milik suite ini. Context7 tidak tersedia; lifecycle fetch/cleanup mengacu pada tipe terpasang dan [dokumentasi React useEffect](https://react.dev/reference/react/useEffect).
+
 Tanggal: 22 Oktober 2026. Lingkungan: host Windows dengan Node26.12.1, container Linux Node26.12.1, MySQL8.4.13, Nginx1.30.6, dan Chromium156 melalui Playwright1.64.1. HTTPS localhost8443 memakai sertifikat pengujian. Project Compose: `plant-v2-test`; database dan volume terpisah dari deployment produksi.
 
 ## Grafik kuartal dan jeda 561/562 — 23 Oktober 2026
@@ -131,7 +159,59 @@ pnpm test
 node --env-file=.test-runtime/host.env --import tsx --test --test-concurrency=1 tests/integration/*.test.ts
 pnpm test:e2e
 node --env-file=.test-runtime/host.env --import tsx scripts/test-operations.ts
+node --env-file=.test-runtime/host.env --import tsx scripts/test-gateway-recovery.ts
 pnpm check:export # opsional bila arsip tersedia di workspace lokal
 ```
 
 Jangan menjalankan tes browser dan operasi secara bersamaan karena tes operasi sengaja menghentikan dependency.
+
+## Consumable Room v1 — 23 Oktober 2026
+
+Implementasi diuji pada Node.js 26.12.1, MySQL 8.4 di Linux containers Docker Desktop, dan gateway HTTPS lokal. Tidak menjalankan pengujian terhadap deployment produksi.
+
+| Pemeriksaan                       | Hasil aktual                                                                                                                                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck root dan empat aplikasi | Lulus; build Next.js juga memeriksa TypeScript setiap aplikasi                                                                                                                                                  |
+| Unit test                         | 11 pemeriksaan lulus, mencakup fixed-point, locale, batas presisi, role/scope, dan mapping katalog                                                                                                              |
+| Integrasi MySQL lengkap           | 24 pemeriksaan lulus; tujuh pemeriksaan stok dijalankan lagi setelah perubahan filter dan tetap lulus                                                                                                           |
+| Build container                   | Auth, Portal, Bag Filter, Consumables, dan image tools berhasil dibangun dengan lockfile frozen                                                                                                                 |
+| Browser HTTPS                     | 7 skenario lulus: alur Consumables + role/scope/gateway, dan seluruh regresi platform/tema/peta sebelumnya                                                                                                      |
+| Visual                            | Screenshot desktop 1440 px dan mobile 390 px diperiksa pada kedua tema; audit mobile memakai kartu, stock memakai baris/kartu responsif, tidak ada overflow halaman pada seluruh halaman Consumables yang diuji |
+| Draft dan tema                    | Jumlah/pekerjaan pemakaian tetap utuh sesudah perubahan tema                                                                                                                                                    |
+| Impor katalog privat penuh        | Dry-run, apply, replay pada database sementara: 17.744 master, 43 satuan, 13 kategori; nol inventory, nol movement, nol isi pack yang diasumsikan; database sementara dihapus setelah verifikasi                |
+| Migrasi                           | Upgrade volume lokal lama tanpa reset berhasil; fixture memastikan hanya bootstrap aktif diberi grant sekali, pencabutan/disabled dipertahankan, grant Bag Filter tetap ada                                     |
+| Rekonsiliasi                      | Tidak ditemukan selisih antara saldo dan penjumlahan ledger                                                                                                                                                     |
+| Restart dan fail closed           | Data tetap setelah restart MySQL/Bag Filter/Consumables; Auth berhenti menghasilkan 503 pada kedua aplikasi/API; header identitas palsu tidak melewati guard                                                    |
+| Backup dan restore                | Dump tiga database berhasil dipulihkan ke MySQL terpisah, termasuk initializer aplikasi pada instance kosong; dibandingkan 14 tabel, total saldo/ledger, serta checksum ledger                                  |
+| Integritas arsip                  | 359 file dan checksum ekspor tetap sesuai; katalog internal tidak masuk Git atau image                                                                                                                          |
+
+Kasus stok yang dibuktikan: saldo awal nol/sekali; jumlah 0,1 + 0,2 presisi; konversi pack dan snapshot lama; master/pack stale; unit terkunci; koreksi versi stale; dua pengambilan bersamaan tanpa minus; retry concurrent satu ledger; key berbeda payload ditolak; kegagalan audit rollback seluruh transaksi; scope baca/tulis; pagination lebih dari 300 pergerakan dan material sama pada dua lokasi; batas kuartal/tanggal WIB.
+
+Perbaikan dari pengujian: timestamp mentah driver MySQL dinormalisasi ke ISO UTC sebelum membentuk cursor; cursor inventory memakai ID pasangan material–lokasi; proxy admin mengenali grant aplikasi/lokasi baru; request pencarian lama dibatalkan; notifikasi tidak menghilangkan hasil sumber lain ketika salah satu gagal. Selector browser menggunakan role yang terlihat karena halaman sebelumnya dapat dipertahankan tersembunyi oleh router.
+
+Artefak lokal: `.test-runtime/consumables-desktop-light.png`, `.test-runtime/consumables-desktop-dark.png`, `.test-runtime/consumables-mobile-dark.png`; laporan Playwright pada `playwright-report/`. Semuanya diabaikan Git. Backup terakhir uji restore `plant-20261023T111422Z.sql.gz` berada pada folder backup privat.
+
+Batas validasi: RTO/kapasitas produksi belum diukur dengan beban aktual. Tidak ada migrasi stok atau transaksi operasional dari arsip. Impor produksi tetap tindakan eksplisit melalui CLI; lokasi, rak, isi pack dan saldo fisik aktual belum ditentukan oleh pengujian ini. Context7 tidak tersedia pada sesi ini; desain mengacu pada API versi terpin, tipe library terpasang, serta dokumentasi resmi MySQL/Drizzle/Next.js yang diperiksa saat perencanaan.
+
+## Perbaikan routing gateway setelah restart — 23 Oktober 2026
+
+Laporan dashboard gagal memuat JSON dan Consumable Room 404 berhasil direproduksi pada preview HTTPS. Akun yang dilaporkan aktif dan mempunyai role admin di kedua aplikasi. Nginx memakai alamat upstream yang di-resolve saat startup; setelah restart container, alamat Bag Filter dan Consumables tertukar. Kedua API dashboard mengembalikan HTML 404 dari aplikasi lain, sedangkan `/consumables` memakai aset Bag Filter. Healthcheck internal tetap sehat, sehingga pemeriksaan restart sebelumnya belum membuktikan akses terautentikasi melalui gateway.
+
+Konfigurasi keempat upstream kini memakai shared zone dan resolusi DNS Docker dinamis (cache 5 detik). Template telah diterapkan pada Nginx lokal dan `nginx -t` lulus. Kedua API dashboard kembali 200 `application/json`; halaman Portal, Bag Filter, Consumable Room, dan Cek Stok kembali 200 dengan prefix aset masing-masing. Tidak ada perubahan role akun, password pengguna, atau migrasi data untuk perbaikan ini.
+
+Pemeriksaan aktual:
+
+- Typecheck root dan 11 unit test lulus.
+- `scripts/test-gateway-recovery.ts` lulus: dua alamat lama ditempati layanan HTML sentinel, kedua aplikasi dipaksa memperoleh IP berbeda, lalu dashboard terautentikasi, halaman SSO, serta CSS/JS kembali benar tanpa restart Nginx. Akun verifikasi dan sentinel dibersihkan. Script ditambahkan ke CI setelah tes operasi; belum mengklaim hasil run GitHub baru.
+- Satu skenario browser Chromium lulus: kedua ringkasan Portal dan ringkasan Consumables tampil, diikuti saldo awal, penerimaan pack, pemakaian, history, pergantian tema, mobile, serta perpindahan kembali ke Bag Filter/Portal tanpa login ulang. Tidak ada page error. Screenshot halaman yang pulih diperiksa di `.test-runtime/gateway-portal-recovered.png` dan `.test-runtime/gateway-consumables-recovered.png`.
+- Percobaan browser awal gagal pada selector pengujian baru yang mencari `img`; grafik menggunakan role `figure`. Selector diperbaiki dan skenario dijalankan ulang hingga lulus.
+
+Tidak menjalankan ulang build empat aplikasi, seluruh integrasi MySQL, atau backup/restore pada perbaikan routing ini; tidak ada perubahan source aplikasi maupun schema. Hasil sebelumnya tetap tercatat pada bagian Consumable Room v1, dengan batasan pemeriksaan restart yang dijelaskan di atas.
+
+## Audit hover dan dropdown — 23 Oktober 2026
+
+Perbaikan shared UI diverifikasi pada build produksi HTTPS lokal. Typecheck root, 12 unit test, build empat aplikasi, dan format file perbaikan lulus. Empat container aplikasi sehat setelah pembaruan. Sebanyak 14 skenario browser lulus dalam satu run, ditambah satu skenario pointer Tema di Portal yang lulus pada run terpisah: total 15 skenario unik.
+
+TestSprite benar-benar dijalankan dengan akun sementara. Run akhir mencatat 0 passed, 2 failed, dan 1 blocked: pemeriksaan desktop parsial berhasil, tetapi aksi hover/resize tidak tersedia pada kontrol browser alat; temuan Tema tidak direproduksi pada tes pointer lokal. Status tersebut tidak digabung dengan hasil Playwright. Akun/sesi pengujian dicabut dan adapter/tunnel dihentikan. Detail temuan, batas pemeriksaan, serta pembersihan ada di [laporan interaksi UI](testing/UI-INTERACTION-RESULTS.md).
+
+Tidak ada migrasi atau perubahan transaksi. Seluruh integrasi MySQL dan backup/restore tidak diulang pada audit interaksi ini.

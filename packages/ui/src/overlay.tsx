@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './icon';
 
 export function Overlay({
@@ -28,10 +29,14 @@ export function Overlay({
   const start = useRef<number | null>(null);
   const swipe = useRef<{ x: number; y: number } | null>(null);
   const [dragX, setDragX] = useState(0);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  const backdropPress = useRef(false);
+  useEffect(() => setContainer(document.body), []);
   useEffect(() => {
-    const dialog = ref.current!;
+    const dialog = ref.current;
+    if (!dialog) return;
     if (open) {
-      last.current = document.activeElement as HTMLElement;
+      last.current = anchor?.current ?? (document.activeElement as HTMLElement);
       if (kind === 'menu' && anchor?.current && innerWidth >= 640) {
         const rect = anchor.current.getBoundingClientRect();
         dialog.style.setProperty(
@@ -51,12 +56,26 @@ export function Overlay({
         : document.querySelector<HTMLElement>('[data-sheet-trigger]')
       )?.focus({ preventScroll: true });
     }
-  }, [open, kind, anchor, placement]);
-  return (
+  }, [open, kind, anchor, placement, container]);
+  // Keep modal content outside enclosing labels/forms. Portals still bubble through
+  // the React tree, so pointer/click events also stop at the dialog boundary.
+  if (!container) return null;
+  return createPortal(
     <dialog
       ref={ref}
       className={`overlay overlay-${kind}`}
       aria-labelledby={id}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        const r = e.currentTarget.getBoundingClientRect();
+        backdropPress.current =
+          e.button === 0 &&
+          e.target === e.currentTarget &&
+          (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom);
+      }}
+      onPointerCancel={() => {
+        backdropPress.current = false;
+      }}
       onKeyDown={(e) => {
         if (
           kind !== 'menu' ||
@@ -86,11 +105,15 @@ export function Overlay({
         onClose();
       }}
       onClick={(e) => {
-        if (e.target === ref.current) {
-          const r = ref.current.getBoundingClientRect();
-          if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
+        e.stopPropagation();
+        if (backdropPress.current && e.target === e.currentTarget) {
+          const r = e.currentTarget.getBoundingClientRect();
+          if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+            e.preventDefault();
             onClose();
+          }
         }
+        backdropPress.current = false;
       }}
     >
       <div
@@ -149,7 +172,8 @@ export function Overlay({
         </div>
         {children}
       </div>
-    </dialog>
+    </dialog>,
+    container,
   );
 }
 

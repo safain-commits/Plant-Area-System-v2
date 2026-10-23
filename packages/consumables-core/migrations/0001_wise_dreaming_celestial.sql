@@ -1,0 +1,1 @@
+ALTER TABLE `inventory` ADD CONSTRAINT `inventory_quantity_nonnegative` CHECK (`inventory`.`quantity` >= 0);

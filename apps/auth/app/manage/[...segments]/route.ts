@@ -10,6 +10,8 @@ import {
   authAudit,
   listApplications,
   setApplicationStatus,
+  listScopeLocations,
+  setAppGrant,
 } from '@plant/auth-core';
 import { AppError } from '@plant/contracts';
 import { failure, readJson, verifyOrigin } from '@plant/server';
@@ -22,6 +24,11 @@ export async function GET(request: Request, context: Context) {
     const actor = await identityForCookie(request.headers.get('cookie') || '', path === 'me');
     if (path === 'me')
       return Response.json({ identity: actor }, { headers: { 'Cache-Control': 'no-store' } });
+    if (path === 'admin/applications/consumables/locations')
+      return Response.json(
+        { items: await listScopeLocations(actor) },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
     if (path === 'admin/users')
       return Response.json({ users: await listUsers(actor) }, { headers: { 'Cache-Control': 'no-store' } });
     if (path === 'admin/applications')
@@ -49,8 +56,15 @@ export async function POST(request: Request, context: Context) {
     if (path === 'profile') await updateProfile(actor, body);
     else if (path === 'password') await changePassword(actor, body.currentPassword, body.newPassword);
     else if (path === 'admin/users') return Response.json(await createUser(actor, body), { status: 201 });
-    else if (path === 'admin/applications/bag-filter')
-      await setApplicationStatus(actor, 'bag-filter', body.status);
+    else if (segments.length === 3 && segments[0] === 'admin' && segments[1] === 'applications')
+      await setApplicationStatus(actor, segments[2], body.status);
+    else if (
+      segments.length === 5 &&
+      segments[0] === 'admin' &&
+      segments[1] === 'users' &&
+      segments[3] === 'grants'
+    )
+      await setAppGrant(actor, segments[2], segments[4], body.grant);
     else if (segments.length === 4 && segments[0] === 'admin' && segments[1] === 'users') {
       const id = segments[2];
       if (segments[3] === 'access') await updateUserAccess(actor, id, body);

@@ -31,3 +31,19 @@ Seleksi mempertahankan fill umur, memakai double ring dan centang. Mendukung kli
 - Reduced motion mematikan reveal, count-up, shimmer, tilt, dan gerak; konten dan fungsi tetap tersedia.
 
 Hasil pemeriksaan aktual dicatat di [VALIDATION.md](VALIDATION.md). Referensi primitive: [HTML dialog](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement), [View Transitions](https://developer.mozilla.org/en-US/docs/Web/API/Document/startViewTransition), dan [React flushSync](https://react.dev/reference/react-dom/flushSync).
+
+# Perluasan Consumable Room
+
+Consumable Room memakai token dan komponen UI refresh yang sama: shell, tema Sistem/Terang/Gelap, input/select, overlay, confirmation, dan tabel responsif. Tidak menambahkan palette. Penerimaan/pemakaian menggunakan aksen fungsional dengan label, grafik Q1–Q4 menghitung transaksi, dan “Belum dihitung” berbeda dari stok nol. Portal menampilkan ringkasan aplikasi secara terpisah.
+
+Penyempurnaan mengikuti [Consumable Room UI Polish](design/CONSUMABLE-ROOM-UI-POLISH.md). Halaman aplikasi memakai satu judul, hero chart dengan tiga KPI di samping, kartu kesiapan saldo awal/perhatian, serta rail aksi dan aktivitas. Portal memakai ringkasan compact. Data kuartal adalah jumlah transaksi, sedangkan KPI stok dan aktivitas terbaru tetap kondisi saat ini.
+
+Sidebar mengelompokkan menu menurut aplikasi. Submenu hanya terbuka pada aplikasi aktif; Portal/Profil/Kelola akses menampilkan daftar aplikasi ringkas. Nama induk menuju ringkasan, chevron mengubah ekspansi, dan rail ikon membuka flyout. Akun/sesi berada di area tetap; navigasi mempunyai scroll sendiri. Session card ringkas membuka detail kedaluwarsa WIB tanpa memperpanjang sesi. Pada mobile, CSS langsung menyembunyikan sidebar desktop sebelum drawer terpasang agar tidak menambah tinggi halaman pada hydration/perubahan viewport.
+
+Chart Consumables memakai skala count bilangan bulat dengan baseline nol, empat kuartal, batas bar 72 px, dan panel rincian yang dapat dipilih dengan pointer/keyboard/tap. Tidak ada tinggi minimum untuk membuat bar nol atau memperbesar kuartal kecil. Activity row dipakai bersama varian Portal dan halaman aplikasi; deskripsi maksimal dua baris, metadata dipendekkan secara visual dengan teks lengkap pada detail/title, nilai dan satuan berada di kanan, dan delapan baris dibatasi scroll internal. Style dashboard Bag Filter tidak diubah.
+
+## Batas interaksi hover dan overlay
+
+Hover dasar tombol memakai `button:where(:hover:not(:disabled))` agar tidak menimpa pasangan permukaan/teks komponen khusus. Kontrol akun/sesi memakai hover permukaan netral, navigasi memakai token sidebar, dan logout mempertahankan pasangan token tombol utama pada kedua tema. Komponen baru yang mempunyai warna khusus harus menentukan pasangan warna serta hover sendiri.
+
+Overlay dirender melalui portal ke `document.body` setelah mount agar tidak berada di dalam label atau form pemanggil. Event pointer/click berhenti pada batas dialog; klik backdrop ditutup hanya jika penekanan dimulai di luar panel. Interaksi dalam menu dan drag keluar tidak dianggap dismissal. Escape serta penutupan normal mengembalikan fokus ke trigger; draft form tetap berada pada state pemanggil. Hasil audit TestSprite dan verifikasi lokal dicatat di [UI interaction results](testing/UI-INTERACTION-RESULTS.md).

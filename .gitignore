@@ -7,9 +7,12 @@ coverage/
 playwright-report/
 test-results/
 .test-runtime/
+testsprite_tests/
 *.tsbuildinfo
 infra/certs/*.key
 infra/certs/*.crt
 backups/
 .arsip/
 tmp/
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json

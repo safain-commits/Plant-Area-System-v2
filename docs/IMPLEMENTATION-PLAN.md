@@ -37,3 +37,11 @@ Satu key idempotensi berlaku per actor; retry identik harus memakai key yang sam
 5. Catat durasi pemulihan untuk menilai target empat jam dan tetapkan penanggung jawab backup.
 
 Implementasi modul berikutnya dimulai dari audit khusus, tanpa menambahkan tabel/modulnya ke Bag Filter.
+
+# Consumable Room v1 — perluasan 23 Oktober 2026
+
+Rujukan kebutuhan: [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md).
+
+Penyempurnaan visual lanjutan mengacu pada [UI Polish](design/CONSUMABLE-ROOM-UI-POLISH.md): navigasi sesuai aplikasi aktif, hero chart/KPI, varian Portal compact, feed aktivitas terbatas, dan pengujian role/tema/responsif. Implementasi memakai data API yang sudah ada tanpa migrasi tambahan. Bukti pemeriksaan aktual dicatat di VALIDATION.md; pemisahan preview pilot dari lingkungan uji tetap pekerjaan lingkungan sebelum go-live.
+
+Urutan implementasi: (1) kontrak grant/scope dan migrasi aditif; (2) database ketiga dan guard gateway; (3) master, lokasi, importer privat, onboarding saldo awal; (4) transaksi atomik/idempotensi dan history server; (5) UI bersama, Portal, pencarian, notifikasi; (6) unit/integrasi/browser, upgrade volume lama, backup/restore, dan pencatatan validasi aktual. Tidak mereset database yang sudah ada atau mengimpor saldo arsip.

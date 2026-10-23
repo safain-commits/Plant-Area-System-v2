@@ -8,6 +8,8 @@ import {
   type Identity,
   type Grant,
   type BagRole,
+  type BagGrant,
+  consumablesRoles,
 } from '@plant/contracts';
 import { getAuth, publicOrigin } from './auth';
 import { getAuthDb } from './database';
@@ -40,6 +42,107 @@ const auditEntry = (
   details: JSON.stringify(details),
   createdAt: new Date(),
 });
+function decodeGrant(g: {
+  appId: string;
+  role: string;
+  equipment: string;
+  scope?: string | null;
+}): Grant | null {
+  try {
+    if (g.appId === 'bag-filter' && bagRoles.includes(g.role as BagRole)) {
+      const equipment = JSON.parse(g.equipment);
+      if (
+        !Array.isArray(equipment) ||
+        !equipment.length ||
+        equipment.some((c) => !equipmentCodes.includes(c)) ||
+        new Set(equipment).size !== equipment.length
+      )
+        return null;
+      return { appId: 'bag-filter', role: g.role as BagRole, equipment };
+    }
+    if (g.appId === 'consumables' && consumablesRoles.includes(g.role as (typeof consumablesRoles)[number])) {
+      const scope = JSON.parse(g.scope || 'null');
+      if (
+        !scope ||
+        !Array.isArray(scope.locationIds) ||
+        scope.locationIds.some((id: unknown) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) ||
+        new Set(scope.locationIds).size !== scope.locationIds.length ||
+        (g.role !== 'admin' && !scope.locationIds.length)
+      )
+        return null;
+      return {
+        appId: 'consumables',
+        role: g.role as (typeof consumablesRoles)[number],
+        locationIds: scope.locationIds,
+      };
+    }
+  } catch {}
+  return null;
+}
+export async function listScopeLocations(actor: Identity) {
+  requireAdmin(actor);
+  const base = process.env.CONSUMABLES_INTERNAL_URL,
+    token = process.env.SERVICE_TOKEN;
+  if (!base || !token) throw new AppError(503, 'Layanan lokasi belum dikonfigurasi.');
+  try {
+    const response = await fetch(`${base}/consumables/internal/locations`, {
+      headers: { 'x-plant-service-token': token },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw Error();
+    const data = await response.json();
+    if (!Array.isArray(data.items)) throw Error();
+    return data.items as { id: string; name: string; active: boolean }[];
+  } catch {
+    throw new AppError(503, 'Lokasi belum dapat diverifikasi; akses tidak diubah.');
+  }
+}
+export async function setAppGrant(actor: Identity, id: string, appId: string, input: unknown) {
+  requireAdmin(actor);
+  if (appId === 'bag-filter') {
+    await setGrant(actor, id, input);
+    return;
+  }
+  if (appId !== 'consumables') throw new AppError(400, 'Aplikasi tidak dikenal.');
+  let grant: Extract<Grant, { appId: 'consumables' }> | null = null;
+  if (input !== null) {
+    if (!input || typeof input !== 'object') throw new AppError(400, 'Grant tidak valid.');
+    const g = input as Extract<Grant, { appId: 'consumables' }>;
+    if (
+      g.appId !== appId ||
+      !consumablesRoles.includes(g.role) ||
+      !Array.isArray(g.locationIds) ||
+      g.locationIds.some((v) => typeof v !== 'string') ||
+      new Set(g.locationIds).size !== g.locationIds.length ||
+      (g.role !== 'admin' && !g.locationIds.length) ||
+      (g.role === 'admin' && g.locationIds.length)
+    )
+      throw new AppError(400, 'Role atau cakupan lokasi tidak valid.');
+    if (g.role !== 'admin') {
+      const known = await listScopeLocations(actor);
+      if (g.locationIds.some((v) => !known.some((l) => l.id === v && l.active)))
+        throw new AppError(400, 'Lokasi tidak aktif atau tidak ditemukan.');
+    }
+    grant = { appId: 'consumables', role: g.role, locationIds: [...g.locationIds].sort() };
+  }
+  await getAuthDb().transaction(async (tx) => {
+    const [target] = await tx.select().from(user).where(eq(user.id, id)).for('update');
+    if (!target) throw new AppError(404, 'Pengguna tidak ditemukan.');
+    await tx.delete(grants).where(and(eq(grants.userId, id), eq(grants.appId, appId)));
+    if (grant)
+      await tx
+        .insert(grants)
+        .values({
+          userId: id,
+          appId,
+          role: grant.role,
+          equipment: '[]',
+          scope: JSON.stringify({ locationIds: grant.locationIds }),
+        });
+    await tx.insert(audit).values(auditEntry(actor, 'grant.updated', id, { appId, grant }));
+  });
+}
 export async function identityForCookie(cookie: string, allowPasswordChange = false): Promise<Identity> {
   const current = await getAuth().api.getSession({
     headers: new Headers({ cookie }),
@@ -52,7 +155,7 @@ export async function identityForCookie(cookie: string, allowPasswordChange = fa
   if (u.mustChangePassword && !allowPasswordChange)
     throw new AppError(403, 'Ganti password sementara terlebih dahulu.', 'PASSWORD_CHANGE_REQUIRED');
   const list = await db
-    .select({ appId: grants.appId, role: grants.role, equipment: grants.equipment })
+    .select({ appId: grants.appId, role: grants.role, equipment: grants.equipment, scope: grants.scope })
     .from(grants)
     .innerJoin(applications, eq(grants.appId, applications.id))
     .where(and(eq(grants.userId, u.id), eq(applications.status, 'active')));
@@ -64,9 +167,7 @@ export async function identityForCookie(cookie: string, allowPasswordChange = fa
     position: u.position,
     portalAdmin: u.portalAdmin,
     mustChangePassword: u.mustChangePassword,
-    grants: list
-      .filter((g) => bagRoles.includes(g.role as BagRole))
-      .map((g) => ({ ...g, role: g.role as BagRole, equipment: JSON.parse(g.equipment) })),
+    grants: list.map(decodeGrant).filter((g): g is Grant => g !== null),
   };
 }
 export function requireAdmin(actor: Identity) {
@@ -79,7 +180,7 @@ export async function listApplications(actor: Identity) {
 }
 export async function setApplicationStatus(actor: Identity, id: string, status: unknown) {
   requireAdmin(actor);
-  if (id !== 'bag-filter' || (status !== 'active' && status !== 'disabled'))
+  if (!['bag-filter', 'consumables'].includes(id) || (status !== 'active' && status !== 'disabled'))
     throw new AppError(400, 'Hanya aplikasi yang telah dirilis dapat diaktifkan atau dinonaktifkan.');
   await getAuthDb().transaction(async (tx) => {
     await tx.update(applications).set({ status }).where(eq(applications.id, id));
@@ -101,7 +202,8 @@ export async function listUsers(actor: Identity) {
     mustChangePassword: u.mustChangePassword,
     grants: allGrants
       .filter((g) => g.userId === u.id)
-      .map((g) => ({ appId: g.appId, role: g.role, equipment: JSON.parse(g.equipment) })),
+      .map(decodeGrant)
+      .filter((g): g is Grant => g !== null),
   }));
 }
 export async function createUser(actor: Identity, input: Record<string, unknown>) {
@@ -169,10 +271,10 @@ export async function updateUserAccess(actor: Identity, id: string, input: Recor
 }
 export async function setGrant(actor: Identity, id: string, input: unknown) {
   requireAdmin(actor);
-  let grant: Grant | null = null;
+  let grant: BagGrant | null = null;
   if (input !== null) {
     if (!input || typeof input !== 'object') throw new AppError(400, 'Grant tidak valid.');
-    const g = input as Grant;
+    const g = input as BagGrant;
     if (
       g.appId !== 'bag-filter' ||
       !bagRoles.includes(g.role) ||

@@ -1,5 +1,8 @@
 import type { SVGProps } from 'react';
 const paths = {
+  box: 'm3 7 9-5 9 5v10l-9 5-9-5Zm0 0 9 5 9-5m-9 5v10M7.5 4.5l9 5',
+  receipt: 'M5 3h14v18l-3-2-4 2-4-2-3 2Zm4 5h6m-6 4h6',
+  issue: 'M4 4h10v4M4 4v16h10v-4m-4-4h12m-4-4 4 4-4 4',
   home: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z',
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   user: 'M20 21v-2a6 6 0 0 0-6-6h-4a6 6 0 0 0-6 6v2M16 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0',

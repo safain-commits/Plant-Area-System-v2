@@ -126,7 +126,8 @@ button,
     transform var(--duration-instant) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard);
 }
-button:hover:not(:disabled) {
+/* Base hover must not override a component's own surface/text pairing. */
+button:where(:hover:not(:disabled)) {
   background: var(--buttonPrimaryHover);
 }
 button:active:not(:disabled),

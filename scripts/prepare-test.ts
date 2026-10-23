@@ -1,6 +1,6 @@
 // Creates an isolated, disposable test deployment. Never use its credentials in production.
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile, access } from 'node:fs/promises';
+import { mkdir, writeFile, access, readFile } from 'node:fs/promises';
 const directory = '.test-runtime';
 await mkdir(directory, { recursive: true });
 try {
@@ -47,3 +47,22 @@ await writeFile(
   `${directory}/compose.yaml`,
   'services:\n  mysql:\n    ports: ["127.0.0.1:13306:3306"]\n    networks: [private, test-host]\nnetworks:\n  test-host: {}\n',
 );
+// Extend an existing isolated deployment without changing its users, volumes, or secrets.
+const stackPath = `${directory}/stack.env`,
+  hostPath = `${directory}/host.env`;
+let stack = await readFile(stackPath, 'utf8'),
+  host = await readFile(hostPath, 'utf8');
+const secret = /^CONSUMABLES_DB_PASSWORD=(.+)$/m.exec(stack)?.[1] || randomBytes(24).toString('hex');
+const rootPassword = /^MYSQL_ROOT_PASSWORD=(.+)$/m.exec(stack)![1];
+if (!/^CONSUMABLES_DB_PASSWORD=/m.test(stack)) {
+  stack += `CONSUMABLES_DB_PASSWORD=${secret}\n`;
+  await writeFile(stackPath, stack);
+}
+const extra: Record<string, string> = {
+  CONSUMABLES_DB_PASSWORD: secret,
+  CONSUMABLES_INTERNAL_URL: 'http://localhost:3003',
+  CONSUMABLES_DATABASE_URL: `mysql://plant_consumables:${secret}@127.0.0.1:13306/plant_consumables`,
+  CONSUMABLES_MIGRATION_DATABASE_URL: `mysql://root:${rootPassword}@127.0.0.1:13306/plant_consumables`,
+};
+for (const [k, v] of Object.entries(extra)) if (!new RegExp(`^${k}=`, 'm').test(host)) host += `${k}=${v}\n`;
+await writeFile(hostPath, host);

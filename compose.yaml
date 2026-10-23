@@ -6,6 +6,7 @@ x-runtime: &runtime
   environment: &app-env
     PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}
     AUTH_INTERNAL_URL: http://auth:3000
+    CONSUMABLES_INTERNAL_URL: http://consumables:3000
     SERVICE_TOKEN: ${SERVICE_TOKEN:?Set SERVICE_TOKEN}
     NODE_ENV: production
   healthcheck:
@@ -29,6 +30,7 @@ services:
       MYSQL_ROOT_HOST: '%'
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD}
       BAG_DB_PASSWORD: ${BAG_DB_PASSWORD:?Set BAG_DB_PASSWORD}
+      CONSUMABLES_DB_PASSWORD: ${CONSUMABLES_DB_PASSWORD:?Set CONSUMABLES_DB_PASSWORD}
     command:
       [--character-set-server=utf8mb4, --collation-server=utf8mb4_0900_ai_ci, --default-time-zone=+00:00]
     volumes:
@@ -54,6 +56,8 @@ services:
     environment: &db-tools-env
       AUTH_DATABASE_URL: mysql://plant_auth:${AUTH_DB_PASSWORD}@mysql:3306/plant_auth
       BAG_DATABASE_URL: mysql://plant_bag:${BAG_DB_PASSWORD}@mysql:3306/plant_bag_filter
+      CONSUMABLES_DATABASE_URL: mysql://plant_consumables:${CONSUMABLES_DB_PASSWORD}@mysql:3306/plant_consumables
+      CONSUMABLES_MIGRATION_DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/plant_consumables
       AUTH_MIGRATION_DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/plant_auth
       BAG_MIGRATION_DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/plant_bag_filter
     networks: [private]
@@ -116,6 +120,27 @@ services:
       timeout: 8s
       retries: 3
       start_period: 30s
+  consumables:
+    <<: *runtime
+    build: { context: ., dockerfile: infra/Dockerfile, args: { APP: consumables } }
+    image: plant-consumables:${RELEASE_TAG:-local}
+    environment:
+      <<: *app-env
+      CONSUMABLES_DATABASE_URL: mysql://plant_consumables:${CONSUMABLES_DB_PASSWORD}@mysql:3306/plant_consumables
+    depends_on:
+      { auth: { condition: service_healthy }, migrate: { condition: service_completed_successfully } }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/consumables/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 30s
   nginx:
     image: nginx:stable-alpine
     restart: unless-stopped
@@ -134,6 +159,7 @@ services:
         auth: { condition: service_healthy },
         portal: { condition: service_healthy },
         bag-filter: { condition: service_healthy },
+        consumables: { condition: service_healthy },
       }
   backup:
     image: mysql:8.4

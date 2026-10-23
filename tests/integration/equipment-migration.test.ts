@@ -228,7 +228,7 @@ test('grant migration renames scopes and adds L61/L62 only to bootstrap once', a
         "INSERT INTO users (id,name,email,email_verified,created_at,updated_at) VALUES (?,'Tester',?,1,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))",
         [id, `${id}@example.test`],
       );
-      await db.query("INSERT INTO app_grants VALUES (?,'bag-filter','admin',?)", [
+      await db.query("INSERT INTO app_grants(user_id,app_id,role,equipment) VALUES (?,'bag-filter','admin',?)", [
         id,
         JSON.stringify(['421-BF1', '422-BF2']),
       ]);

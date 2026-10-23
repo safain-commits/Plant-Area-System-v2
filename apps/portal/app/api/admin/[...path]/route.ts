@@ -5,7 +5,7 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
   try {
     const path = (await context.params).path.join('/');
     if (
-      !/^(users|audit|applications|applications\/bag-filter|users\/[a-zA-Z0-9-]{1,36}\/(access|grant|password))$/.test(
+      !/^(users|audit|applications|applications\/(bag-filter|consumables)|applications\/consumables\/locations|users\/[a-zA-Z0-9-]{1,36}\/(access|grant|password|grants\/(bag-filter|consumables)))$/.test(
         path,
       )
     )

@@ -1,6 +1,6 @@
 # Plant Area System v2
 
-Portal SSO dan aplikasi Bag Filter dengan Node.js 26, Next.js, Better Auth, MySQL 8.4, Drizzle, dan Nginx. Source aktif berada di `apps/`, `packages/`, `infra/`, dan `scripts/`. Ekspor lama tersimpan di `.arsip/` hanya pada workspace asal karena memuat data internal; folder itu tidak diterbitkan ke GitHub. Gunakan README ini dan PRD v2 sebagai acuan pengembangan saat ini.
+Portal SSO, Bag Filter, dan Consumable Room dengan Node.js 26, Next.js, Better Auth, MySQL 8.4, Drizzle, dan Nginx. Source aktif berada di `apps/`, `packages/`, `infra/`, dan `scripts/`. Ekspor lama tersimpan di `.arsip/` hanya pada workspace asal karena memuat data internal; folder itu tidak diterbitkan ke GitHub. Gunakan README ini dan PRD v2 sebagai acuan pengembangan saat ini.
 
 Dokumen: [audit](docs/AUDIT.md), [PRD v2](docs/PRD-v2.md), [rencana implementasi](docs/IMPLEMENTATION-PLAN.md), [kontrak API](docs/API.md), [tema UI](docs/UI-THEME.md), [operasional](docs/OPERATIONS.md), [hasil validasi](docs/VALIDATION.md).
 
@@ -16,11 +16,11 @@ Pada workspace Windows ini tersedia runtime lokal `.tools/node-v26.12.1-win-x64/
 $env:PATH = "$PWD\.tools\node-v26.12.1-win-x64;$env:PATH"
 ```
 
-Jangan mengedit package di `node_modules/@plant/*`; pnpm menghubungkannya ke source workspace. Edit `packages/contracts`, `packages/auth-core`, `packages/bag-core`, `packages/server`, atau `packages/ui` secara langsung.
+Jangan mengedit package di `node_modules/@plant/*`; pnpm menghubungkannya ke source workspace. Edit `packages/contracts`, `packages/auth-core`, `packages/bag-core`, `packages/consumables-core`, `packages/server`, atau `packages/ui` secara langsung.
 
 ## Menjalankan pilot produksi
 
-1. Salin `.env.example` menjadi `.env`. Isi `PUBLIC_ORIGIN` dengan origin HTTPS tanpa trailing slash, lima rahasia independen, dan akun bootstrap. Gunakan random hex 32 byte untuk password database/secret layanan, misalnya `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Jangan memakai nilai contoh.
+1. Salin `.env.example` menjadi `.env`. Isi `PUBLIC_ORIGIN` dengan origin HTTPS tanpa trailing slash, enam rahasia independen, dan akun bootstrap. Gunakan random hex 32 byte untuk password database/secret layanan, misalnya `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Jangan memakai nilai contoh.
 2. Pasang sertifikat organisasi `infra/certs/tls.crt` dan private key `infra/certs/tls.key`. DNS hostname harus menunjuk ke server ini. Lindungi `.env`, key, dan folder backup dari akses pengguna lain.
 3. Jalankan urutan berikut dari root repositori:
 
@@ -33,7 +33,7 @@ docker compose up -d auth portal bag-filter nginx backup
 docker compose ps
 ```
 
-Buka `PUBLIC_ORIGIN`. Login dengan akun bootstrap dan ganti password sementara. Akun bootstrap adalah admin portal serta admin Bag Filter untuk enam equipment (561, 562, 421, 422, L61, L62; semuanya BF1). Setelah itu buat akun dan scope melalui **Kelola akses**. Tidak ada registrasi publik atau transaksi demo yang dibuat migrasi. Untuk upgrade dari katalog empat equipment, ikuti bagian migrasi equipment di [panduan operasional](docs/OPERATIONS.md).
+Buka `PUBLIC_ORIGIN`. Login dengan akun bootstrap dan ganti password sementara. Akun bootstrap adalah admin portal, admin Consumable Room untuk seluruh lokasi, serta admin Bag Filter untuk enam equipment (561, 562, 421, 422, L61, L62; semuanya BF1). Setelah itu buat akun dan scope melalui **Kelola akses**. Tidak ada registrasi publik atau transaksi demo yang dibuat migrasi. Untuk upgrade dari katalog empat equipment, ikuti bagian migrasi equipment di [panduan operasional](docs/OPERATIONS.md).
 
 Hapus `BOOTSTRAP_PASSWORD` dari `.env` setelah digunakan dan simpan password baru di pengelola password organisasi. Bootstrap yang dijalankan ulang tidak mengubah akun yang sudah ada. Jangan memakai `docker compose down -v` pada deployment berisi data.
 
@@ -67,13 +67,20 @@ node --env-file=.test-runtime/host.env --import tsx --test --test-concurrency=1 
 pnpm exec playwright install chromium
 pnpm test:e2e
 node --env-file=.test-runtime/host.env --import tsx scripts/test-operations.ts
+node --env-file=.test-runtime/host.env --import tsx scripts/test-gateway-recovery.ts
 pnpm check:export # opsional; memeriksa arsip jika tersedia di workspace lokal
 ```
 
-Tes operasi me-restart MySQL/Bag Filter, menghentikan sementara Auth, dan membuat server restore sementara pada project uji. Jangan menjalankannya saat pengujian browser masih berlangsung. Laporan browser ada di `playwright-report/`, screenshot di `test-results/`; keduanya lokal dan tidak dikomit.
+Tes operasi me-restart MySQL/Bag Filter/Consumable Room, menghentikan sementara Auth, dan membuat server restore sementara pada project uji. Jangan menjalankannya saat pengujian browser masih berlangsung. Laporan browser ada di `playwright-report/`, screenshot di `test-results/`; keduanya lokal dan tidak dikomit.
 
 `pnpm dev` menjalankan Portal3000, Auth3001, Bag Filter3002. Lingkungan development harus memasok env tiap layanan dan gateway HTTPS yang meneruskan prefix/host dengan konfigurasi setara; Compose adalah cara menjalankan SSO lengkap yang telah diuji. Script Node tidak memuat `.env` otomatis; gunakan `node --env-file=... --import tsx ...`.
 
 Build terpisah: `pnpm --filter @plant/portal build`, `pnpm --filter @plant/auth build`, atau `pnpm --filter @plant/bag-filter build`. Dockerfile menerima `--build-arg APP=portal|auth|bag-filter`. Pembaruan satu aplikasi: build image baru, kemudian `docker compose up -d --no-deps bag-filter` (sesuaikan nama layanan). Simpan image/tag lama untuk rollback.
 
 Kebutuhan sebelum go-live: hostname dan sertifikat organisasi, rahasia deployment, salinan backup di luar host, uji orientasi oleh operator, serta restore drill pada server tujuan.
+
+## Consumable Room v1
+
+Aplikasi keempat tersedia pada `/consumables`: katalog master, stok per lokasi/rak, penerimaan pack/satuan dasar, pemakaian mandiri, saldo awal fisik, koreksi dan audit. Akses diatur terpisah dari Bag Filter melalui Kelola akses dengan role viewer/operator/storekeeper/admin dan scope lokasi.
+
+Mulai dari [PRD Consumable Room](docs/CONSUMABLE-ROOM-PRD.md), [kontrak API](docs/API.md), dan [panduan upgrade/impor](docs/OPERATIONS.md). Tambahkan secret database baru sesuai `.env.example`; migrasi mendukung volume lama tanpa reset. Katalog arsip tetap privat dan tidak dimasukkan ke Git/image. Impor hanya master, bukan stok lama; lokasi dan saldo awal harus diatur berdasarkan kondisi aktual.

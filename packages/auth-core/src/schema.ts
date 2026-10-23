@@ -88,6 +88,7 @@ export const grants = mysqlTable(
       .references(() => applications.id),
     role: varchar('role', { length: 16 }).notNull(),
     equipment: text('equipment').notNull(),
+    scope: text('scope'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.appId] })],
 );

@@ -43,3 +43,7 @@ Bag Filter memiliki fitur inti paling siap dipisahkan, tetapi fondasi autentikas
 - Audit awal belum menguji build/typecheck/browser. Validasi implementasi baru dicatat terpisah di `VALIDATION.md`.
 
 Tidak ada klaim bahwa modul di luar Bag Filter telah dipindahkan atau siap produksi.
+
+# Catatan audit lanjutan — Consumable Room, 23 Oktober 2026
+
+Source arsip Consumable Room menyediakan stok, detail, penerimaan pack, pemakaian eceran, pekerjaan/WO dan history. Layar aktif memakai 18 master dummy, sedangkan file katalog privat memuat 17.744 kode unik, 43 satuan dan 13 kategori. Katalog tidak membawa lokasi/rak/isi pack. Pemisahan aplikasi mengganti D1/prototype, izin jabatan, floating point, history maksimum 300, dan audit non-atomik dengan kontrak baru. Audit awal di bawah dipertahankan sebagai catatan historis. Lihat [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md).

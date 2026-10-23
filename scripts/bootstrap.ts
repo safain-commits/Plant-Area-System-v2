@@ -56,6 +56,15 @@ try {
     await tx
       .insert(grants)
       .values({ userId: id, appId: 'bag-filter', role: 'admin', equipment: JSON.stringify(equipmentCodes) });
+    await tx
+      .insert(grants)
+      .values({
+        userId: id,
+        appId: 'consumables',
+        role: 'admin',
+        equipment: '[]',
+        scope: JSON.stringify({ locationIds: [] }),
+      });
     await tx.insert(audit).values({
       id: randomUUID(),
       actorId: id,

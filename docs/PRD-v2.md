@@ -101,3 +101,7 @@ Approval transaksi, koreksi/pembatalan melalui UI, impor Sites/Excel, SAP, telem
 ## Referensi dokumentasi
 
 Dokumentasi diperiksa melalui Context7 (`/vercel/next.js`, `/better-auth/better-auth`, `/drizzle-team/drizzle-orm-docs`, `/websites/nginx_en`) dan implementasi package yang dipin. Rujukan: [Next.js Multi-Zones](https://nextjs.org/docs/app/guides/multi-zones), [Better Auth sessions](https://better-auth.com/docs/concepts/session-management), [Drizzle MySQL](https://orm.drizzle.team/docs/get-started-mysql), [Nginx auth_request](https://nginx.org/en/docs/http/ngx_http_auth_request_module.html), [Node release schedule](https://github.com/nodejs/Release/blob/main/schedule.json).
+
+# Perluasan rilis: Consumable Room v1
+
+Mulai 23 Oktober 2026, Consumable Room menjadi aplikasi operasional keempat pada `/consumables`, memakai SSO dan UI yang sama. Persyaratan lengkap pada [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md). Katalog arsip diimpor sebagai master saja; saldo dimulai dari hitung fisik lokasi. Hak viewer/operator/storekeeper/admin mengikuti scope lokasi, terpisah dari scope equipment Bag Filter. Ketentuan rilis pertama Portal/Bag Filter di bawah tetap menjadi baseline historis.

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function Audit() {
   const identity = await pageIdentity('/bag-filter/audit');
   return (
-    <Shell identity={identity} active="bag-filter">
+    <Shell identity={identity} active="bag-filter" activePath="/bag-filter/audit">
       <Heading
         eyebrow="BAG FILTER / AUDIT"
         title="Jejak pencatatan"

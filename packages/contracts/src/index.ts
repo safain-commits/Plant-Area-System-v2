@@ -6,7 +6,9 @@ export const bagBrands = ['Intensiv filter (Original)', 'Filtras', 'Cipta Medya'
 export type BagBrand = (typeof bagBrands)[number];
 export const bagRoles = ['viewer', 'operator', 'admin'] as const;
 export type BagRole = (typeof bagRoles)[number];
-export type Grant = { appId: string; role: BagRole; equipment: EquipmentCode[] };
+export type BagGrant = { appId: 'bag-filter'; role: BagRole; equipment: EquipmentCode[] };
+export type Grant = BagGrant | import('./consumables').ConsumablesGrant;
+export * from './consumables';
 export type Identity = {
   id: string;
   name: string;
@@ -211,7 +213,8 @@ export const appCatalog = [
     id: 'consumables',
     name: 'Consumable Room',
     description: 'Stok, penerimaan, dan pemakaian material.',
-    status: 'planned',
+    path: '/consumables',
+    status: 'active',
   },
   {
     id: 'drawings',

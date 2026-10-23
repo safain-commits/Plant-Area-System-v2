@@ -40,7 +40,13 @@ export default async function Profile() {
               {g.appId} · {g.role}
             </strong>
             <br />
-            <span className="muted">{g.equipment.join(', ')}</span>
+            <span className="muted">
+              {g.appId === 'bag-filter'
+                ? g.equipment.join(', ')
+                : g.role === 'admin'
+                  ? 'Seluruh lokasi'
+                  : `${g.locationIds.length} lokasi sesuai cakupan`}
+            </span>
           </p>
         ))}
         {!identity.grants.length && <p className="muted">Belum ada akses aplikasi.</p>}

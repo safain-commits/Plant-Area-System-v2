@@ -29,12 +29,14 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - run: node --env-file=.test-runtime/host.env --import tsx scripts/test-operations.ts
+      - name: Gateway recovery after application IP changes
+        run: node --env-file=.test-runtime/host.env --import tsx scripts/test-gateway-recovery.ts
       - name: Diagnose failed test stack
         if: failure()
         run: |
           if [ -f .test-runtime/stack.env ]; then
             docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml ps -a
-            docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml logs --no-color --tail=160 mysql auth portal bag-filter nginx
+            docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml logs --no-color --tail=160 mysql auth portal bag-filter consumables nginx
           fi
       - name: Stop test stack
         if: always()

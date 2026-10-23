@@ -338,7 +338,7 @@ test('MySQL transaction, history, retries, pagination and authentication', async
       .join('; ');
     const current = await identityForCookie(cookie);
     assert.equal(current.mustChangePassword, false);
-    assert.deepEqual(current.grants[0].equipment, ['561-BF1']);
+    assert.deepEqual(current.grants.find(g=>g.appId==='bag-filter')?.equipment, ['561-BF1']);
   });
   await t.test('8-hour absolute session, grant updates, expiry, disable, reset and logout', async () => {
     const [session] = await getAuthDb()

@@ -23,6 +23,22 @@ async function send(path: string, body: unknown) {
   return data;
 }
 export function AdminWorkspace() {
+  const [stockLocations, setStockLocations] = useState<{ id: string; name: string; active: boolean }[]>([]),
+    [scopeError, setScopeError] = useState('');
+  const loadScopes = useCallback(async () => {
+    try {
+      const r = await fetch('/api/admin/applications/consumables/locations', { cache: 'no-store' }),
+        d = await r.json();
+      if (!r.ok) throw Error(d.error);
+      setStockLocations(d.items);
+      setScopeError('');
+    } catch (e) {
+      setScopeError((e as Error).message);
+    }
+  }, []);
+  useEffect(() => {
+    void loadScopes();
+  }, [loadScopes]);
   const [users, setUsers] = useState<ManagedUser[]>([]),
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
@@ -156,7 +172,15 @@ export function AdminWorkspace() {
         {users
           .filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()))
           .map((u) => (
-            <UserRow key={`${u.id}-${JSON.stringify(u)}`} user={u} busy={busy} act={act} />
+            <UserRow
+              key={`${u.id}-${JSON.stringify(u)}`}
+              user={u}
+              busy={busy}
+              act={act}
+              stockLocations={stockLocations}
+              scopeError={scopeError}
+              loadScopes={loadScopes}
+            />
           ))}
       </div>
       <section className="panel" style={{ marginTop: 26 }}>
@@ -192,10 +216,16 @@ function UserRow({
   user: u,
   busy,
   act,
+  stockLocations,
+  scopeError,
+  loadScopes,
 }: {
   user: ManagedUser;
   busy: boolean;
   act: (p: string, b: unknown, s: string) => Promise<boolean>;
+  stockLocations: { id: string; name: string; active: boolean }[];
+  scopeError: string;
+  loadScopes: () => Promise<void>;
 }) {
   const confirm = useConfirmation();
   const grant = u.grants.find((g) => g.appId === 'bag-filter');
@@ -320,6 +350,98 @@ function UserRow({
           </div>
         </form>
       </details>
+      <hr className="divider" />
+      <ConsumablesAccess
+        user={u}
+        locations={stockLocations}
+        scopeError={scopeError}
+        reload={loadScopes}
+        busy={busy}
+        act={act}
+      />
     </details>
+  );
+}
+function ConsumablesAccess({
+  user,
+  locations,
+  scopeError,
+  reload,
+  busy,
+  act,
+}: {
+  user: ManagedUser;
+  locations: { id: string; name: string; active: boolean }[];
+  scopeError: string;
+  reload: () => Promise<void>;
+  busy: boolean;
+  act: (p: string, b: unknown, s: string) => Promise<boolean>;
+}) {
+  const grant = user.grants.find((g) => g.appId === 'consumables');
+  const [role, setRole] = useState(grant?.role || '');
+  return (
+    <form
+      className="form-stack"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        void act(
+          `users/${user.id}/grants/consumables`,
+          {
+            grant: role
+              ? { appId: 'consumables', role, locationIds: role === 'admin' ? [] : f.getAll('locations') }
+              : null,
+          },
+          'Akses Consumable Room diperbarui.',
+        );
+      }}
+    >
+      <h3>Akses Consumable Room</h3>
+      <label>
+        Role Consumable Room
+        <Select name="consumablesRole" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+          <option value="">Tidak diberi akses</option>
+          <option value="viewer">Viewer — baca stok</option>
+          <option value="operator">Operator — pemakaian mandiri</option>
+          <option value="storekeeper">Petugas stok — penerimaan & pemakaian</option>
+          <option value="admin">Admin — seluruh lokasi & pengelolaan</option>
+        </Select>
+      </label>
+      {scopeError && (
+        <p className="notice error" role="alert">
+          {scopeError}{' '}
+          <Button className="secondary small" type="button" onClick={() => void reload()}>
+            Muat ulang lokasi
+          </Button>
+        </p>
+      )}
+      {role === 'admin' ? (
+        <p className="fine">Admin aplikasi mengelola seluruh lokasi, termasuk lokasi baru.</p>
+      ) : (
+        <div className="check-grid">
+          {locations.map((l) => (
+            <label key={l.id}>
+              <input
+                name="locations"
+                type="checkbox"
+                value={l.id}
+                disabled={!l.active || !role}
+                defaultChecked={grant?.locationIds.includes(l.id)}
+              />
+              {l.name}
+              {!l.active ? ' · Nonaktif' : ''}
+            </label>
+          ))}
+          {!locations.length && (
+            <p className="fine">Belum ada lokasi. Admin Consumable Room dapat membuatnya dari Pengelolaan.</p>
+          )}
+        </div>
+      )}
+      <div>
+        <Button className="primary" busy={busy} disabled={!!role && role !== 'admin' && !!scopeError}>
+          Simpan akses Consumable Room
+        </Button>
+      </div>
+    </form>
   );
 }

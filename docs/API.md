@@ -78,3 +78,37 @@ Semua endpoint berikut memakai identitas server, permission read Bag Filter, sco
 - Identitas internal Auth menambahkan sessionExpiresAt (ISO UTC). Nilai hanya untuk timer; kedaluwarsa tetap diperiksa server, tidak dapat diperpanjang oleh UI.
 
 Tidak ada migrasi database pada UI refresh ini.
+
+## Consumable Room v1
+
+Base URL `/consumables/api`. Cookie/origin/no-store/error mengikuti kontrak platform. Semua quantity/packSize/balanceAfter berupa string desimal maksimal DECIMAL(18,6), bukan JSON number. Waktu dari server UTC, ditampilkan WIB. Pencatat tidak boleh dikirim klien.
+
+| Method     | Path                                                                                   | Kontrak                                                                                                                                     |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET        | `/locations`                                                                           | `{items}` sesuai scope; admin seluruh lokasi                                                                                                |
+| GET        | `/materials?q=&category=&active=&cursor=&limit=`                                       | `{items,nextCursor}`, master global tanpa saldo luar scope                                                                                  |
+| GET        | `/materials/:id`                                                                       | `{material,stocks}`; stocks dibatasi lokasi                                                                                                 |
+| GET        | `/inventory?q=&locationId=&materialId=&category=&availability=&active=&cursor=&limit=` | `{items,nextCursor}`; availability available/empty/uncounted/critical                                                                       |
+| GET        | `/movements?q=&locationId=&materialId=&type=&from=&to=&cursor=&limit=`                 | `{items,nextCursor}`; tanggal YYYY-MM-DD WIB, batas to inklusif                                                                             |
+| GET        | `/movements/:id`                                                                       | `{movement}`, 404 untuk transaksi di luar scope                                                                                             |
+| POST/PATCH | `/materials[/:id]`                                                                     | `{mmid,description,commonName?,unit,category,mrpType?,critical?,packSize?,active?,version?}`                                                |
+| POST/PATCH | `/locations[/:id]`                                                                     | `{name,active?,version?}`                                                                                                                   |
+| POST/PATCH | `/inventory[/:id]`                                                                     | `{materialId,locationId,rack?,active?,version?}`                                                                                            |
+| POST       | `/opening-balances`, `/adjustments`                                                    | `{materialId,locationId,quantity,reason,expectedVersion}`                                                                                   |
+| POST       | `/receipts`                                                                            | Base: `{materialId,locationId,mode:"base",quantity,reference}`; pack: `{materialId,locationId,mode:"pack",packs,materialVersion,reference}` |
+| POST       | `/issues`                                                                              | `{materialId,locationId,quantity,job,wo?,reference?}`                                                                                       |
+| GET        | `/dashboard?year=`                                                                     | KPI material–lokasi, Q1–Q4 jumlah transaksi per jenis, recent                                                                               |
+| GET        | `/activity`                                                                            | 12 transaksi terbaru dalam scope                                                                                                            |
+| GET        | `/discovery?q=`                                                                        | Maksimal 8 master dan 8 transaksi dalam scope                                                                                               |
+| GET        | `/audit?cursor=`                                                                       | Audit admin, 50 per halaman                                                                                                                 |
+| GET        | `/reconciliation`                                                                      | Admin; perbedaan saldo dengan ledger, read-only                                                                                             |
+
+Daftar default 50, limit 1–50; autocomplete memakai 8. Pencarian maksimal 200 karakter, token AND, wildcard literal di-escape. `active=all` menyertakan nonaktif. Pagination keyset memakai cursor opaque; inventory menggunakan ID pasangan material–lokasi, bukan ID master.
+
+PATCH wajib version terkini. MMID tidak dapat berubah. Unit dikunci setelah transaksi pertama. Penonaktifan ditolak bila saldo positif. POST stok wajib `Idempotency-Key` 8–128 karakter `[A-Za-z0-9._:-]`; respons `{movement,replayed}`, 201 baru atau 200 replay. Scope dan tindakan tetap diverifikasi sebelum replay. Payload berubah dengan key sama, saldo kurang, opening kedua, pack/versi stale, dan koreksi stale menghasilkan 409. Quantity fisik nol hanya diizinkan untuk opening/adjustment.
+
+Grant baru: POST `/auth/manage/admin/users/:id/grants/:appId`, diproksi Portal sebagai `/api/admin/users/:id/grants/:appId`. Body `{grant:null}` mencabut aplikasi target saja, atau `{grant:{appId:"consumables",role,locationIds}}`. Role viewer/operator/storekeeper wajib lokasi aktif unik; admin memakai `locationIds:[]` dan mencakup seluruh lokasi. Grant Bag Filter tetap `{appId:"bag-filter",role,equipment}`; endpoint legacy `/grant` tetap khusus Bag Filter. POST `/auth/manage/admin/applications/:appId` mendukung dua aplikasi yang sudah dirilis.
+
+Admin portal membaca daftar scope melalui GET `/auth/manage/admin/applications/consumables/locations`. Auth meminta GET `/consumables/internal/locations` memakai service token, tanpa sesi/Auth callback. Gateway memblokir endpoint tersebut. Kegagalan metadata menghasilkan 503 tanpa mengubah grant.
+
+GET `/consumables/api/categories` mengembalikan `{items:string[]}` kategori master untuk filter dropdown; memerlukan akses read Consumables.

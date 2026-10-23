@@ -1,5 +1,5 @@
 import { pageIdentity } from '@plant/server';
-import { Shell, Heading, Dashboard } from '@plant/ui';
+import { Shell, Heading, Dashboard, StockSummary } from '@plant/ui';
 import { appCatalog } from '@plant/contracts';
 export const dynamic = 'force-dynamic';
 export default async function Portal() {
@@ -21,6 +21,9 @@ export default async function Portal() {
         </span>
       </Heading>
       {grant && <Dashboard />}
+      {identity.grants.some((g) => g.appId === 'consumables') && (
+        <StockSummary identity={identity} variant="compact" />
+      )}
       <div className="section-title">
         <h2>Aplikasi Anda</h2>
         <small>Siap digunakan</small>
@@ -35,7 +38,11 @@ export default async function Portal() {
             <h3>{app.name}</h3>
             <p>{app.description}</p>
             <div className="card-foot">
-              <span>{grant?.role === 'viewer' ? 'Lihat data' : 'Buka aplikasi'}</span>
+              <span>
+                {identity.grants.find((g) => g.appId === app.id)?.role === 'viewer'
+                  ? 'Lihat data'
+                  : 'Buka aplikasi'}
+              </span>
               <span>↗</span>
             </div>
           </a>
@@ -43,7 +50,7 @@ export default async function Portal() {
       </div>
       {!allowed.length && (
         <div className="panel empty">
-          Belum ada akses aplikasi. Hubungi admin portal untuk menentukan role dan equipment Anda.
+          Belum ada akses aplikasi. Hubungi admin portal untuk menentukan role dan cakupan Anda.
         </div>
       )}
       <div className="section-title">

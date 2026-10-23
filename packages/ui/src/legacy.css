@@ -32,7 +32,7 @@ button {
   cursor: pointer;
   transition: background 0.15s;
 }
-button:hover:not(:disabled) {
+button:where(:hover:not(:disabled)) {
   background: var(--control-hover);
 }
 button:disabled {

@@ -1,5 +1,5 @@
 import { identityForCookie } from '@plant/auth-core';
-import { AppError, hasPermission, safeReturnTo } from '@plant/contracts';
+import { AppError, hasPermission, canConsume, safeReturnTo } from '@plant/contracts';
 import { failure, verifyInternal } from '@plant/server';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
@@ -7,7 +7,10 @@ export async function GET(request: Request) {
     verifyInternal(request);
     const identity = await identityForCookie(request.headers.get('cookie') || '');
     const app = request.headers.get('x-plant-app');
-    if (app !== 'portal' && app !== 'bag-filter') throw new AppError(403, 'Aplikasi tidak dikenal.');
+    if (app !== 'portal' && app !== 'bag-filter' && app !== 'consumables')
+      throw new AppError(403, 'Aplikasi tidak dikenal.');
+    if (app === 'consumables' && !canConsume(identity, 'read'))
+      throw new AppError(403, 'Akses Consumable Room belum diberikan.');
     if (app === 'bag-filter' && !hasPermission(identity, 'read'))
       throw new AppError(403, 'Akses Bag Filter belum diberikan.');
     return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });

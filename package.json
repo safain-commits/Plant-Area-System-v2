@@ -19,7 +19,10 @@
     "db:generate:bag": "drizzle-kit generate --config packages/bag-core/drizzle.config.ts",
     "check:export": "node scripts/check-export.mjs",
     "format": "prettier --write apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml",
-    "format:check": "prettier --check apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml"
+    "format:check": "prettier --check apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml",
+    "db:generate:consumables": "drizzle-kit generate --config packages/consumables-core/drizzle.config.ts",
+    "consumables:import": "tsx scripts/import-consumables.ts",
+    "consumables:reconcile": "tsx scripts/reconcile-consumables.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -38,6 +41,7 @@
     "@plant/server": "workspace:*",
     "better-auth": "1.7.12",
     "drizzle-orm": "0.45.4",
-    "mysql2": "3.24.6"
+    "mysql2": "3.24.6",
+    "@plant/consumables-core": "workspace:*"
   }
 }

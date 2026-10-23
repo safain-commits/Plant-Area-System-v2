@@ -40,3 +40,4 @@ export function Heading({
 export { Dashboard, AnimatedNumber } from './dashboard';
 
 export { useConfirmation } from './confirm';
+export { StockSummary } from './stock-summary';
