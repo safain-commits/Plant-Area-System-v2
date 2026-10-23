@@ -7,6 +7,7 @@ import {
   equipment,
   getEquipment,
   positionKey,
+  equipmentPositions,
   type Identity,
   type Position,
 } from '@plant/contracts';
@@ -58,6 +59,7 @@ export async function createReplacement(
       async (tx) => {
         const [existing] = await tx.select().from(batches).where(match);
         if (existing) return replay(existing);
+        if (!value.brand) throw new AppError(400, 'Brand/Pabrikan wajib dipilih.');
         const id = randomUUID(),
           now = new Date(),
           installedAt = new Date(value.installedAt);
@@ -69,6 +71,7 @@ export async function createReplacement(
           installedAt,
           reason: value.reason,
           wo: value.wo,
+          brand: value.brand,
           createdAt: now,
           idempotencyKey: key,
           requestHash: hash,
@@ -89,7 +92,7 @@ export async function createReplacement(
           actorId: actor.id,
           actorName: actor.name,
           action: 'bag.batch_created',
-          details: JSON.stringify({ count: value.positions.length, wo: value.wo }),
+          details: JSON.stringify({ count: value.positions.length, wo: value.wo, brand: value.brand }),
           createdAt: now,
         });
         return { batchId: id, count: value.positions.length, replayed: false };
@@ -111,12 +114,7 @@ export async function seedEquipment() {
       .insert(equipmentTable)
       .values({ code: eq.code, perSide: eq.perSide })
       .onDuplicateKeyUpdate({ set: { code: eq.code } });
-    const rows: (typeof coordinates.$inferInsert)[] = [];
-    for (const side of ['Utara', 'Selatan'])
-      for (let compartment = 1; compartment <= eq.perSide; compartment++)
-        for (let column = 1; column <= 8; column++)
-          for (let row = 1; row <= 17; row++)
-            rows.push({ equipmentCode: eq.code, side, compartment, column, row });
+    const rows = equipmentPositions(eq).map((p) => ({ equipmentCode: eq.code, ...p }));
     for (let start = 0; start < rows.length; start += 500)
       await db
         .insert(coordinates)
@@ -139,7 +137,7 @@ export async function snapshot(code: string) {
     equipment: eq,
     positions,
     recorded: positions.length,
-    total: eq.compartments * 136,
+    total: eq.compartments * eq.bagsPerCompartment,
     serverTime: new Date().toISOString(),
   };
 }
@@ -171,17 +169,31 @@ export async function batchHistory(code: string, query = '', after: string | nul
   if (query.length > 200) throw new AppError(400, 'Pencarian maksimal 200 karakter.');
   const c = cursor(after),
     q = likeText(query.trim());
+  const compartmentLabel = sql`CASE ${sql.join(
+    eq.sides.map(
+      (s) =>
+        sql`WHEN p.side=${s.name} THEN ELT(p.compartment,${sql.join(
+          s.labels.map((label) => sql`${label}`),
+          sql`,`,
+        )})`,
+    ),
+    sql` `,
+  )} ELSE '' END`;
+  const columnLabels = sql.join(
+    eq.columns.split('').map((letter) => sql`${letter}`),
+    sql`,`,
+  );
   const filter = query.trim()
     ? sql`AND (b.wo LIKE ${q} OR b.reason LIKE ${q}
     OR DATE_FORMAT(DATE_ADD(b.installed_at, INTERVAL 7 HOUR),'%Y-%m-%d %H:%i') LIKE ${q}
-    OR EXISTS (SELECT 1 FROM installations p WHERE p.batch_id=b.id AND CONCAT(IF(p.side='Utara',p.compartment,${eq.compartments + 1}-p.compartment),' ',ELT(p.col,'H','G','F','E','D','C','B','A'),p.row_no) LIKE ${q}))`
+    OR EXISTS (SELECT 1 FROM installations p WHERE p.batch_id=b.id AND CONCAT(${compartmentLabel},' ',ELT(p.col,${columnLabels}),p.row_no) LIKE ${q}))`
     : sql``;
   const boundary = c
     ? sql`AND (b.created_at < ${new Date(c.at)} OR (b.created_at=${new Date(c.at)} AND b.id < ${c.id}))`
     : sql``;
   const [raw] = await getBagDb()
     .execute(sql`SELECT b.id,b.equipment_code AS equipmentCode,b.installed_at AS installedAt,b.created_at AS createdAt,
-    b.reason,b.wo,b.actor_name AS actorName,b.position_count AS positionCount FROM replacement_batches b WHERE b.equipment_code=${code}
+    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.position_count AS positionCount FROM replacement_batches b WHERE b.equipment_code=${code}
     ${filter} ${boundary} ORDER BY b.created_at DESC,b.id DESC LIMIT 51`);
   type Row = {
     id: string;
@@ -190,6 +202,7 @@ export async function batchHistory(code: string, query = '', after: string | nul
     createdAt: Date;
     reason: string;
     wo: string;
+    brand: string | null;
     actorName: string;
     positionCount: number;
   };
@@ -232,7 +245,7 @@ export async function positionHistory(code: string, p: Position, after: string |
     : sql``;
   const [raw] = await getBagDb()
     .execute(sql`SELECT CAST(r.id AS CHAR) AS id,r.batch_id AS batchId,r.installed_at AS installedAt,r.endedAt,
-    b.reason,b.wo,b.actor_name AS actorName,b.created_at AS createdAt FROM
+    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.created_at AS createdAt FROM
     (SELECT i.*,LEAD(installed_at) OVER (ORDER BY installed_at,id) AS endedAt FROM installations i
       WHERE equipment_code=${code} AND side=${p.side} AND compartment=${p.compartment} AND col=${p.column} AND row_no=${p.row}) r
     JOIN replacement_batches b ON b.id=r.batch_id ${boundary} ORDER BY r.installed_at DESC,r.id DESC LIMIT 51`);
@@ -243,6 +256,7 @@ export async function positionHistory(code: string, p: Position, after: string |
     endedAt: Date | null;
     reason: string;
     wo: string;
+    brand: string | null;
     actorName: string;
     createdAt: Date;
   };

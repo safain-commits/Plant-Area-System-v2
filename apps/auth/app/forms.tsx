@@ -40,7 +40,9 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           {error}
         </p>
       )}
-      <button disabled={busy}>{busy ? 'Memeriksa akun…' : 'Masuk →'}</button>
+      <button className="primary" disabled={busy}>
+        {busy ? 'Memeriksa akun…' : 'Masuk →'}
+      </button>
     </form>
   );
 }
@@ -113,7 +115,9 @@ export function PasswordForm({ temporary }: { temporary: boolean }) {
           {error}
         </p>
       )}
-      <button disabled={busy}>{busy ? 'Menyimpan…' : 'Ganti password'}</button>
+      <button className="primary" disabled={busy}>
+        {busy ? 'Menyimpan…' : 'Ganti password'}
+      </button>
       <p className="fine">Seluruh sesi akan diakhiri. Masuk kembali dengan password baru.</p>
     </form>
   );

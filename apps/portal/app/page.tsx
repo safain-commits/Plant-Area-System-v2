@@ -15,7 +15,7 @@ export default async function Portal() {
         title={`Selamat datang, ${identity.name.split(' ')[0]}.`}
         description="Akses aplikasi maintenance sesuai peran dan area kerja Anda."
       >
-        <span className="badge">
+        <span className="badge success">
           <i className="live-dot" />
           Akun aktif
         </span>
@@ -67,7 +67,7 @@ export default async function Portal() {
           <a className="app-card" href={app.path} key={app.id}>
             <div className="card-top">
               <span className="app-icon">▦</span>
-              <span className="badge">Aktif</span>
+              <span className="badge success">Aktif</span>
             </div>
             <h3>{app.name}</h3>
             <p>{app.description}</p>

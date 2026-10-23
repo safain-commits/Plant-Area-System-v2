@@ -53,7 +53,9 @@ export function ProfileForm({ identity }: { identity: Identity }) {
         </p>
       )}
       <div>
-        <button disabled={busy}>{busy ? 'Menyimpan…' : 'Simpan profil'}</button>
+        <button className="primary" disabled={busy}>
+          {busy ? 'Menyimpan…' : 'Simpan profil'}
+        </button>
       </div>
     </form>
   );

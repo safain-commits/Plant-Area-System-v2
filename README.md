@@ -2,7 +2,9 @@
 
 Portal SSO dan aplikasi Bag Filter dengan Node.js 26, Next.js, Better Auth, MySQL 8.4, Drizzle, dan Nginx. Source aktif berada di `apps/`, `packages/`, `infra/`, dan `scripts/`. Ekspor lama tersimpan di `.arsip/` hanya pada workspace asal karena memuat data internal; folder itu tidak diterbitkan ke GitHub. Gunakan README ini dan PRD v2 sebagai acuan pengembangan saat ini.
 
-Dokumen: [audit](docs/AUDIT.md), [PRD v2](docs/PRD-v2.md), [rencana implementasi](docs/IMPLEMENTATION-PLAN.md), [kontrak API](docs/API.md), [operasional](docs/OPERATIONS.md), [hasil validasi](docs/VALIDATION.md).
+Dokumen: [audit](docs/AUDIT.md), [PRD v2](docs/PRD-v2.md), [rencana implementasi](docs/IMPLEMENTATION-PLAN.md), [kontrak API](docs/API.md), [tema UI](docs/UI-THEME.md), [operasional](docs/OPERATIONS.md), [hasil validasi](docs/VALIDATION.md).
+
+Ikon matahari/bulan di topbar atau form login mengganti **Terang/Gelap** dalam satu klik. Pilihan **Sistem** tersedia di **Profil ? Tampilan ? Preferensi tema**. Default mengikuti perangkat; pilihan tersimpan pada browser yang sama untuk seluruh aplikasi. Palette industrial Lime/Charcoal memakai sidebar gelap, sementara warna umur bag tetap mengikuti skala operasional.
 
 ## Persiapan
 
@@ -31,7 +33,7 @@ docker compose up -d auth portal bag-filter nginx backup
 docker compose ps
 ```
 
-Buka `PUBLIC_ORIGIN`. Login dengan akun bootstrap dan ganti password sementara. Akun bootstrap adalah admin portal serta admin Bag Filter untuk empat equipment. Setelah itu buat akun dan scope melalui **Kelola akses**. Tidak ada registrasi publik atau transaksi demo yang dibuat migrasi.
+Buka `PUBLIC_ORIGIN`. Login dengan akun bootstrap dan ganti password sementara. Akun bootstrap adalah admin portal serta admin Bag Filter untuk enam equipment (561, 562, 421, 422, L61, L62; semuanya BF1). Setelah itu buat akun dan scope melalui **Kelola akses**. Tidak ada registrasi publik atau transaksi demo yang dibuat migrasi. Untuk upgrade dari katalog empat equipment, ikuti bagian migrasi equipment di [panduan operasional](docs/OPERATIONS.md).
 
 Hapus `BOOTSTRAP_PASSWORD` dari `.env` setelah digunakan dan simpan password baru di pengelola password organisasi. Bootstrap yang dijalankan ulang tidak mengubah akun yang sudah ada. Jangan memakai `docker compose down -v` pada deployment berisi data.
 

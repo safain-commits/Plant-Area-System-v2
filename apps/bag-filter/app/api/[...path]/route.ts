@@ -1,4 +1,4 @@
-import { AppError, getEquipment, equipment, positionSchema } from '@plant/contracts';
+import { AppError, getEquipment, equipment, positionSchema, validPosition } from '@plant/contracts';
 import { apiIdentity, failure, readJson, verifyOrigin } from '@plant/server';
 import { snapshot, batchHistory, createReplacement, positionHistory, auditHistory } from '@plant/bag-core';
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export async function GET(request: Request, context: Context) {
         column: Number(params.get('column')),
         row: Number(params.get('row')),
       });
-      if (!p.success || p.data.compartment > eq.perSide) throw new AppError(400, 'Koordinat tidak valid.');
+      if (!p.success || !validPosition(p.data, eq)) throw new AppError(400, 'Koordinat tidak valid.');
       return json(await positionHistory(code, p.data, params.get('cursor')));
     }
     throw new AppError(404, 'Endpoint tidak ditemukan.');

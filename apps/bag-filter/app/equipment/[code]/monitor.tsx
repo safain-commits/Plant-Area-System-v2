@@ -3,7 +3,12 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   ageHours,
   bagColor,
+  bagBrands,
+  type BagBrand,
   displayCompartment,
+  equipmentSideSummary,
+  rowOrder,
+  rowDividerBefore,
   formatDate,
   positionKey,
   positionLabel,
@@ -12,7 +17,7 @@ import {
   type Equipment,
   type Position,
 } from '@plant/contracts';
-import { Heading } from '@plant/ui';
+import { Heading, dataTextTone } from '@plant/ui';
 type Installed = Position & { id: string; batchId: string; installedAt: string };
 type Snapshot = {
   equipment: Equipment;
@@ -22,6 +27,7 @@ type Snapshot = {
   serverTime: string;
 };
 type Batch = {
+  brand: BagBrand | null;
   id: string;
   installedAt: string;
   createdAt: string;
@@ -32,6 +38,7 @@ type Batch = {
   positions: Position[];
 };
 type TimelineItem = {
+  brand: BagBrand | null;
   id: string;
   installedAt: string;
   endedAt: string | null;
@@ -47,18 +54,19 @@ async function read<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (!r.ok) throw Error(d.error || 'Data belum dapat dimuat.');
   return d;
 }
-const letters = 'HGFEDCBA';
 export default function BagMonitor({ initial, writable }: { initial: Snapshot; writable: boolean }) {
   const [data, setData] = useState(initial),
     [now, setNow] = useState(() => Date.parse(initial.serverTime));
   const eq = data.equipment,
+    letters = eq.columns,
     base = `/bag-filter/api/equipment/${eq.code}`;
-  const [side, setSide] = useState<Position['side']>('Utara'),
+  const [side, setSide] = useState<Position['side']>(eq.sides[0].name),
     [compartment, setCompartment] = useState(1),
     [selected, setSelected] = useState<Position[]>([]),
     [focused, setFocused] = useState<Position | null>(null);
   const [installedAt, setInstalledAt] = useState(() => wibInput(Date.parse(initial.serverTime))),
     [reason, setReason] = useState(''),
+    [brand, setBrand] = useState<BagBrand | ''>(''),
     [wo, setWo] = useState('');
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -166,6 +174,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
         installedAt: wibToIso(installedAt),
         reason,
         wo,
+        brand,
       });
       if (retry.current?.payload !== payload) retry.current = { key: crypto.randomUUID(), payload };
       const response = await fetch(`${base}/batches`, {
@@ -180,6 +189,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
       );
       setSelected([]);
       setReason('');
+      setBrand('');
       setWo('');
       setInstalledAt(wibInput());
       retry.current = null;
@@ -237,9 +247,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
         <article className="stat">
           <span>KOMPARTEMEN</span>
           <strong>{eq.compartments}</strong>
-          <small>
-            {eq.perSide} Utara / {eq.perSide} Selatan
-          </small>
+          <small>{equipmentSideSummary(eq)}</small>
         </article>
         <article className="stat">
           <span>SKALA UMUR BAG</span>
@@ -264,9 +272,10 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
           </div>
           <span className="badge">{eq.compartments} comp.</span>
         </div>
-        {(['Utara', 'Selatan'] as const).map((band, index) => (
+        {eq.sides.map(({ name: band }, index) => (
           <div
             className="overview-band"
+            aria-label={`Sisi ${band}`}
             key={band}
             style={{ gridTemplateColumns: `repeat(${eq.perSide},minmax(0,1fr))` }}
           >
@@ -285,11 +294,22 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                       {display}
                     </button>
                   )}
+                  {eq.centeredLabels && index === 1 && (
+                    <div className="overview-labels">
+                      <span />
+                      {letters.split('').map((letter) => (
+                        <span key={letter}>{letter}</span>
+                      ))}
+                    </div>
+                  )}
                   <div className="overview-matrix">
-                    {Array.from({ length: 17 }, (_, r) => {
-                      const row = band === 'Utara' ? 17 - r : r + 1;
+                    {rowOrder(eq, band).map((row) => {
                       return (
-                        <div className="overview-line" key={row}>
+                        <div
+                          className={`overview-line${rowDividerBefore(eq, band, row) ? ' overview-stiffener' : ''}`}
+                          key={row}
+                        >
+                          <span className="overview-row-number">{row}</span>
                           {Array.from({ length: 8 }, (_, c) => {
                             const p = { side: band, compartment: local, column: c + 1, row },
                               key = positionKey(p),
@@ -300,7 +320,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                                 key={c}
                                 className="overview-cell"
                                 tabIndex={-1}
-                                style={{ background: picked ? '#ed9b36' : bagColor(age) }}
+                                style={{ background: picked ? 'var(--bag-selected)' : bagColor(age) }}
                                 aria-label={`${display} ${letters[c]}${row}`}
                                 aria-pressed={picked}
                                 title={`Comp. ${display} · ${letters[c]}${row} · ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
@@ -308,16 +328,18 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                               />
                             );
                           })}
-                          <span className="overview-row-number">{row}</span>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="overview-labels">
-                    {letters.split('').map((letter) => (
-                      <span key={letter}>{letter}</span>
-                    ))}
-                  </div>
+                  {(!eq.centeredLabels || index === 0) && (
+                    <div className="overview-labels">
+                      <span />
+                      {letters.split('').map((letter) => (
+                        <span key={letter}>{letter}</span>
+                      ))}
+                    </div>
+                  )}
                   {index === 0 && (
                     <button
                       className="overview-title"
@@ -335,7 +357,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
         ))}
         <div className="legend">
           <span>
-            <i style={{ background: '#ed9b36' }} />
+            <i style={{ background: 'var(--bag-selected)' }} />
             Dipilih
           </span>
           <span>
@@ -350,6 +372,11 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
             </span>
           ))}
         </div>
+        {eq.rowDividerAfter !== null && (
+          <p className="fine">
+            Jeda visual antara baris {eq.rowDividerAfter} dan {eq.rowDividerAfter + 1}.
+          </p>
+        )}
         <p className="fine">
           Pilih nomor kompartemen untuk membuka detail. Pilihan lintas kompartemen tersimpan dalam satu
           pekerjaan.
@@ -374,8 +401,9 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                   setFocused(null);
                 }}
               >
-                <option>Utara</option>
-                <option>Selatan</option>
+                {eq.sides.map((s) => (
+                  <option key={s.name}>{s.name}</option>
+                ))}
               </select>
             </label>
             <label>
@@ -396,16 +424,23 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
             </label>
           </div>
           <div className="bag-grid" role="group" aria-label={`Detail kompartemen ${currentComp}`}>
+            <span />
             {letters.split('').map((letter) => (
               <span className="grid-label" key={letter}>
                 {letter}
               </span>
             ))}
-            <span />
-            {Array.from({ length: 17 }, (_, r) => {
-              const row = side === 'Utara' ? 17 - r : r + 1;
+            {rowOrder(eq, side).map((row) => {
               return (
                 <Fragment key={row}>
+                  {rowDividerBefore(eq, side, row) && (
+                    <div
+                      className="bag-stiffener"
+                      role="separator"
+                      aria-label={`Jeda antara baris ${eq.rowDividerAfter} dan ${eq.rowDividerAfter! + 1}`}
+                    />
+                  )}
+                  <span className="grid-label row-number">{row}</span>
                   {Array.from({ length: 8 }, (_, c) => {
                     const p = { side, compartment, column: c + 1, row },
                       key = positionKey(p),
@@ -417,8 +452,10 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                         type="button"
                         className="bag-cell"
                         style={{
-                          background: picked ? '#ed9b36' : bagColor(age),
-                          color: !picked && age !== null && age >= 450 * 24 ? '#fff' : '#153d39',
+                          background: picked ? 'var(--bag-selected)' : bagColor(age),
+                          color: picked
+                            ? 'var(--on-selection)'
+                            : `var(--data-${dataTextTone(bagColor(age))})`,
                         }}
                         aria-pressed={picked}
                         aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
@@ -428,7 +465,6 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                       </button>
                     );
                   })}
-                  <span className="grid-label">{row}</span>
                 </Fragment>
               );
             })}
@@ -480,6 +516,25 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                     />
                   </label>
                   <label>
+                    Brand/Pabrikan
+                    <select
+                      aria-label="Brand/Pabrikan"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value as BagBrand | '')}
+                      required
+                      disabled={busy}
+                    >
+                      <option value="" disabled>
+                        Pilih Brand/Pabrikan
+                      </option>
+                      {bagBrands.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
                     Alasan penggantian / pemasangan awal
                     <textarea
                       value={reason}
@@ -500,13 +555,13 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                       disabled={busy}
                     />
                   </label>
-                  <button disabled={busy || !selected.length}>
+                  <button className="primary" disabled={busy || !selected.length}>
                     {busy ? 'Menyimpan…' : `Simpan ${selected.length} bag`}
                   </button>
                 </form>
                 <p className="fine" style={{ marginTop: 15, marginBottom: 0 }}>
-                  Satu tanggal, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang disimpan tidak dapat
-                  diubah pada rilis ini.
+                  Satu tanggal, Brand/Pabrikan, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang
+                  disimpan tidak dapat diubah pada rilis ini.
                 </p>
               </>
             ) : (
@@ -546,6 +601,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                     <article key={item.id}>
                       <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
                       <small>{formatDate(item.installedAt)} WIB</small>
+                      <small>Brand/Pabrikan: {item.brand || 'Belum tercatat'}</small>
                       <strong className={!item.endedAt ? 'now' : ''}>
                         {Math.floor(hours / 24).toLocaleString('id-ID')} hari
                       </strong>
@@ -599,7 +655,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Contoh: WO-001, 2026-10-01, atau 18 B1"
+            placeholder={`Contoh: WO-001, 2026-10-01, atau ${positionLabel({ side: eq.sides[0].name, compartment: 1, column: 1, row: eq.rows }, eq)}`}
             maxLength={200}
           />
         </label>
@@ -629,6 +685,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                   <small>
                     {batch.reason} · dipasang {formatDate(batch.installedAt)} WIB
                   </small>
+                  <small>Brand/Pabrikan: {batch.brand || 'Belum tercatat'}</small>
                   <small>
                     {batch.actorName} · dicatat {formatDate(batch.createdAt)} WIB
                   </small>

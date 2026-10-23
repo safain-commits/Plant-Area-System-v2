@@ -1,5 +1,7 @@
 # Audit baseline Plant Area System
 
+> Koreksi lapangan setelah audit awal (22 Oktober 2026): kode yang benar adalah **422-BF1**; 421/422 memakai sisi A/B dan kolom A–H. Katalog v2.1 menambah L61/L62, masing-masing 16 kompartemen × 128 bag, dengan sisi Timur/Barat. Uraian audit awal di bawah tetap merekam keadaan source ekspor; acuan implementasi terbaru adalah PRD v2.1.
+
 Tanggal baseline: 22 Oktober 2026. PRD referensi: `Plant_Area_System_PRD.md` versi 1.0, 1 Oktober 2026, tersimpan di arsip lokal workspace asal. Audit ini memisahkan kondisi ekspor lama dari implementasi v2 di `apps/` dan `packages/`.
 
 ## Kesimpulan

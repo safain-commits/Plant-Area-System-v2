@@ -1,11 +1,14 @@
 import { pageIdentity } from '@plant/server';
 import { PasswordForm } from '../forms';
-import { LogoutButton } from '@plant/ui';
+import { LogoutButton, ThemeToggle } from '@plant/ui';
 export const dynamic = 'force-dynamic';
 export default async function ChangePassword() {
   const identity = await pageIdentity('/', true);
   return (
     <main className="narrow">
+      <div className="auth-theme">
+        <ThemeToggle />
+      </div>
       <a href="/" className="wordmark">
         PLANT AREA / TUBAN
       </a>

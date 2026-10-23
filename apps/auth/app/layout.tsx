@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '@plant/ui/styles.css';
+import { ThemeProvider, ThemeScript } from '@plant/ui';
 export const metadata: Metadata = {
   title: 'Login | Plant Area System',
   description: 'Maintenance Tuban ? Plant Area System',
@@ -7,8 +8,13 @@ export const metadata: Metadata = {
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
-      <body>{children}</body>
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

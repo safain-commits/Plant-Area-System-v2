@@ -5,6 +5,10 @@ import {
   positionKey,
   positionLabel,
   displayCompartment,
+  compartmentFromLabel,
+  equipmentPositions,
+  rowOrder,
+  rowDividerBefore,
   ageHours,
   bagColor,
   wibInput,
@@ -23,23 +27,90 @@ const input = {
   positions: [p],
   installedAt: '2026-01-01T00:00:00Z',
   reason: 'Penggantian terjadwal',
+  brand: 'Filtras',
 };
-test('four equipment contain unique, reversible north/south coordinate identities', () => {
+test('six equipment have 18,784 unique positions and reversible field labels', () => {
+  let total = 0;
   for (const eq of equipment) {
     const keys = new Set<string>();
-    for (const side of ['Utara', 'Selatan'] as const)
-      for (let c = 1; c <= eq.perSide; c++)
-        for (let column = 1; column <= 8; column++)
-          for (let row = 1; row <= 17; row++) {
-            const position = { side, compartment: c, column, row };
-            keys.add(positionKey(position));
-            const display = displayCompartment(position, eq);
-            assert.equal(side === 'Utara' ? display : eq.compartments + 1 - display, c);
-          }
-    assert.equal(keys.size, eq.compartments * 136);
+    const labels = new Set<string>();
+    for (const position of equipmentPositions(eq)) {
+      keys.add(positionKey(position));
+      labels.add(positionLabel(position, eq));
+      const display = displayCompartment(position, eq);
+      assert.deepEqual(compartmentFromLabel(display, eq), {
+        side: position.side,
+        compartment: position.compartment,
+      });
+    }
+    assert.equal(keys.size, eq.compartments * eq.bagsPerCompartment);
+    assert.equal(labels.size, keys.size);
+    total += keys.size;
   }
+  assert.equal(total, 18784);
   assert.equal(positionLabel(p, equipment[0]), '1 H17');
   assert.equal(positionLabel({ ...p, side: 'Selatan', column: 8, row: 1 }, equipment[0]), '24 A1');
+  for (const eq of equipment.slice(2, 4)) {
+    assert.equal(eq.rowDividerAfter, 9);
+    assert.deepEqual(
+      rowOrder(eq, 'A').filter((row) => rowDividerBefore(eq, 'A', row)),
+      [9],
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'B').filter((row) => rowDividerBefore(eq, 'B', row)),
+      [10],
+    );
+    assert.equal(positionLabel({ ...p, side: 'A' }, eq), '1A A17');
+    assert.equal(positionLabel({ ...p, side: 'B', compartment: 15, column: 8, row: 1 }, eq), '15B H1');
+    assert.deepEqual(
+      rowOrder(eq, 'A'),
+      Array.from({ length: 17 }, (_, i) => 17 - i),
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'B'),
+      Array.from({ length: 17 }, (_, i) => i + 1),
+    );
+  }
+  for (const eq of equipment.slice(4)) {
+    assert.equal(positionLabel({ ...p, side: 'Timur', row: 16 }, eq), '1 A16');
+    assert.equal(positionLabel({ ...p, side: 'Timur', compartment: 8, column: 8, row: 1 }, eq), '8 H1');
+    assert.equal(positionLabel({ ...p, side: 'Barat', row: 1 }, eq), '16 A1');
+    assert.equal(positionLabel({ ...p, side: 'Barat', compartment: 8, column: 8, row: 16 }, eq), '9 H16');
+    assert.equal(eq.rowDividerAfter, 8);
+    assert.deepEqual(
+      rowOrder(eq, 'Timur').filter((row) => rowDividerBefore(eq, 'Timur', row)),
+      [8],
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'Barat').filter((row) => rowDividerBefore(eq, 'Barat', row)),
+      [9],
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'Timur'),
+      Array.from({ length: 16 }, (_, i) => 16 - i),
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'Barat'),
+      Array.from({ length: 16 }, (_, i) => i + 1),
+    );
+  }
+});
+test('coordinate validation respects each equipment layout', () => {
+  for (const equipmentCode of ['L61-BF1', 'L62-BF1']) {
+    const valid = {
+      ...input,
+      equipmentCode,
+      positions: [{ side: 'Timur', compartment: 8, column: 8, row: 16 }],
+    };
+    assert.equal(replacementSchema.safeParse(valid).success, true);
+    for (const patch of [{ row: 17 }, { compartment: 9 }, { side: 'Utara' }, { side: 'A' }])
+      assert.equal(
+        replacementSchema.safeParse({ ...valid, positions: [{ ...valid.positions[0], ...patch }] }).success,
+        false,
+      );
+  }
+  assert.equal(replacementSchema.safeParse({ ...input, equipmentCode: '422-BF2' }).success, false);
+  assert.equal(replacementSchema.safeParse({ ...input, equipmentCode: '421-BF1' }).success, false);
 });
 test('24/7 age and 0, 450, 900 and >900 day colors', () => {
   const now = Date.UTC(2026, 9, 22);
@@ -70,6 +141,9 @@ test('reject invalid batches and normalize retries regardless of position order'
     { positions: [{ ...p, compartment: 13 }] },
     { positions: [{ ...p, row: 18 }] },
     { reason: '' },
+    { brand: 'Unknown brand' },
+    { brand: '' },
+    { brand: null },
     { reason: 'x'.repeat(501) },
     { wo: 'x'.repeat(101) },
     { actorId: 'spoof' },

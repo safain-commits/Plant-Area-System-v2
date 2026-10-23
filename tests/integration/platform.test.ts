@@ -26,7 +26,7 @@ import {
   login,
   getAuth,
 } from '@plant/auth-core';
-import { AppError, type Identity, type Position } from '@plant/contracts';
+import { AppError, equipmentCodes, type Identity, type Position } from '@plant/contracts';
 if (process.env.TEST_DATABASE !== '1' || !process.env.BAG_DATABASE_URL?.includes('127.0.0.1:13306'))
   throw Error('Integration tests require the isolated test database on localhost:13306.');
 const actor: Identity = {
@@ -36,27 +36,27 @@ const actor: Identity = {
   position: 'Engineer',
   portalAdmin: true,
   mustChangePassword: false,
-  grants: [{ appId: 'bag-filter', role: 'admin', equipment: ['561-BF1', '562-BF1', '421-BF1', '422-BF2'] }],
+  grants: [{ appId: 'bag-filter', role: 'admin', equipment: [...equipmentCodes] }],
 };
 const pos: Position = { side: 'Utara', compartment: 1, column: 1, row: 17 };
 const body = (
   positions: Position[] = [pos],
   installedAt = '2026-01-01T00:00:00Z',
   reason = 'Integration replacement',
-) => ({ equipmentCode: '561-BF1', positions, installedAt, reason, wo: '' });
+) => ({ equipmentCode: '561-BF1', positions, installedAt, reason, wo: '', brand: 'Filtras' });
 const key = () => randomUUID();
 after(async () => {
   await closeAuthDb();
   await closeBagDb();
 });
 test('MySQL transaction, history, retries, pagination and authentication', async (t) => {
-  await t.test('seed has 14,688 coordinates and no dependence on inventory', async () => {
+  await t.test('seed has 18,784 coordinates and no dependence on inventory', async () => {
     const [rows] = await getBagDb().execute(
       sql`SELECT equipment_code,COUNT(*) AS total FROM coordinates GROUP BY equipment_code ORDER BY equipment_code`,
     );
     assert.deepEqual(
       (rows as unknown as { total: number }[]).map((r) => Number(r.total)),
-      [4080, 4080, 3264, 3264],
+      [4080, 4080, 3264, 3264, 2048, 2048],
     );
   });
   await t.test('500 positions commit with one audit and replay is safe under concurrency', async () => {

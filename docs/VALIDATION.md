@@ -2,7 +2,56 @@
 
 Tanggal: 22 Oktober 2026. Lingkungan: host Windows dengan Node26.12.1, container Linux Node26.12.1, MySQL8.4.13, Nginx1.30.6, dan Chromium156 melalui Playwright1.64.1. HTTPS localhost8443 memakai sertifikat pengujian. Project Compose: `plant-v2-test`; database dan volume terpisah dari deployment produksi.
 
-## Pemeriksaan yang lulus
+## Audit dark mode dan kontrol ikon — 23 Oktober 2026
+
+- Dropdown topbar/Auth diganti tombol ikon 36 px (40 px mobile). Satu klik mengganti Terang/Gelap; pilihan Sistem dipindahkan ke Profil → Tampilan. Ikon, tooltip, dan `aria-pressed` mengikuti tema aktual, termasuk perubahan perangkat ketika mode Sistem aktif. Space/Enter juga diuji.
+- Audit computed style pada tujuh halaman dark mode menemukan 52 label koordinat history dengan rasio hanya 1,11:1 pada preview sebelum perbaikan. Penyebabnya adalah warna hijau brand langsung pada latar gelap. Tombol kini memakai token informasi; kondisi normal, hover, dan focus lulus batas teks 4,5:1.
+- Teks pendukung dark mode menjadi `#B5BEC6`; metadata history/timeline serta label koordinat diperbesar menjadi 12 px. Legenda diberi batas netral untuk membedakan warna umur tertua tanpa mengubah skala data.
+- Audit ulang computed style pada Portal, profil, admin, penggantian password, katalog, peta 561, dan audit aplikasi tidak menemukan label teks tampil di bawah batas pada keadaan halaman yang diperiksa. Ini pemeriksaan keterbacaan lokal, bukan klaim sertifikasi aksesibilitas menyeluruh.
+- Provider membaca ulang preferensi saat `pageshow` dari cache Back/Forward dan mengabaikan event sessionStorage. Pengujian lifecycle memakai event cache yang disimulasikan; belum mengklaim pengujian cache native di semua browser.
+- Typecheck, build ketiga aplikasi, delapan unit test, dan lima tes browser Chromium lulus. Pengujian mencakup kedua tema, enam equipment, desktop/mobile, profile/System, preferensi antar-tab, storage diblokir, initial theme, draft, SSO, dan pencatatan. Screenshot Portal, Auth mobile, dan history setelah perbaikan ditinjau visual. Preview lokal telah diperbarui.
+
+## Tema clean modern industrial — 23 Oktober 2026
+
+- Typecheck root serta typecheck dalam build ketiga aplikasi lulus; image Next.js standalone Portal, Auth, dan Bag Filter berhasil dibangun pada Node 26.12.1 dan diterapkan pada preview lokal.
+- Delapan tes unit lulus. Pengujian warna mempertahankan nilai umur lama dan memeriksa kontras teks pada seluruh 21.601 langkah jam sampai 900 hari, nilai kosong, dan umur di atas batas; minimum 4,5:1.
+- Smoke test browser platform lulus: SSO, password awal, gateway, pencatatan Brand/Pabrikan, mobile, izin, dan logout. Tiga tes browser tema juga lulus, mencakup default/perubahan Sistem, override, reload, sinkronisasi antar-tab, nilai invalid, dan storage diblokir.
+- Dengan bundle framework diblokir, tema tersimpan tetap sudah benar sebelum hydration. Tidak ditemukan page error atau hydration warning pada navigasi Portal, profil, admin, Auth, katalog, audit, dan keenam peta dalam kedua tema.
+- Pemeriksaan 22 pasangan token per tema di Chromium lulus: teks minimal 4,5:1; border kontrol/focus yang diperiksa minimal 3:1. Pilihan bag, merek, dan alasan tetap utuh saat berganti tema; hover menu aktif serta focus keyboard diperiksa.
+- Desktop 1440 px dan mobile 390 px pada halaman yang diuji tidak memiliki scroll horizontal. Screenshot Portal terang/gelap, peta desktop, detail mobile, serta form Auth tersedia lokal di `test-results/theme-*.png` dan ditinjau visual.
+- Pengujian tambahan sempat gagal karena focus dipicu secara programatik setelah interaksi mouse dan cleanup fixture mengabaikan foreign key. Harness diperbaiki menggunakan Tab/Shift+Tab serta penghapusan child row dalam transaksi. Ketiga tes tema lulus saat dijalankan ulang; akun fixture gagal sebelumnya juga sudah dibersihkan.
+
+Tidak ada migrasi database atau perubahan API untuk tema. Validasi browser ini menggunakan Chromium; belum mengklaim hasil Safari/Firefox atau browser lama tanpa dukungan CSS `light-dark()`. Rincian kontrak tema dan warna ada di [UI-THEME.md](UI-THEME.md).
+
+## Posisi label kolom overview — 23 Oktober 2026
+
+Label kolom sisi B pada 421/422 dan Selatan pada 561/562 dipindahkan tepat di bawah nama kompartemen, mengikuti L61/L62. Typecheck root dan build Bag Filter lulus. Pemeriksaan Chromium pada seluruh kompartemen sisi bawah keenam equipment memastikan urutan nama kompartemen → label kolom → grid, urutan huruf tetap benar, serta desktop tanpa scroll horizontal. Screenshot 421 ditinjau visual; preview lokal sudah diperbarui.
+
+## Brand/Pabrikan — 23 Oktober 2026
+
+- Typecheck root dan aplikasi Bag Filter, tujuh tes unit, 14 hasil integrasi MySQL, serta build container Bag Filter dan migrasi lulus.
+- Empat pilihan merek diuji pada penyimpanan, history, timeline, audit, dan retry. Merek wajib untuk transaksi baru; perubahan merek dengan idempotency key yang sama ditolak. Retry transaksi lama tanpa merek tetap didukung.
+- Migrasi `0002_batch_brand.sql` berhasil pada preview lokal setelah backup. Seluruh 67 batch lama mempertahankan ID dan hash; mereknya tetap NULL, ditampilkan sebagai **Belum tercatat**.
+- Alur E2E Chromium lulus, termasuk pemilihan merek, penyimpanan, history/timeline, dan pengosongan pilihan setelah berhasil. Pemeriksaan browser tambahan pada keenam equipment memastikan empat pilihan wajib berada sebelum alasan.
+- Screenshot form desktop/mobile tersedia lokal di `test-results/brand-form-*.png`; form mobile ditinjau visual dan tidak mempunyai scroll horizontal.
+
+## Pembaruan equipment v2.1 — 23 Oktober 2026
+
+Katalog enam equipment memiliki **18.784 koordinat**: 561/562 masing-masing 3.264, 421/422 masing-masing 4.080, dan L61/L62 masing-masing 2.048. Pengujian memakai Node 26.12.1 dan MySQL 8.4 pada lingkungan uji terpisah yang sama.
+
+- Typecheck root dan ketiga aplikasi lulus; ketiga aplikasi berhasil dibangun menjadi container Next.js standalone.
+- Tujuh tes unit lulus: identitas/label koordinat dapat dikonversi bolak-balik, batas per equipment, orientasi, umur, validasi batch, izin, dan redirect.
+- Suite integrasi lulus: 14 hasil termasuk parent test, terdiri dari tiga tes migrasi dan sepuluh sub-skenario operasional/auth. Fixture migrasi memakai database sementara sendiri yang dihapus setelah selesai.
+- Fixture 421 dan 422 membuktikan ID, posisi fisik, actor, waktu, dan history tetap; hash baru mendukung retry dengan batch semula. Kegagalan hash di tengah proses membatalkan seluruh perubahan. Konflik target, pengulangan migrasi, serta koordinat yang muncul kembali dari seed lama diuji. Scope baru hanya diberikan kepada bootstrap dan tidak ditambahkan kembali setelah pencabutan manual.
+- Browser Chromium lulus: keenam kode tersedia, 422-BF2 ditolak, sudut peta A/B dan Timur/Barat benar, nomor baris kiri, stiffener ada, penyimpanan dua sisi satu batch, reload/persistence, label history, penolakan koordinat invalid, dan scope pengguna. Desktop 1440 dan mobile 390 tidak mempunyai scroll horizontal.
+- Screenshot 421/422 serta L61/L62 tersedia lokal di `test-results/`; tampilan L61 desktop/mobile dan 421 desktop telah ditinjau visual.
+- Uji operasi lulus: persistence setelah restart, fail-closed saat Auth berhenti, guard layanan langsung, serta backup/restore dengan perbandingan enam kelompok data.
+
+Saat validasi ditemukan bahwa `docker compose start` dapat menjalankan container migrasi lama dan men-seed ulang koordinat lama. Referensi tambahan pada database uji diverifikasi tidak mempunyai transaksi lalu dibersihkan; container migrasi diganti. Runbook kini memakai `up --force-recreate` untuk migrasi dan migrasi memverifikasi katalog meskipun checkpoint sudah selesai. Tidak ada migrasi awal yang diubah, reset database, atau penonaktifan foreign key.
+
+Hasil ini adalah validasi lokal pembaruan equipment. Bukti GitHub Actions di bagian baseline di bawah berlaku untuk commit awal, bukan perubahan v2.1 yang belum dipush. Orientasi tetap perlu penerimaan operator lapangan sebelum go-live.
+
+## Pemeriksaan baseline 22 Oktober 2026 yang lulus
 
 | Area                 | Bukti                                                                                                                        |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -40,7 +89,7 @@ Ini validasi implementasi lokal, bukan persetujuan go-live di server organisasi.
 
 Belum dilakukan load test skala produksi, browser selain Chromium, integrasi sertifikat/hostname organisasi, atau uji operator di lapangan. Target pemulihan empat jam perlu diukur ulang menggunakan volume data produksi. Backup lokal sudah diuji; penyalinan terenkripsi ke storage organisasi di luar host tetap merupakan tugas deployment.
 
-Setelah validasi, preview lokal dikembalikan ke kondisi awal melalui script khusus database uji: satu admin bootstrap, seluruh grant bootstrap, dan tanpa transaksi pemasangan. Screenshot/laporan pengujian menggambarkan data fixture saat tes berjalan, bukan data operasional.
+Setelah validasi baseline 22 Oktober, preview lokal dikembalikan ke kondisi awal melalui script khusus database uji: satu admin bootstrap, seluruh grant bootstrap, dan tanpa transaksi pemasangan. Screenshot/laporan pengujian menggambarkan data fixture saat tes berjalan, bukan data operasional.
 
 ## Reproduksi
 

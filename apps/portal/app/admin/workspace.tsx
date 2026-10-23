@@ -131,7 +131,9 @@ export function AdminWorkspace() {
             </label>
           </div>
           <div>
-            <button disabled={busy}>Buat akun</button>
+            <button className="primary" disabled={busy}>
+              Buat akun
+            </button>
           </div>
         </form>
       </details>
@@ -204,7 +206,7 @@ function UserRow({
             {u.email} · {u.position || 'Jabatan belum diisi'}
           </small>
         </div>
-        <span className={`badge ${u.active ? '' : 'neutral'}`}>
+        <span className={`badge ${u.active ? 'success' : 'neutral'}`}>
           {u.active ? 'Aktif' : 'Nonaktif'}
           {u.portalAdmin ? ' · Admin' : ''}
         </span>
@@ -273,7 +275,9 @@ function UserRow({
           ))}
         </div>
         <div>
-          <button disabled={busy}>Simpan akses aplikasi</button>
+          <button className="primary" disabled={busy}>
+            Simpan akses aplikasi
+          </button>
         </div>
       </form>
       <hr className="divider" />
@@ -307,7 +311,7 @@ function UserRow({
           </label>
           <p className="fine">Seluruh sesi pengguna akan dicabut. Password wajib diganti setelah login.</p>
           <div>
-            <button className="secondary" disabled={busy}>
+            <button className="danger" disabled={busy}>
               Reset password pengguna
             </button>
           </div>

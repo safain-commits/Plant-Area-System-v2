@@ -1,6 +1,16 @@
 import type { Identity } from '@plant/contracts';
 export { LogoutButton } from './logout';
 import { LogoutButton } from './logout';
+import { ThemeToggle } from './theme';
+export {
+  ThemeProvider,
+  ThemeToggle,
+  ThemePreferenceControl,
+  type ThemePreference,
+  type ResolvedTheme,
+} from './theme';
+export { ThemeScript } from './theme-script';
+export { dataTextTone } from './color';
 export function Shell({
   identity,
   active,
@@ -54,9 +64,12 @@ export function Shell({
       <div className="workspace">
         <header className="topbar">
           <span>MAINTENANCE / TUBAN</span>
-          <span>
-            <i className="live-dot" /> Internal workspace
-          </span>
+          <div className="topbar-actions">
+            <span className="workspace-status">
+              <i className="live-dot" /> Internal workspace
+            </span>
+            <ThemeToggle />
+          </div>
         </header>
         {children}
         <footer className="footer">

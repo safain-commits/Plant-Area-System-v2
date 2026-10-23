@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
-export const equipmentCodes = ['561-BF1', '562-BF1', '421-BF1', '422-BF2'] as const;
+export const equipmentCodes = ['561-BF1', '562-BF1', '421-BF1', '422-BF1', 'L61-BF1', 'L62-BF1'] as const;
 export type EquipmentCode = (typeof equipmentCodes)[number];
+export const bagBrands = ['Intensiv filter (Original)', 'Filtras', 'Cipta Medya', 'Other'] as const;
+export type BagBrand = (typeof bagBrands)[number];
 export const bagRoles = ['viewer', 'operator', 'admin'] as const;
 export type BagRole = (typeof bagRoles)[number];
 export type Grant = { appId: string; role: BagRole; equipment: EquipmentCode[] };
@@ -14,21 +16,94 @@ export type Identity = {
   mustChangePassword: boolean;
   grants: Grant[];
 };
-export type Position = { side: 'Utara' | 'Selatan'; compartment: number; column: number; row: number };
-export const equipment = equipmentCodes.map((code, i) => ({
-  code,
-  perSide: i < 2 ? 12 : 15,
-  compartments: i < 2 ? 24 : 30,
-  bagsPerCompartment: 136,
-  colorScaleDays: 900,
-}));
-export type Equipment = (typeof equipment)[number];
+export const sides = ['Utara', 'Selatan', 'A', 'B', 'Timur', 'Barat'] as const;
+export type Position = { side: (typeof sides)[number]; compartment: number; column: number; row: number };
+export type Equipment = {
+  code: EquipmentCode;
+  perSide: number;
+  compartments: number;
+  rows: number;
+  columns: string;
+  bagsPerCompartment: number;
+  colorScaleDays: number;
+  rowDividerAfter: number | null;
+  centeredLabels: boolean;
+  sides: { name: Position['side']; labels: string[]; descendingRows: boolean }[];
+};
+const sequence = (count: number, label: (local: number) => string) =>
+  Array.from({ length: count }, (_, i) => label(i + 1));
+export const equipment: Equipment[] = equipmentCodes.map((code) => {
+  const is56 = code === '561-BF1' || code === '562-BF1';
+  const isL6 = code === 'L61-BF1' || code === 'L62-BF1';
+  const perSide = is56 ? 12 : isL6 ? 8 : 15;
+  const rows = isL6 ? 16 : 17;
+  return {
+    code,
+    perSide,
+    compartments: perSide * 2,
+    rows,
+    columns: is56 ? 'HGFEDCBA' : 'ABCDEFGH',
+    bagsPerCompartment: rows * 8,
+    colorScaleDays: 900,
+    rowDividerAfter: is56 ? null : isL6 ? 8 : 9,
+    centeredLabels: true,
+    sides: [
+      {
+        name: is56 ? 'Utara' : isL6 ? 'Timur' : 'A',
+        labels: sequence(perSide, (n) => (is56 || isL6 ? String(n) : `${n}A`)),
+        descendingRows: true,
+      },
+      {
+        name: is56 ? 'Selatan' : isL6 ? 'Barat' : 'B',
+        labels: sequence(perSide, (n) => (is56 || isL6 ? String(perSide * 2 + 1 - n) : `${n}B`)),
+        descendingRows: false,
+      },
+    ],
+  };
+});
 export const getEquipment = (code: string) => equipment.find((e) => e.code === code);
 export const positionKey = (p: Position) => `${p.side}-${p.compartment}-${p.column}-${p.row}`;
 export const displayCompartment = (p: Pick<Position, 'side' | 'compartment'>, eq: Equipment) =>
-  p.side === 'Utara' ? p.compartment : eq.compartments + 1 - p.compartment;
+  eq.sides.find((s) => s.name === p.side)?.labels[p.compartment - 1] ?? '';
 export const positionLabel = (p: Position, eq: Equipment) =>
-  `${displayCompartment(p, eq)} ${'HGFEDCBA'[p.column - 1]}${p.row}`;
+  `${displayCompartment(p, eq)} ${eq.columns[p.column - 1]}${p.row}`;
+export const compartmentFromLabel = (label: string, eq: Equipment) => {
+  for (const side of eq.sides) {
+    const index = side.labels.indexOf(label);
+    if (index !== -1) return { side: side.name, compartment: index + 1 };
+  }
+  return undefined;
+};
+export const rowOrder = (eq: Equipment, side: Position['side']) => {
+  const descending = eq.sides.find((s) => s.name === side)?.descendingRows;
+  return Array.from({ length: eq.rows }, (_, i) => (descending ? eq.rows - i : i + 1));
+};
+// The divider follows the physical row number, regardless of display direction.
+export const rowDividerBefore = (eq: Equipment, side: Position['side'], row: number) =>
+  eq.rowDividerAfter !== null &&
+  row === eq.rowDividerAfter + (eq.sides.find((s) => s.name === side)?.descendingRows ? 0 : 1);
+export const validPosition = (p: Position, eq: Equipment) =>
+  eq.sides.some((s) => s.name === p.side) &&
+  Number.isInteger(p.compartment) &&
+  p.compartment >= 1 &&
+  p.compartment <= eq.perSide &&
+  Number.isInteger(p.column) &&
+  p.column >= 1 &&
+  p.column <= eq.columns.length &&
+  Number.isInteger(p.row) &&
+  p.row >= 1 &&
+  p.row <= eq.rows;
+export function equipmentPositions(eq: Equipment): Position[] {
+  return eq.sides.flatMap(({ name: side }) =>
+    Array.from({ length: eq.perSide }, (_, i) =>
+      Array.from({ length: eq.columns.length }, (_, c) =>
+        Array.from({ length: eq.rows }, (_, r) => ({ side, compartment: i + 1, column: c + 1, row: r + 1 })),
+      ).flat(),
+    ).flat(),
+  );
+}
+export const equipmentSideSummary = (eq: Equipment) =>
+  eq.sides.map((s) => `${eq.perSide} ${s.name}`).join(' / ');
 export const ageHours = (installedAt: string | null, now = Date.now()) =>
   installedAt === null ? null : Math.max(0, Math.floor((now - Date.parse(installedAt)) / 3_600_000));
 export function bagColor(hours: number | null) {
@@ -49,7 +124,7 @@ export function wibToIso(value: string) {
 }
 export const positionSchema = z
   .object({
-    side: z.enum(['Utara', 'Selatan']),
+    side: z.enum(sides),
     compartment: z.number().int().min(1).max(15),
     column: z.number().int().min(1).max(8),
     row: z.number().int().min(1).max(17),
@@ -62,12 +137,14 @@ export const replacementSchema = z
     installedAt: z.iso.datetime({ offset: true }),
     reason: z.string().trim().min(1).max(500),
     wo: z.string().trim().max(100).optional().default(''),
+    // Omission is retained only for replaying pre-brand batches; new writes require a brand.
+    brand: z.enum(bagBrands).optional(),
   })
   .strict()
   .superRefine((b, ctx) => {
     const eq = getEquipment(b.equipmentCode)!;
-    if (b.positions.some((p) => p.compartment > eq.perSide))
-      ctx.addIssue({ code: 'custom', message: 'Kompartemen di luar equipment.' });
+    if (b.positions.some((p) => !validPosition(p, eq)))
+      ctx.addIssue({ code: 'custom', message: 'Koordinat di luar equipment.' });
     if (new Set(b.positions.map(positionKey)).size !== b.positions.length)
       ctx.addIssue({ code: 'custom', message: 'Posisi tidak boleh duplikat.' });
   });

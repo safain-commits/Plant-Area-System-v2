@@ -48,7 +48,7 @@ export function Applications() {
             <strong>{app.name}</strong>
             {app.id === 'bag-filter' ? (
               <button
-                className="small secondary"
+                className={`small ${app.status === 'active' ? 'danger' : 'secondary'}`}
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true);

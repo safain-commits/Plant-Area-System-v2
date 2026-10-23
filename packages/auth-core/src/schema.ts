@@ -8,6 +8,10 @@ import {
   primaryKey,
   index,
 } from 'drizzle-orm/mysql-core';
+export const dataMigrations = mysqlTable('data_migrations', {
+  id: varchar('id', { length: 100 }).primaryKey(),
+  completedAt: timestamp('completed_at', { fsp: 3 }).notNull(),
+});
 
 export const user = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),

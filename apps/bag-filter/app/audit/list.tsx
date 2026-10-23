@@ -7,7 +7,7 @@ type Event = {
   equipmentCode: string;
   actorName: string;
   createdAt: string;
-  details: { count: number; wo: string };
+  details: { count: number; wo: string; brand?: string };
 };
 export default function AuditList() {
   const [items, setItems] = useState<Event[]>([]),
@@ -51,6 +51,7 @@ export default function AuditList() {
               <th>Pencatat</th>
               <th>Bag</th>
               <th>WO</th>
+              <th>Brand/Pabrikan</th>
               <th>Batch</th>
             </tr>
           </thead>
@@ -62,6 +63,7 @@ export default function AuditList() {
                 <td>{e.actorName}</td>
                 <td>{e.details.count}</td>
                 <td>{e.details.wo || 'Tanpa WO'}</td>
+                <td>{e.details.brand || 'Belum tercatat'}</td>
                 <td>{e.batchId}</td>
               </tr>
             ))}

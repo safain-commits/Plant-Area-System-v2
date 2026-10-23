@@ -10,6 +10,10 @@ import {
   primaryKey,
   foreignKey,
 } from 'drizzle-orm/mysql-core';
+export const dataMigrations = mysqlTable('data_migrations', {
+  id: varchar('id', { length: 100 }).primaryKey(),
+  completedAt: datetime('completed_at', { fsp: 3, mode: 'date' }).notNull(),
+});
 export const equipmentTable = mysqlTable('equipment', {
   code: varchar('code', { length: 16 }).primaryKey(),
   perSide: int('per_side').notNull(),
@@ -39,6 +43,7 @@ export const batches = mysqlTable(
     installedAt: datetime('installed_at', { fsp: 3, mode: 'date' }).notNull(),
     reason: varchar('reason', { length: 500 }).notNull(),
     wo: varchar('wo', { length: 100 }).notNull(),
+    brand: varchar('brand', { length: 40 }),
     createdAt: datetime('created_at', { fsp: 3, mode: 'date' }).notNull(),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),

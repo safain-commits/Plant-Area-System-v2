@@ -1,0 +1,1 @@
+ALTER TABLE `replacement_batches` ADD `brand` varchar(40);

@@ -55,6 +55,35 @@ docker exec plant-restore bash -c 'set -o pipefail; gzip -t /tmp/restore.sql.gz;
 
 ## Pembaruan dan rollback
 
+### Upgrade katalog equipment v2.1
+
+Rilis ini menambah L61/L62 (masing-masing 2.048 posisi), merename 422-BF2 menjadi 422-BF1, dan mengubah sisi 421/422 menjadi A/B. Simpan backup sebelum upgrade dan image lama. Hentikan gateway dan ketiga aplikasi selama migrasi karena versi lama memakai kode/koordinat berbeda.
+
+```sh
+docker compose build auth portal bag-filter migrate
+docker compose stop nginx portal bag-filter auth
+docker compose run --rm -e RUN_ONCE=true backup
+docker compose up --no-deps --force-recreate --exit-code-from migrate migrate
+docker compose up -d --wait auth portal bag-filter nginx backup
+docker compose restart nginx
+```
+
+Lanjutkan perintah berikutnya hanya jika migrasi keluar dengan kode 0. Gunakan `up --force-recreate` untuk job migrasi, bukan `start`: `start` dapat menjalankan container lama yang men-seed ulang koordinat lama. Untuk preview lokal, tambahkan `--env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml` setelah `docker compose`. Jangan gunakan script reset untuk upgrade.
+
+Migrasi SQL `0001_equipment_layout_checkpoint` menambah tabel `data_migrations` pada kedua database. Job menjalankan DML `20261022-equipment-layout-v2` dalam transaksi per database di bawah advisory lock. Checkpoint disimpan hanya saat transaksi berhasil. Jika salah satu database gagal, biarkan aplikasi berhenti, periksa konflik, lalu jalankan ulang job; database yang sudah selesai tidak dimigrasikan ulang. Katalog dan koordinat tetap diverifikasi pada pengulangan.
+
+Konflik 422-BF2 dan 422-BF1 yang sama-sama ada, atau koordinat lama dan baru yang bercampur pada 421/422, menghentikan transaksi Bag Filter. Tinjau backup; jangan menghapus konflik otomatis. Foreign key tetap aktif. ID, actor, waktu, batch dan nomor lokal posisi dipertahankan. Hash idempotensi diperbarui sesuai representasi baru. Audit historis Auth tetap menyimpan snapshot asli; perubahan scope mempunyai audit `equipment.scope_migrated` dengan actor sistem migrasi.
+
+Bootstrap yang dikenali lewat `bootstrap.created` mendapat L61/L62 pada grant Bag Filter yang sudah ada; role serta akses pengguna lain dipertahankan. Jika grant bootstrap sudah dicabut atau catatan bootstrap tidak tersedia, atur akses melalui admin portal. Migrasi ulang tidak menambahkan kembali scope yang sengaja dicabut sesudah upgrade.
+
+Verifikasi enam equipment, 18.784 koordinat, ID/jumlah transaksi lama tetap, dan scope 422-BF1 benar. Periksa sudut peta A/B serta Timur/Barat, stiffener, history, dan retry. Minta pengguna reload browser; URL 422-BF2 menghasilkan 404. Instalasi baru langsung menggunakan enam equipment tanpa transaksi contoh.
+
+Rollback khusus rilis ini memerlukan pasangan backup sebelum upgrade dan image lama; image lama tidak mendukung koordinat baru. Jika transaksi baru sudah masuk, rekonsiliasikan dahulu sebelum memilih restore.
+
+### Pembaruan rutin
+
+Penambahan Brand/Pabrikan memakai migrasi aditif `0002_batch_brand.sql`: kolom nullable `replacement_batches.brand`, tanpa backfill atau perubahan hash batch lama. Terapkan migrasi dengan image tools terbaru sebelum memperbarui Bag Filter, mengikuti urutan stop/backup/migrate/up di atas. Tidak perlu reset data. Setelah upgrade, reload form; pencatatan baru wajib memilih brand. Replay batch lama tanpa brand tetap didukung.
+
 Sebelum rilis, jalankan test/typecheck, build image terpisah, backup, dan review migrasi SQL. `drizzle-kit generate` hanya membuat file; deployment menjalankan migrasi melalui job terpisah. Jangan menjalankan schema push langsung di produksi. Migrasi awal hanya membuat tabel/index/FK dan seed referensi, tanpa data transaksi.
 
 Catat image digest ketiga aplikasi sebelum perubahan. Untuk memperbarui Bag Filter saja, build/tag image Bag Filter dan `docker compose up -d --no-deps bag-filter`, lalu restart Nginx agar upstream baru di-resolve. Auth/Portal memiliki prosedur setara. `RELEASE_TAG` dapat dipakai build rilis lengkap; ketika rilis layanan berbeda, pin image per layanan dalam override Compose dan simpan override tersebut bersama catatan deployment.

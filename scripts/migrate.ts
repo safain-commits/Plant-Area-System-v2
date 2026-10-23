@@ -4,6 +4,7 @@ import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { appCatalog } from '@plant/contracts';
 import { getAuthDb, closeAuthDb, authSchema } from '@plant/auth-core';
 import { seedEquipment, closeBagDb } from '@plant/bag-core';
+import { migrateEquipmentData } from './equipment-migration';
 
 try {
   for (const [key, folder] of [
@@ -19,6 +20,7 @@ try {
       );
       if (rows[0].acquired !== 1) throw new Error('Migrasi lain masih berjalan.');
       await migrate(drizzle(connection), { migrationsFolder: `packages/${folder}/migrations` });
+      await migrateEquipmentData(connection, folder);
       await connection.query("SELECT RELEASE_LOCK('plant_schema_migration')");
       console.log(JSON.stringify({ event: 'migration.complete', database: folder }));
     } finally {

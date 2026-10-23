@@ -1,11 +1,15 @@
 # PRD — Plant Area System v2
 
-Versi 2.0 · 22 Oktober 2026 · Pemilik produk: Maintenance Tuban.
+Versi 2.1 · 23 Oktober 2026 · Pemilik produk: Maintenance Tuban.
 Rilis pertama: Portal, Centralized Auth, dan Bag Filter. Akun internal, Linux + Docker, satu domain dengan path per aplikasi, data aktual kosong.
 
 ## 1. Tujuan
 
 Sediakan satu pintu login untuk aplikasi maintenance yang dapat dibangun dan diperbarui secara terpisah. Portal hanya menampilkan aplikasi aktif sesuai izin. Modul mendatang tampil sebagai rencana tanpa tautan operasional.
+
+### Tampilan bersama
+
+Portal, Auth, dan Bag Filter memakai tema clean modern industrial dari palette Lime, Black, White, Myrtle Green, Pumpkin, Lavender, dan Slate. Tersedia tombol ikon Terang/Gelap; pilihan Sistem di Profil ? Tampilan, default mengikuti perangkat. Sidebar tetap gelap, aksi utama/menu aktif Lime dengan teks hitam, pilihan bag Pumpkin. Preferensi tersimpan per browser dan konsisten lintas aplikasi serta tab, termasuk setelah logout. Pergantian tema mempertahankan draft form dan posisi bag terpilih. Warna umur bag dan nilai abu-abu kosong tetap sama pada kedua tema. Rincian token dan perilaku ada di [UI-THEME.md](UI-THEME.md).
 
 ## 2. Akun dan akses
 
@@ -23,7 +27,7 @@ Sediakan satu pintu login untuk aplikasi maintenance yang dapat dibangun dan dip
 | Operator Bag Filter | Hak viewer + pemasangan/penggantian                              |
 | Admin Bag Filter    | Hak operator + audit aplikasi                                    |
 
-Semua operasi Bag Filter mengikuti scope equipment. Admin portal tidak otomatis mengabaikan scope. Bootstrap memiliki admin portal dan admin Bag Filter untuk empat equipment. Admin aktif terakhir tidak boleh dinonaktifkan/dicabut perannya.
+Semua operasi Bag Filter mengikuti scope equipment. Admin portal tidak otomatis mengabaikan scope. Bootstrap memiliki admin portal dan admin Bag Filter untuk enam equipment. Saat upgrade, hanya akun bootstrap dari audit `bootstrap.created` mendapat scope L61/L62 otomatis; pengguna lain diatur melalui Kelola akses. Admin aktif terakhir tidak boleh dinonaktifkan/dicabut perannya.
 
 ## 3. Bag Filter
 
@@ -32,14 +36,27 @@ Semua operasi Bag Filter mengikuti scope equipment. Admin portal tidak otomatis 
 | 561-BF1   |          24 |  3.264 |
 | 562-BF1   |          24 |  3.264 |
 | 421-BF1   |          30 |  4.080 |
-| 422-BF2   |          30 |  4.080 |
+| 422-BF1   |          30 |  4.080 |
+| L61-BF1   |          16 |  2.048 |
+| L62-BF1   |          16 |  2.048 |
 
-Setiap kompartemen berisi 8 kolom × 17 baris. Kolom tampilan H sampai A; baris Utara 17 ke 1, Selatan 1 ke 17. Identitas lokal Selatan disimpan tetap; nomor tampilan adalah `totalKompartemen + 1 - nomorLokal`.
+Total 18.784 posisi bag. Konfigurasi peta mengikuti equipment, dengan nomor baris di sebelah kiri overview dan detail:
+
+| Equipment | Sisi atas / bawah | Kompartemen kiri → kanan | Kolom kiri → kanan | Baris atas → bawah |
+| --------- | ----------------- | ------------------------ | ------------------ | ------------------ |
+| 561/562   | Utara / Selatan   | 1–12 / 24–13             | H–A                | 17→1 / 1→17        |
+| 421/422   | A / B             | 1A–15A / 1B–15B          | A–H                | 17→1 / 1→17        |
+| L61/L62   | Timur / Barat     | 1–8 / 16–9               | A–H                | 16→1 / 1→16        |
+
+561/562 dan 421/422 memiliki 8 × 17 = 136 bag per kompartemen; L61/L62 memiliki 8 × 16 = 128. Jeda visual memakai margin tanpa garis pembatas: antara baris 9 dan 10 pada 421/422, serta antara baris 8 dan 9 pada L61/L62 (penanda plat stiffener). Jeda tidak menambah koordinat. Label kolom/kompartemen overview seluruh equipment menghadap bagian tengah sesuai form manual. Pada sisi bawah (Selatan, B, dan Barat), label kolom berada tepat di bawah nama kompartemen, sebelum grid bag.
+
+`422-BF1` adalah kode yang benar; `422-BF2` hanya merupakan nama lama dalam audit baseline dan migrasi, bukan alias operasional. Upgrade mempertahankan ID, tanggal, actor, batch, serta posisi fisik transaksi; Utara/Selatan lama pada 421/422 menjadi A/B dengan nomor lokal dan indeks kolom tetap.
 
 - Tema forest green; pilihan oranye; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target klik lebih besar, dan antarmuka mobile.
 - Umur berjalan 24/7 sejak pemasangan. Skala warna 0–900 hari, dijenuhkan setelah 900 hari; umur tampilan diperbarui setiap 60 detik.
 - Satu batch: 1–500 posisi unik dalam satu equipment, boleh lintas kompartemen/sisi.
 - Tanggal dan alasan wajib; alasan 1–500 karakter, WO opsional maksimal 100 karakter.
+- Brand/Pabrikan wajib dipilih sebelum kolom alasan: `Intensiv filter (Original)`, `Filtras`, `Cipta Medya`, atau `Other`. Form dimulai tanpa pilihan dan kembali kosong setelah berhasil disimpan. Satu brand berlaku untuk seluruh posisi dalam batch dan tampil di history, timeline, serta audit. Catatan lama ditampilkan “Belum tercatat”; tidak diisi default brand.
 - Input diberi label WIB. Penyimpanan UTC, tampilan Asia/Jakarta. Tanggal minimal `2000-01-01T00:00:00Z`, maksimal waktu server +60 detik.
 - Tanggal mundur diperbolehkan. Kondisi terkini berdasarkan tanggal pemasangan, kemudian ID pemasangan sebagai pembeda waktu sama.
 - Seluruh history dipertahankan. Timeline menghitung masa pakai hingga pemasangan berikutnya, termasuk interval nol pada waktu yang sama.

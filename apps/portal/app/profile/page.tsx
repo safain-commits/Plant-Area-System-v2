@@ -1,5 +1,5 @@
 import { pageIdentity } from '@plant/server';
-import { Shell, Heading, LogoutButton } from '@plant/ui';
+import { Shell, Heading, LogoutButton, ThemePreferenceControl } from '@plant/ui';
 import { ProfileForm } from './profile-form';
 export const dynamic = 'force-dynamic';
 export default async function Profile() {
@@ -13,6 +13,10 @@ export default async function Profile() {
       />
       <section className="panel">
         <ProfileForm identity={identity} />
+      </section>
+      <section className="panel">
+        <h2>Tampilan</h2>
+        <ThemePreferenceControl />
       </section>
       <section className="panel">
         <h2>Keamanan akun</h2>

@@ -8,6 +8,20 @@
       "when": 1792667620331,
       "tag": "0000_opposite_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1792687901253,
+      "tag": "0001_equipment_layout_checkpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792690100489,
+      "tag": "0002_batch_brand",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { pageIdentity } from '@plant/server';
 import { Shell, Heading } from '@plant/ui';
-import { equipment } from '@plant/contracts';
+import { equipment, equipmentSideSummary } from '@plant/contracts';
 export const dynamic = 'force-dynamic';
 export default async function BagFilter() {
   const identity = await pageIdentity('/bag-filter'),
@@ -27,14 +27,14 @@ export default async function BagFilter() {
                 <span>↗</span>
               </div>
               <span className="big-number">
-                {(e.compartments * 136).toLocaleString('id-ID')} <small>posisi bag</small>
+                {(e.compartments * e.bagsPerCompartment).toLocaleString('id-ID')} <small>posisi bag</small>
               </span>
               <p>
-                {e.compartments} kompartemen · {e.perSide} Utara / {e.perSide} Selatan
+                {e.compartments} kompartemen · {equipmentSideSummary(e)}
               </p>
               <div className="legend">
                 <span>
-                  <i style={{ background: '#719c77' }} />
+                  <i style={{ background: 'var(--success-text)' }} />
                   Umur otomatis 24/7
                 </span>
                 <span>Skala 0–900 hari</span>

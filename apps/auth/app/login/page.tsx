@@ -1,5 +1,6 @@
 import { safeReturnTo } from '@plant/contracts';
 import { LoginForm } from '../forms';
+import { ThemeToggle } from '@plant/ui';
 export const dynamic = 'force-dynamic';
 export default async function Login({
   searchParams,
@@ -31,6 +32,9 @@ export default async function Login({
         <small>PLANT AREA SYSTEM / INTERNAL</small>
       </aside>
       <section className="auth-form">
+        <div className="auth-theme">
+          <ThemeToggle />
+        </div>
         <p className="eyebrow">SELAMAT DATANG</p>
         <h2>Masuk ke portal</h2>
         <p className="muted">Gunakan akun yang diberikan oleh admin.</p>
