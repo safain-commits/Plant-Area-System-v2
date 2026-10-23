@@ -215,3 +215,11 @@ Perbaikan shared UI diverifikasi pada build produksi HTTPS lokal. Typecheck root
 TestSprite benar-benar dijalankan dengan akun sementara. Run akhir mencatat 0 passed, 2 failed, dan 1 blocked: pemeriksaan desktop parsial berhasil, tetapi aksi hover/resize tidak tersedia pada kontrol browser alat; temuan Tema tidak direproduksi pada tes pointer lokal. Status tersebut tidak digabung dengan hasil Playwright. Akun/sesi pengujian dicabut dan adapter/tunnel dihentikan. Detail temuan, batas pemeriksaan, serta pembersihan ada di [laporan interaksi UI](testing/UI-INTERACTION-RESULTS.md).
 
 Tidak ada migrasi atau perubahan transaksi. Seluruh integrasi MySQL dan backup/restore tidak diulang pada audit interaksi ini.
+
+## Perbaikan jaringan CI — 24 Oktober 2026
+
+Run GitHub Actions [39988644093](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/39988644093) pada commit `384ec1e` gagal hanya di langkah **Gateway recovery after application IP changes**. Log runner menunjukkan Docker menolak `docker run --ip` karena jaringan menggunakan subnet otomatis, bukan subnet yang dikonfigurasi pengguna. Pada run yang sama, instalasi, typecheck/unit, integrasi MySQL, build, seluruh **16 tes browser**, restart/fail-closed, serta backup/restore sudah lulus.
+
+Override pengujian yang dibuat `scripts/prepare-test.ts` sekarang mendeklarasikan IPAM subnet eksplisit. `scripts/test-gateway-recovery.ts` memeriksa konfigurasi dan jaringan aktif sebelum mengganti container; kedua container aplikasi stateless dihapus agar reservasi IP dilepas secara konsisten, kemudian dibuat ulang. Konfigurasi jaringan deployment produksi tidak berubah.
+
+Verifikasi lokal aktual: typecheck root dan format file perubahan lulus; prepare mempertahankan kredensial yang ada; jaringan uji dibuat ulang tanpa menghapus volume MySQL. Jumlah akun/grant, batch/pemasangan Bag Filter, master/pergerakan material, serta total saldo stok sama sebelum dan sesudah proses. Tes recovery berhasil menempatkan dua sentinel pada IP lama, memberi IP baru kepada kedua aplikasi, dan memverifikasi dashboard JSON, halaman SSO, serta CSS/JS tanpa restart gateway. Akun fixture dan sentinel dibersihkan otomatis. Hasil lokal ini tidak menyatakan run CI perbaikan sudah lulus.

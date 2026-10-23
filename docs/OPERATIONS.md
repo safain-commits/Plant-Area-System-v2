@@ -57,6 +57,8 @@ docker exec plant-restore bash -c 'set -o pipefail; gzip -t /tmp/restore.sql.gz;
 
 `scripts/test-operations.ts` mengotomatisasi restart, fail-closed Auth, dan restore terpisah untuk project uji. Jalankan sesudahnya `node --env-file=.test-runtime/host.env --import tsx scripts/test-gateway-recovery.ts` untuk memaksa kedua IP aplikasi berubah: alamat lama ditempati layanan HTML sentinel, lalu dashboard terautentikasi, halaman SSO, dan aset CSS/JS diperiksa tanpa restart Nginx. Akun verifikasi dan sentinel dibersihkan otomatis. Kedua script hanya menerima deployment uji terisolasi; jangan jalankan bersamaan dengan browser test.
 
+Override dari `scripts/prepare-test.ts` menetapkan subnet IPAM eksplisit pada jaringan `private` project uji (`172.30.250.0/24` secara default), karena Docker mensyaratkannya untuk IP tetap sentinel. Jika subnet tersebut berbenturan dengan jaringan lokal, gunakan `PLANT_TEST_SUBNET` secara konsisten pada seluruh perintah Compose pengujian. Konfigurasi deployment produksi tidak menetapkan subnet ini. Untuk stack uji lama, jalankan ulang prepare, kemudian `docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml down` tanpa opsi penghapusan volume, lalu jalankan `up -d --wait nginx backup` dengan argumen Compose yang sama. Langkah tersebut membuat ulang jaringan dan container sambil mempertahankan volume MySQL serta kredensial/akun yang ada. Script recovery memeriksa kesesuaian subnet sebelum mengganti container aplikasi.
+
 ## Pembaruan dan rollback
 
 ### Penyempurnaan sidebar dan dashboard Consumables

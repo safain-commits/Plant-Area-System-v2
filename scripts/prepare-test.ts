@@ -45,7 +45,9 @@ try {
 }
 await writeFile(
   `${directory}/compose.yaml`,
-  'services:\n  mysql:\n    ports: ["127.0.0.1:13306:3306"]\n    networks: [private, test-host]\nnetworks:\n  test-host: {}\n',
+  // The gateway recovery test occupies old application IPs with sentinel containers.
+  // Docker requires an explicitly configured subnet for `docker run --ip`.
+  'services:\n  mysql:\n    ports: ["127.0.0.1:13306:3306"]\n    networks: [private, test-host]\nnetworks:\n  private:\n    ipam:\n      config:\n        - subnet: ${PLANT_TEST_SUBNET:-172.30.250.0/24}\n  test-host: {}\n',
 );
 // Extend an existing isolated deployment without changing its users, volumes, or secrets.
 const stackPath = `${directory}/stack.env`,

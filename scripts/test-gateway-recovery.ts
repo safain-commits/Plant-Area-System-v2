@@ -93,11 +93,26 @@ try {
   await verifyRoutes(client);
 
   const gatewayStart = await inspect('plant-v2-test-nginx-1', '{{.State.StartedAt}}');
+  const configuration = JSON.parse(await docker([...compose, 'config', '--format', 'json']));
+  const declaredSubnets: string[] = (configuration.networks.private.ipam?.config ?? []).map(
+    (c: { subnet: string }) => c.subnet,
+  );
+  assert.ok(
+    declaredSubnets.length,
+    'Run scripts/prepare-test.ts to configure an explicit test subnet before the IP recovery test.',
+  );
   const previous: { name: string; network: string; ip: string; image: string }[] = [];
   for (const name of names) {
     const networks = JSON.parse(await inspect(name, '{{json .NetworkSettings.Networks}}'));
     const network = Object.keys(networks).find((n) => n.endsWith('_private'));
     assert.ok(network, 'Application must be on the isolated private network');
+    const ipam: { Subnet: string }[] = JSON.parse(
+      await docker(['network', 'inspect', '--format', '{{json .IPAM.Config}}', network]),
+    );
+    assert.ok(
+      ipam.some((c) => declaredSubnets.includes(c.Subnet)),
+      'Recreate the isolated test network with its configured subnet; preserve the MySQL volume.',
+    );
     previous.push({
       name,
       network,
@@ -106,7 +121,9 @@ try {
     });
   }
   stopped = true;
-  await docker([...compose, 'stop', 'bag-filter', 'consumables']);
+  // Remove only these stateless test containers so their network endpoints and
+  // IP reservations are released consistently across Docker Engine versions.
+  await docker([...compose, 'rm', '-s', '-f', 'bag-filter', 'consumables']);
   // Occupy both previous addresses with a different HTML service. Static DNS
   // resolution would now reproduce the reported JSON parse error / wrong page.
   for (const [i, p] of previous.entries()) {
