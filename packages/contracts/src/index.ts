@@ -46,7 +46,7 @@ export const equipment: Equipment[] = equipmentCodes.map((code) => {
     columns: is56 ? 'HGFEDCBA' : 'ABCDEFGH',
     bagsPerCompartment: rows * 8,
     colorScaleDays: 900,
-    rowDividerAfter: is56 ? null : isL6 ? 8 : 9,
+    rowDividerAfter: isL6 ? 8 : 9,
     centeredLabels: true,
     sides: [
       {

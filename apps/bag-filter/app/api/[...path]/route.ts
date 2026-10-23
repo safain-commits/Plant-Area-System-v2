@@ -20,7 +20,13 @@ export async function GET(request: Request, context: Context) {
     if (['dashboard', 'activity', 'discovery'].includes(path.join('/'))) {
       const actor = await apiIdentity(request, 'read');
       const codes = actor.grants.find((g) => g.appId === 'bag-filter')!.equipment;
-      if (path[0] === 'dashboard') return json(await dashboard(codes, Number(params.get('days') || 7)));
+      if (path[0] === 'dashboard') {
+        const now = Date.now();
+        const year = params.has('year')
+          ? Number(params.get('year'))
+          : new Date(now + 7 * 3600000).getUTCFullYear();
+        return json(await dashboard(codes, year, now));
+      }
       if (path[0] === 'activity') return json({ items: await activity(codes) });
       return json({
         equipment: equipment.filter(

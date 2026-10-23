@@ -50,6 +50,17 @@ test('six equipment have 18,784 unique positions and reversible field labels', (
   assert.equal(total, 18784);
   assert.equal(positionLabel(p, equipment[0]), '1 H17');
   assert.equal(positionLabel({ ...p, side: 'Selatan', column: 8, row: 1 }, equipment[0]), '24 A1');
+  for (const eq of equipment.slice(0, 2)) {
+    assert.equal(eq.rowDividerAfter, 9);
+    assert.deepEqual(
+      rowOrder(eq, 'Utara').filter((row) => rowDividerBefore(eq, 'Utara', row)),
+      [9],
+    );
+    assert.deepEqual(
+      rowOrder(eq, 'Selatan').filter((row) => rowDividerBefore(eq, 'Selatan', row)),
+      [10],
+    );
+  }
   for (const eq of equipment.slice(2, 4)) {
     assert.equal(eq.rowDividerAfter, 9);
     assert.deepEqual(

@@ -5,14 +5,15 @@ import { Select } from './fields';
 import { Icon } from './icon';
 type Data = {
   serverTime: string;
-  days: number;
+  year: number;
+  currentYear: number;
   total: number;
   installed: number;
   neverInstalled: number;
   older900: number;
   distribution: number[];
   perEquipment: { code: string; total: number; installed: number; older900: number }[];
-  series: { date: string; total: number; brands: Record<string, number> }[];
+  series: { quarter: number; label: string; total: number; brands: Record<string, number> }[];
   periodTotal: number;
   previousTotal: number;
   recent: {
@@ -61,7 +62,7 @@ export function AnimatedNumber({ value }: { value: number }) {
   );
 }
 export function Dashboard() {
-  const [days, setDays] = useState(7),
+  const [year, setYear] = useState<number | null>(null),
     [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(''),
     [revision, setRevision] = useState(0),
@@ -72,7 +73,10 @@ export function Dashboard() {
     const abort = new AbortController();
     setBusy(true);
     setError('');
-    void fetch(`/bag-filter/api/dashboard?days=${days}`, { cache: 'no-store', signal: abort.signal })
+    void fetch(`/bag-filter/api/dashboard${year === null ? '' : `?year=${year}`}`, {
+      cache: 'no-store',
+      signal: abort.signal,
+    })
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw Error(d.error || 'Ringkasan belum dapat dimuat.');
@@ -80,7 +84,11 @@ export function Dashboard() {
       })
       .then((d) => {
         setData(d);
-        setActive(d.series.length - 1);
+        setActive(
+          d.year === d.currentYear
+            ? Math.floor(new Date(Date.parse(d.serverTime) + 7 * 3600000).getUTCMonth() / 3)
+            : 3,
+        );
       })
       .catch((e) => {
         if (e.name !== 'AbortError') {
@@ -92,7 +100,7 @@ export function Dashboard() {
         if (!abort.signal.aborted) setBusy(false);
       });
     return () => abort.abort();
-  }, [days, revision]);
+  }, [year, revision]);
   if (error)
     return (
       <section className="panel dashboard-error">
@@ -129,17 +137,22 @@ export function Dashboard() {
                   <AnimatedNumber value={data.periodTotal} />
                   <small> bag</small>
                 </strong>
-                <p className="muted">Berdasarkan tanggal pemasangan (WIB)</p>
+                <p className="muted">Per kuartal berdasarkan tanggal pemasangan (WIB)</p>
               </div>
               <label className="sr-label">
-                Periode grafik
+                Tahun grafik
                 <Select
-                  aria-label="Periode grafik"
-                  value={days}
-                  onChange={(e) => setDays(Number(e.target.value))}
+                  aria-label="Tahun grafik"
+                  value={year ?? data.year}
+                  onChange={(e) => setYear(Number(e.target.value))}
                 >
-                  <option value="7">7 hari</option>
-                  <option value="30">30 hari</option>
+                  {Array.from({ length: data.currentYear - 1999 }, (_, i) => data.currentYear - i).map(
+                    (value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ),
+                  )}
                 </Select>
               </label>
             </div>
@@ -154,7 +167,7 @@ export function Dashboard() {
             <div
               className="bar-chart"
               role="figure"
-              aria-label={`Pemasangan ${days} hari: ${data.periodTotal} bag`}
+              aria-label={`Pemasangan per kuartal ${data.year}: ${data.periodTotal} bag`}
             >
               <div className="chart-grid-lines">
                 {[1, 0.75, 0.5, 0.25, 0].map((v) => (
@@ -164,27 +177,27 @@ export function Dashboard() {
                 ))}
               </div>
               <div className="bar-slots">
-                {data.series.map((day, i) => (
+                {data.series.map((quarter, i) => (
                   <button
                     type="button"
-                    key={day.date}
+                    key={quarter.quarter}
                     className={`bar-slot${i === active ? ' is-active' : ''}`}
-                    aria-label={`${day.date}: ${day.total} bag`}
+                    aria-label={`${quarter.label} ${data.year}: ${quarter.total} bag`}
                     aria-pressed={i === active}
                     onPointerEnter={() => setActive(i)}
                     onFocus={() => setActive(i)}
                     onClick={() => setActive(i)}
                   >
                     <span className="bar-stack">
-                      {day.total ? (
+                      {quarter.total ? (
                         brandNames
-                          .filter((name) => day.brands[name])
+                          .filter((name) => quarter.brands[name])
                           .map((name) => (
                             <i
                               key={name}
                               className={i === active ? 'hatched' : ''}
                               style={{
-                                height: `${(day.brands[name] / max) * 100}%`,
+                                height: `${(quarter.brands[name] / max) * 100}%`,
                                 background:
                                   i === active ? brandColors[brandNames.indexOf(name)] : 'var(--placeholder)',
                               }}
@@ -194,13 +207,15 @@ export function Dashboard() {
                         <i className="empty-bar" />
                       )}
                     </span>
-                    <small>{days === 7 || i % 5 === 0 ? day.date.slice(8) : '·'}</small>
+                    <small>{quarter.label}</small>
                   </button>
                 ))}
               </div>
             </div>
             <div className="chart-tooltip" aria-live="polite">
-              <span>{slot?.date}</span>
+              <span>
+                {slot?.label} {data.year} · {['Jan–Mar', 'Apr–Jun', 'Jul–Sep', 'Okt–Des'][slot?.quarter - 1]}
+              </span>
               <strong>{n(slot?.total || 0)} bag</strong>
               {slot &&
                 Object.entries(slot.brands).map(([brand, count]) => (
@@ -209,7 +224,12 @@ export function Dashboard() {
                   </small>
                 ))}
             </div>
-            {!data.periodTotal && <p className="fine">Belum ada pemasangan pada periode ini.</p>}
+            <p className="fine">
+              {data.year === data.currentYear
+                ? 'Tahun berjalan: data sampai saat ini.'
+                : `Total pemasangan tahun ${data.year}.`}
+              {!data.periodTotal ? ' Belum ada pemasangan pada tahun ini.' : ''}
+            </p>
             <p className="trend-row">
               {data.previousTotal ? (
                 <>
@@ -223,10 +243,10 @@ export function Dashboard() {
                     )}
                     %
                   </span>{' '}
-                  dari periode sebelumnya
+                  dibanding total tahun {data.year - 1}
                 </>
               ) : (
-                'Belum ada pembanding pada periode sebelumnya.'
+                `Belum ada pembanding pada tahun ${data.year - 1}.`
               )}
             </p>
           </div>

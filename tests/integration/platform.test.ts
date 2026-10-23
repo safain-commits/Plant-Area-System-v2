@@ -78,7 +78,8 @@ test('dashboard and activity use current installations and exact equipment scope
     },
     key(),
   );
-  const data = await dashboard(['L61-BF1'], 7, now);
+  const year = new Date(now + 7 * 3600000).getUTCFullYear();
+  const data = await dashboard(['L61-BF1'], year, now);
   assert.equal(data.total, 2048);
   assert.deepEqual(
     data.perEquipment.map((e) => e.code),
@@ -92,37 +93,78 @@ test('dashboard and activity use current installations and exact equipment scope
     state.recorded,
   );
   assert.ok(data.older900 >= 1);
-  assert.ok(data.series.at(-1)!.total >= 2);
-  assert.equal(data.series.length, 7);
+  assert.ok(data.series[Math.floor(new Date(now + 7 * 3600000).getUTCMonth() / 3)].total >= 2);
+  assert.deepEqual(
+    data.series.map((q) => q.label),
+    ['Q1', 'Q2', 'Q3', 'Q4'],
+  );
   const events = await activity(['L61-BF1'], reason);
   assert.equal(events.length, 2);
   assert.ok(events.every((e) => e.equipmentCode === 'L61-BF1'));
   assert.ok(!(await activity(['L62-BF1'], reason)).length);
-  assert.deepEqual((await dashboard([], 30, now)).perEquipment, []);
-  await assert.rejects(dashboard(['L61-BF1'], 31));
+  assert.deepEqual((await dashboard([], year, now)).perEquipment, []);
+  await assert.rejects(dashboard(['L61-BF1'], 1999));
   await assert.rejects(activity([], 'x'.repeat(201)));
-  const boundary = Date.parse('2026-08-01T16:59:45Z');
-  const beforeMidnight = await dashboard(['L62-BF1'], 7, boundary);
-  const beforeNextDay = await dashboard(['L62-BF1'], 7, boundary + 60000);
+  const boundary = Date.parse('2025-12-31T16:59:45Z');
+  const beforeMidnight = await dashboard(['L62-BF1'], 2025, boundary);
+  const beforeNextDay = await dashboard(['L62-BF1'], 2026, boundary + 60000);
   await createReplacement(
     actor,
     {
       equipmentCode: 'L62-BF1',
       positions: [{ side: 'Barat', compartment: 8, column: 8, row: 16 }],
-      installedAt: '2026-08-01T17:00:15Z',
+      installedAt: '2025-12-31T17:00:15Z',
       brand: 'Cipta Medya',
       reason: `WIB boundary ${randomUUID()}`,
       wo: '',
     },
     key(),
   );
-  const nearMidnight = await dashboard(['L62-BF1'], 7, boundary);
+  const nearMidnight = await dashboard(['L62-BF1'], 2025, boundary);
   assert.equal(nearMidnight.previousTotal, beforeMidnight.previousTotal);
   assert.equal(nearMidnight.periodTotal, beforeMidnight.periodTotal);
   assert.equal(
-    (await dashboard(['L62-BF1'], 7, boundary + 60000)).periodTotal,
+    (await dashboard(['L62-BF1'], 2026, boundary + 60000)).periodTotal,
     beforeNextDay.periodTotal + 1,
   );
+  await assert.rejects(dashboard([], year + 1, now));
+  await assert.rejects(dashboard([], 2024.5, now));
+  const beforeQuarters = await dashboard(['L62-BF1'], 2024, now);
+  const before2025 = await dashboard(['L62-BF1'], 2025, now);
+  for (const installedAt of [
+    '2024-03-31T16:59:59Z',
+    '2024-03-31T17:00:00Z',
+    '2024-06-30T16:59:59Z',
+    '2024-06-30T17:00:00Z',
+    '2024-09-30T16:59:59Z',
+    '2024-09-30T17:00:00Z',
+    '2024-12-31T16:59:59Z',
+    '2024-12-31T17:00:00Z',
+  ])
+    await createReplacement(
+      actor,
+      {
+        equipmentCode: 'L62-BF1',
+        positions: [{ side: 'Timur', compartment: 8, column: 8, row: 16 }],
+        installedAt,
+        brand: 'Filtras',
+        reason: `Quarter boundary ${randomUUID()}`,
+        wo: '',
+      },
+      key(),
+    );
+  const quarters = await dashboard(['L62-BF1'], 2024, now);
+  assert.deepEqual(
+    quarters.series.map((q, i) => q.total - beforeQuarters.series[i].total),
+    [1, 2, 2, 2],
+  );
+  assert.deepEqual(
+    quarters.series.map((q, i) => (q.brands.Filtras || 0) - (beforeQuarters.series[i].brands.Filtras || 0)),
+    [1, 2, 2, 2],
+  );
+  const nextYear = await dashboard(['L62-BF1'], 2025, now);
+  assert.equal(nextYear.series[0].total, before2025.series[0].total + 1);
+  assert.equal(nextYear.previousTotal, before2025.previousTotal + 7);
 });
 after(async () => {
   await closeAuthDb();

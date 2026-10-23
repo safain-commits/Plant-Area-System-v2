@@ -11,6 +11,8 @@ Sediakan satu pintu login untuk aplikasi maintenance yang dapat dibangun dan dip
 
 Acuan visual aktif adalah [UI-REFRESH.md](design/UI-REFRESH.md) dan [ui-brief.jsonc](design/ui-brief.jsonc). Sidebar mengikuti tema, dapat diciutkan menjadi rail 76 px, dan menyediakan navigasi mobile. Tombol utama memakai ink, data utama lime, dan peringatan pumpkin. Dashboard, pencarian cepat, notifikasi aktivitas batch, dan timer sesi memakai data aktual sesuai scope. Tema Terang/Gelap/Sistem tersedia melalui menu ikon. Kontrak fitur, koordinat equipment, role, transaksi, dan tanggal tetap berlaku. Rincian implementasi serta pengecualian kontras ada di [UI-THEME.md](UI-THEME.md).
 
+Grafik pemasangan menampilkan Q1–Q4 menurut tanggal pemasangan WIB, dengan pilihan tahun 2000 sampai tahun berjalan (default). Setiap kuartal dirinci menurut Brand/Pabrikan. Total dan pembanding grafik memakai tahun terpilih dan tahun kalender sebelumnya; tahun berjalan diberi keterangan parsial. KPI kondisi terkini dan distribusi umur tidak mengikuti filter tahun grafik.
+
 ## 2. Akun dan akses
 
 - Admin portal membuat/menonaktifkan akun, mengatur role dan equipment, mereset password, serta mengaktifkan/menonaktifkan aplikasi yang telah dirilis.
@@ -48,7 +50,7 @@ Total 18.784 posisi bag. Konfigurasi peta mengikuti equipment, dengan nomor bari
 | 421/422   | A / B             | 1A–15A / 1B–15B          | A–H                | 17→1 / 1→17        |
 | L61/L62   | Timur / Barat     | 1–8 / 16–9               | A–H                | 16→1 / 1→16        |
 
-561/562 dan 421/422 memiliki 8 × 17 = 136 bag per kompartemen; L61/L62 memiliki 8 × 16 = 128. Jeda visual memakai margin tanpa garis pembatas: antara baris 9 dan 10 pada 421/422, serta antara baris 8 dan 9 pada L61/L62 (penanda plat stiffener). Jeda tidak menambah koordinat. Label kolom/kompartemen overview seluruh equipment menghadap bagian tengah sesuai form manual. Pada sisi bawah (Selatan, B, dan Barat), label kolom berada tepat di bawah nama kompartemen, sebelum grid bag.
+561/562 dan 421/422 memiliki 8 × 17 = 136 bag per kompartemen; L61/L62 memiliki 8 × 16 = 128. Jeda visual memakai margin tanpa garis pembatas: antara baris 9 dan 10 pada 561/562 serta 421/422, serta antara baris 8 dan 9 pada L61/L62 (penanda plat stiffener). Jeda tampil pada overview dan detail, mengikuti orientasi setiap sisi, tanpa menambah koordinat. Label kolom/kompartemen overview seluruh equipment menghadap bagian tengah sesuai form manual. Pada sisi bawah (Selatan, B, dan Barat), label kolom berada tepat di bawah nama kompartemen, sebelum grid bag.
 
 `422-BF1` adalah kode yang benar; `422-BF2` hanya merupakan nama lama dalam audit baseline dan migrasi, bukan alias operasional. Upgrade mempertahankan ID, tanggal, actor, batch, serta posisi fisik transaksi; Utara/Selatan lama pada 421/422 menjadi A/B dengan nomor lokal dan indeks kolom tetap.
 

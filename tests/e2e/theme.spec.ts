@@ -238,11 +238,18 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
   await login(page);
   await page.goto('/');
   await expect(page.locator('.hero-chart-card')).toBeVisible();
-  const api = await (await page.request.get('/bag-filter/api/dashboard?days=7')).json();
+  const api = await (await page.request.get('/bag-filter/api/dashboard')).json();
   expect(api.total).toBe(18784);
   expect(api.perEquipment).toHaveLength(6);
-  await select(page, 'Periode grafik', '30');
-  await expect(page.locator('.bar-slot')).toHaveCount(30);
+  expect(api.series.map((q: { label: string }) => q.label)).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
+  await select(page, 'Tahun grafik', String(api.currentYear - 1));
+  await expect(page.locator('.bar-slot')).toHaveCount(4);
+  await expect(page.locator('.bar-slot small')).toHaveText(['Q1', 'Q2', 'Q3', 'Q4']);
+  await expect(page.locator('.bar-chart')).toHaveAttribute(
+    'aria-label',
+    new RegExp(String(api.currentYear - 1)),
+  );
+  await select(page, 'Tahun grafik', String(api.currentYear));
   await page.keyboard.press('Control+k');
   await expect(page.getByRole('dialog', { name: 'Pencarian cepat' })).toBeVisible();
   await page.getByLabel('Cari halaman, equipment, atau batch').fill('L61');
@@ -267,7 +274,7 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
   await ownRow.getByRole('button', { name: 'Reset password pengguna', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Konfirmasi perubahan' })).toBeVisible();
   await page.getByRole('button', { name: 'Batal', exact: true }).click();
-  expect((await page.request.get('/bag-filter/api/dashboard?days=7')).status()).toBe(200);
+  expect((await page.request.get('/bag-filter/api/dashboard')).status()).toBe(200);
   for (const theme of ['light', 'dark'] as const) {
     await choose(page, theme);
     await contrastTokens(page);
@@ -292,6 +299,24 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
       }
       if (path.includes('/equipment/')) {
         await contrastTokens(page);
+        if (/\/(561|562)-bf1$/.test(path)) {
+          await expect(page.locator('.overview-stiffener')).toHaveCount(24);
+          await expect(page.locator('.bag-stiffener')).toHaveCount(1);
+          await expect(page.locator('.bag-stiffener')).toHaveAttribute(
+            'aria-label',
+            'Jeda antara baris 9 dan 10',
+          );
+          await expect(page.locator('.bag-stiffener')).toHaveCSS('margin-top', '8px');
+          await expect(
+            page.locator('.overview-band').first().locator('.overview-stiffener .overview-row-number'),
+          ).toHaveText(Array(12).fill('9'));
+          await expect(
+            page.locator('.overview-band').last().locator('.overview-stiffener .overview-row-number'),
+          ).toHaveText(Array(12).fill('10'));
+          await page
+            .locator('.overview-panel')
+            .screenshot({ path: `test-results/quarter-gap-${theme}-${path.split('/').at(-1)}.png` });
+        }
         await expect(page.locator('.age-buckets button')).toHaveCount(8);
         const labels = await page
           .locator('.overview-band')

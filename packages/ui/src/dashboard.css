@@ -123,6 +123,7 @@
 .bar-stack {
   height: calc(100% - 24px);
   width: 66%;
+  max-width: 72px;
   display: flex;
   flex-direction: column-reverse;
   justify-content: flex-start;

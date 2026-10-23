@@ -37,14 +37,17 @@ export async function activity(codes: EquipmentCode[], query = '', limit = 12) {
     }[]
   ).map((row) => ({ ...row, installedAt: iso(row.installedAt), createdAt: iso(row.createdAt) }));
 }
-export async function dashboard(codes: EquipmentCode[], days: number, now = Date.now()) {
-  if (days !== 7 && days !== 30) throw new AppError(400, 'Periode harus 7 atau 30 hari.');
+export async function dashboard(codes: EquipmentCode[], year: number, now = Date.now()) {
+  const currentYear = new Date(now + 7 * 3600000).getUTCFullYear();
+  if (!Number.isInteger(year) || year < 2000 || year > currentYear)
+    throw new AppError(400, `Tahun harus antara 2000 dan ${currentYear}.`);
   const catalog = allowed(codes),
     distribution = Array(7).fill(0) as number[];
-  const today = new Date(now + 7 * 3600000).toISOString().slice(0, 10);
-  const start = Date.parse(today + 'T00:00:00+07:00') - (days - 1) * 86400000;
-  const series = Array.from({ length: days }, (_, i) => ({
-    date: new Date(start + i * 86400000 + 7 * 3600000).toISOString().slice(0, 10),
+  const start = Date.parse(`${year - 1}-01-01T00:00:00+07:00`);
+  const end = Date.parse(`${year + 1}-01-01T00:00:00+07:00`);
+  const series = Array.from({ length: 4 }, (_, i) => ({
+    quarter: i + 1,
+    label: `Q${i + 1}`,
     total: 0,
     brands: {} as Record<string, number>,
   }));
@@ -68,14 +71,19 @@ export async function dashboard(codes: EquipmentCode[], days: number, now = Date
       if (hours >= 21600) target.older900++;
     }
     const [history] = await getBagDb().execute(
-      sql`SELECT DATE_FORMAT(DATE_ADD(installed_at,INTERVAL 7 HOUR),'%Y-%m-%d') AS day,brand,SUM(position_count) AS total FROM replacement_batches WHERE equipment_code IN (${list}) AND installed_at>=${new Date(start - days * 86400000)} AND installed_at<=${new Date(now + 60000)} GROUP BY day,brand ORDER BY day`,
+      sql`SELECT YEAR(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS year,QUARTER(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS quarter,brand,SUM(position_count) AS total FROM replacement_batches WHERE equipment_code IN (${list}) AND installed_at>=${new Date(start)} AND installed_at<${new Date(end)} AND installed_at<=${new Date(now + 60000)} GROUP BY year,quarter,brand ORDER BY year,quarter`,
     );
-    for (const h of history as unknown as { day: string; brand: string | null; total: number | string }[]) {
-      const day = series.find((s) => s.date === h.day);
-      if (day) {
-        day.total += Number(h.total);
-        day.brands[h.brand || 'Belum tercatat'] = Number(h.total);
-      } else if (h.day < series[0].date) previousTotal += Number(h.total);
+    for (const h of history as unknown as {
+      year: number;
+      quarter: number;
+      brand: string | null;
+      total: number | string;
+    }[]) {
+      if (Number(h.year) === year) {
+        const quarter = series[Number(h.quarter) - 1];
+        quarter.total += Number(h.total);
+        quarter.brands[h.brand || 'Belum tercatat'] = Number(h.total);
+      } else previousTotal += Number(h.total);
     }
   }
   const total = perEquipment.reduce((sum, e) => sum + e.total, 0),
@@ -83,7 +91,8 @@ export async function dashboard(codes: EquipmentCode[], days: number, now = Date
     older900 = perEquipment.reduce((sum, e) => sum + e.older900, 0);
   return {
     serverTime: new Date(now).toISOString(),
-    days,
+    year,
+    currentYear,
     total,
     installed,
     neverInstalled: total - installed,

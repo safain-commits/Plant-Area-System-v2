@@ -2,6 +2,14 @@
 
 Tanggal: 22 Oktober 2026. Lingkungan: host Windows dengan Node26.12.1, container Linux Node26.12.1, MySQL8.4.13, Nginx1.30.6, dan Chromium156 melalui Playwright1.64.1. HTTPS localhost8443 memakai sertifikat pengujian. Project Compose: `plant-v2-test`; database dan volume terpisah dari deployment produksi.
 
+## Grafik kuartal dan jeda 561/562 — 23 Oktober 2026
+
+Grafik Portal dan Bag Filter kini menampilkan Q1–Q4 dengan pilihan tahun, default tahun berjalan WIB. Agregasi tetap per pabrikan dan scope pengguna. Pembanding grafik adalah total tahun kalender sebelumnya, sedangkan KPI/distribusi tetap kondisi terkini. Peta 561/562 mempunyai jeda margin 9–10 pada overview dan detail, tanpa mengubah koordinat atau data pemasangan.
+
+Typecheck, build ketiga aplikasi, delapan tes unit, 15 hasil integrasi MySQL, dan lima tes browser Chromium lulus. Fixture integrasi memeriksa seluruh batas kuartal WIB, pergantian tahun, agregasi brand, cakupan equipment, serta penolakan tahun di luar batas. Browser memeriksa pilihan tahun dan empat label Q1–Q4, 24 jeda overview per equipment 561/562, urutan baris sebelum/sesudah jeda pada kedua sisi, serta margin detail 8 px dalam tema terang/gelap. Smoke test SSO/pencatatan dan pemeriksaan responsif tetap lulus.
+
+Screenshot grafik serta peta 561 ditinjau visual; peta 561/562 tersedia lokal di `test-results/quarter-gap-*.png`. Preview HTTPS lokal telah diperbarui. Tidak ada migrasi database; hasil ini validasi lokal perubahan kuartal/jeda, bukan hasil CI baru.
+
 ## Perbaikan startup MySQL pada CI Linux — 23 Oktober 2026
 
 [Run pertama commit UI refresh](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/39908376470) lulus typecheck dan unit test, lalu gagal pada persiapan MySQL sebelum migrasi. Reproduksi memakai image MySQL 8.4.13 dan initializer berizin Linux `0644` menghasilkan `MYSQL_ONETIME_PASSWORD: unbound variable`: entrypoint men-source script, sehingga `set -u` bocor ke shell entrypoint. Script pada mount Windows dapat dieksekusi sebagai proses terpisah, sehingga pengujian dengan volume lama tidak mengungkap masalah ini.

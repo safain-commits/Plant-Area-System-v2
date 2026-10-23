@@ -319,7 +319,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   for (const code of ['L61-BF1', 'L62-BF1'])
     expect((await viewer.request.get(`/bag-filter/api/equipment/${code}/state`)).status()).toBe(403);
   expect((await viewer.request.get('/api/admin/users')).status()).toBe(403);
-  const scoped = await (await viewer.request.get('/bag-filter/api/dashboard?days=7')).json();
+  const scoped = await (await viewer.request.get('/bag-filter/api/dashboard')).json();
   expect(scoped.perEquipment.map((e: { code: string }) => e.code)).toEqual(['561-BF1']);
   const events = await (await viewer.request.get('/bag-filter/api/activity')).json();
   expect(events.items.every((e: { equipmentCode: string }) => e.equipmentCode === '561-BF1')).toBe(true);
