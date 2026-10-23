@@ -4,11 +4,11 @@ permissions:
   contents: read
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 26.12.1
       - run: npm install --global pnpm@12.14.0
@@ -29,6 +29,16 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - run: node --env-file=.test-runtime/host.env --import tsx scripts/test-operations.ts
+      - name: Diagnose failed test stack
+        if: failure()
+        run: |
+          if [ -f .test-runtime/stack.env ]; then
+            docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml ps -a
+            docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml logs --no-color --tail=160 mysql auth portal bag-filter nginx
+          fi
       - name: Stop test stack
         if: always()
-        run: docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml down
+        run: |
+          if [ -f .test-runtime/stack.env ]; then
+            docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml down
+          fi

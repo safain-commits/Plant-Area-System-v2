@@ -1,4 +1,7 @@
 #!/bin/bash
+# The MySQL entrypoint sources non-executable .sh files on Linux. Keep strict
+# options and local variables inside a subshell so they cannot change its shell.
+(
 set -euo pipefail
 # Fixed database names; generated hexadecimal secrets avoid SQL/URL ambiguity.
 for value in "$AUTH_DB_PASSWORD" "$BAG_DB_PASSWORD"; do
@@ -12,3 +15,4 @@ CREATE USER IF NOT EXISTS 'plant_bag'@'%' IDENTIFIED BY '$BAG_DB_PASSWORD';
 GRANT SELECT,INSERT,UPDATE,DELETE ON plant_auth.* TO 'plant_auth'@'%';
 GRANT SELECT,INSERT,UPDATE,DELETE ON plant_bag_filter.* TO 'plant_bag'@'%';
 SQL
+)

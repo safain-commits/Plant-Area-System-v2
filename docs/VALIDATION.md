@@ -2,6 +2,12 @@
 
 Tanggal: 22 Oktober 2026. Lingkungan: host Windows dengan Node26.12.1, container Linux Node26.12.1, MySQL8.4.13, Nginx1.30.6, dan Chromium156 melalui Playwright1.64.1. HTTPS localhost8443 memakai sertifikat pengujian. Project Compose: `plant-v2-test`; database dan volume terpisah dari deployment produksi.
 
+## Perbaikan startup MySQL pada CI Linux — 23 Oktober 2026
+
+[Run pertama commit UI refresh](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/39908376470) lulus typecheck dan unit test, lalu gagal pada persiapan MySQL sebelum migrasi. Reproduksi memakai image MySQL 8.4.13 dan initializer berizin Linux `0644` menghasilkan `MYSQL_ONETIME_PASSWORD: unbound variable`: entrypoint men-source script, sehingga `set -u` bocor ke shell entrypoint. Script pada mount Windows dapat dieksekusi sebagai proses terpisah, sehingga pengujian dengan volume lama tidak mengungkap masalah ini.
+
+Initializer kini mengisolasi opsi shell dalam subshell. Uji startup dengan database baru dan izin `0644` berhasil mencapai `healthy`; syntax Bash juga lulus. Healthcheck memakai koneksi TCP dan memeriksa kedua database agar server sementara saat inisialisasi tidak dianggap siap. Workflow memakai Ubuntu 24.04 yang dipin, action checkout/setup-node versi Node 24, serta log diagnostik sebelum cleanup jika gagal. Runtime aplikasi tetap Node 26.12.1. Pengujian ini memakai container dan penyimpanan sementara terpisah, tanpa menghapus data preview.
+
 ## UI refresh v2 — 23 Oktober 2026
 
 Acuan tampilan aktif adalah brief di `docs/design/` dan [UI-THEME.md](UI-THEME.md). Bagian tema di bawah merupakan catatan historis yang telah digantikan refresh ini.
