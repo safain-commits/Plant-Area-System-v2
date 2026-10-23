@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Button, useConfirmation } from '@plant/ui';
 type Application = { id: string; name: string; status: string };
 export function Applications() {
+  const confirm = useConfirmation();
   const [items, setItems] = useState<Application[]>([]),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -47,10 +49,15 @@ export function Applications() {
           >
             <strong>{app.name}</strong>
             {app.id === 'bag-filter' ? (
-              <button
+              <Button
                 className={`small ${app.status === 'active' ? 'danger' : 'secondary'}`}
-                disabled={busy}
+                busy={busy}
                 onClick={async () => {
+                  if (
+                    app.status === 'active' &&
+                    !(await confirm('Nonaktifkan Bag Filter? Akses seluruh pengguna akan ditutup.'))
+                  )
+                    return;
                   setBusy(true);
                   setError('');
                   try {
@@ -71,7 +78,7 @@ export function Applications() {
                 }}
               >
                 {app.status === 'active' ? 'Nonaktifkan Bag Filter' : 'Aktifkan Bag Filter'}
-              </button>
+              </Button>
             ) : (
               <span className="badge neutral">Rencana</span>
             )}

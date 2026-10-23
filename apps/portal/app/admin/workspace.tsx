@@ -1,4 +1,5 @@
 'use client';
+import { Select, Input, Button, useConfirmation } from '@plant/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { equipmentCodes, formatDate, type Grant } from '@plant/contracts';
 type ManagedUser = {
@@ -69,7 +70,7 @@ export function AdminWorkspace() {
       {error && (
         <p className="notice error" role="alert">
           {error}{' '}
-          <button
+          <Button
             className="small secondary"
             onClick={() =>
               void load()
@@ -78,7 +79,7 @@ export function AdminWorkspace() {
             }
           >
             Coba lagi
-          </button>
+          </Button>
         </p>
       )}
       {message && (
@@ -107,19 +108,19 @@ export function AdminWorkspace() {
           <div className="form-grid">
             <label>
               Nama
-              <input name="name" required minLength={2} maxLength={100} />
+              <Input name="name" required minLength={2} maxLength={100} />
             </label>
             <label>
               Email
-              <input name="email" type="email" required maxLength={254} />
+              <Input name="email" type="email" required maxLength={254} />
             </label>
             <label>
               Jabatan
-              <input name="position" maxLength={100} />
+              <Input name="position" maxLength={100} />
             </label>
             <label>
               Password sementara
-              <input
+              <Input
                 name="password"
                 type="password"
                 autoComplete="new-password"
@@ -131,9 +132,9 @@ export function AdminWorkspace() {
             </label>
           </div>
           <div>
-            <button className="primary" disabled={busy}>
+            <Button className="primary" busy={busy}>
               Buat akun
-            </button>
+            </Button>
           </div>
         </form>
       </details>
@@ -143,7 +144,7 @@ export function AdminWorkspace() {
       </div>
       <label style={{ marginBottom: 18 }}>
         Cari pengguna
-        <input
+        <Input
           type="search"
           placeholder="Nama atau email"
           value={search}
@@ -196,6 +197,7 @@ function UserRow({
   busy: boolean;
   act: (p: string, b: unknown, s: string) => Promise<boolean>;
 }) {
+  const confirm = useConfirmation();
   const grant = u.grants.find((g) => g.appId === 'bag-filter');
   return (
     <details className="user-row">
@@ -232,9 +234,9 @@ function UserRow({
             <input type="checkbox" name="portalAdmin" defaultChecked={u.portalAdmin} />
             Admin portal
           </label>
-          <button className="small secondary" disabled={busy}>
+          <Button className="small secondary" busy={busy}>
             Simpan status
-          </button>
+          </Button>
         </div>
       </form>
       <hr className="divider" />
@@ -254,12 +256,12 @@ function UserRow({
         <h3>Akses Bag Filter</h3>
         <label>
           Role
-          <select name="role" defaultValue={grant?.role || ''}>
+          <Select aria-label="Role" name="role" defaultValue={grant?.role || ''}>
             <option value="">Tidak diberi akses</option>
             <option value="viewer">Viewer — baca data</option>
             <option value="operator">Operator — catat penggantian</option>
             <option value="admin">Admin aplikasi — catat & lihat audit</option>
-          </select>
+          </Select>
         </label>
         <div className="check-grid">
           {equipmentCodes.map((code) => (
@@ -275,9 +277,9 @@ function UserRow({
           ))}
         </div>
         <div>
-          <button className="primary" disabled={busy}>
+          <Button className="primary" busy={busy}>
             Simpan akses aplikasi
-          </button>
+          </Button>
         </div>
       </form>
       <hr className="divider" />
@@ -288,6 +290,7 @@ function UserRow({
           onSubmit={async (e) => {
             e.preventDefault();
             const form = e.currentTarget;
+            if (!(await confirm('Reset password pengguna? Seluruh sesi pengguna akan dicabut.'))) return;
             if (
               await act(
                 `users/${u.id}/password`,
@@ -300,7 +303,7 @@ function UserRow({
         >
           <label>
             Password sementara baru
-            <input
+            <Input
               name="password"
               type="password"
               autoComplete="new-password"
@@ -311,9 +314,9 @@ function UserRow({
           </label>
           <p className="fine">Seluruh sesi pengguna akan dicabut. Password wajib diganti setelah login.</p>
           <div>
-            <button className="danger" disabled={busy}>
+            <Button className="danger" busy={busy}>
               Reset password pengguna
-            </button>
+            </Button>
           </div>
         </form>
       </details>

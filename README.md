@@ -4,7 +4,7 @@ Portal SSO dan aplikasi Bag Filter dengan Node.js 26, Next.js, Better Auth, MySQ
 
 Dokumen: [audit](docs/AUDIT.md), [PRD v2](docs/PRD-v2.md), [rencana implementasi](docs/IMPLEMENTATION-PLAN.md), [kontrak API](docs/API.md), [tema UI](docs/UI-THEME.md), [operasional](docs/OPERATIONS.md), [hasil validasi](docs/VALIDATION.md).
 
-Ikon matahari/bulan di topbar atau form login mengganti **Terang/Gelap** dalam satu klik. Pilihan **Sistem** tersedia di **Profil ? Tampilan ? Preferensi tema**. Default mengikuti perangkat; pilihan tersimpan pada browser yang sama untuk seluruh aplikasi. Palette industrial Lime/Charcoal memakai sidebar gelap, sementara warna umur bag tetap mengikuti skala operasional.
+Ikon Tema di topbar dan form Auth membuka pilihan **Terang/Gelap/Sistem**. Default mengikuti perangkat dan pilihan tersimpan pada browser untuk seluruh aplikasi. UI refresh v2 memakai sidebar yang dapat diciutkan, dashboard data aktual, pencarian cepat (**Ctrl/Cmd+K**), notifikasi aktivitas sesuai scope, dan form pencatatan dalam sheet. Peta memakai skala umur lime–kuning–oranye–merah serta seleksi double ring tanpa mengubah warna umur. Acuan visual tersedia di [brief UI](docs/design/UI-REFRESH.md).
 
 ## Persiapan
 

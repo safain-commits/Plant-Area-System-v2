@@ -58,6 +58,7 @@ export async function identityForCookie(cookie: string, allowPasswordChange = fa
     .where(and(eq(grants.userId, u.id), eq(applications.status, 'active')));
   return {
     id: u.id,
+    sessionExpiresAt: new Date(current.session.expiresAt).toISOString(),
     name: u.name,
     email: u.email,
     position: u.position,

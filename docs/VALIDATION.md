@@ -2,6 +2,22 @@
 
 Tanggal: 22 Oktober 2026. Lingkungan: host Windows dengan Node26.12.1, container Linux Node26.12.1, MySQL8.4.13, Nginx1.30.6, dan Chromium156 melalui Playwright1.64.1. HTTPS localhost8443 memakai sertifikat pengujian. Project Compose: `plant-v2-test`; database dan volume terpisah dari deployment produksi.
 
+## UI refresh v2 — 23 Oktober 2026
+
+Acuan tampilan aktif adalah brief di `docs/design/` dan [UI-THEME.md](UI-THEME.md). Bagian tema di bawah merupakan catatan historis yang telah digantikan refresh ini.
+
+- Typecheck root dan build/typecheck ketiga aplikasi lulus pada Node 26.12.1. Image standalone diterapkan pada preview HTTPS lokal; Auth, Portal, Bag Filter, dan MySQL berstatus sehat. Tidak ada dependency UI baru atau migrasi database.
+- Delapan tes unit lulus. Skala umur tujuh stop diuji pada seluruh 21.601 langkah jam sampai 900 hari dan nilai di atas batas; pemilihan teks sel berdasarkan luminansi menjaga rasio minimal 4,5:1. Koordinat enam equipment tetap 18.784 posisi unik.
+- Lima belas hasil integrasi MySQL lulus, termasuk migrasi historis, transaksi/retry, pagination, autentikasi, serta agregasi dashboard dan aktivitas sesuai scope. Fixture memverifikasi pemasangan terkini, brand, tujuh bucket, periode 7/30 hari, scope kosong, serta tanggal pemasangan dekat pergantian hari WIB. Toleransi waktu ke depan tidak masuk keliru ke periode pembanding.
+- Lima tes browser Chromium lulus: SSO/password awal/logout, isolasi gateway, peran/scope/API langsung, pencatatan Brand/Pabrikan lintas sisi, history/timeline, dan keenam peta. Pencarian cepat, notifikasi, grafik 7/30 hari, sidebar tersimpan/flyout, serta pembatalan konfirmasi reset password diuji.
+- Pengujian tema mencakup Sistem/perubahan perangkat, override, reload, perpindahan aplikasi, antar-tab, event sessionStorage yang diabaikan, pemulihan lifecycle, storage diblokir, dan tema sebelum hydration dengan bundle framework diblokir. Tidak ditemukan page error atau hydration warning pada halaman yang diperiksa.
+- Seleksi klik/Shift-click, marquee, keyboard/Shift+arrows, filter legenda, warna umur yang tidak berubah saat dipilih, draft sheet, kalender WIB beserta pilihan jam/menit, dan pergantian tema diuji. Detail mobile mempunyai sel minimal 44 px; label kolom tetap sejajar saat scroll internal. Nomor baris tetap di kiri.
+- Pemeriksaan 28 pasangan token per tema lulus batas teks 4,5:1. Audit computed style pada sembilan halaman dalam kedua tema tidak menemukan teks di bawah batas pada keadaan yang diperiksa. Teks link equipment aktif diuji pada DOM sebenarnya untuk mencegah benturan CSS lama. Area gradien diperiksa melalui pasangan token batas warnanya; audit ini bukan sertifikasi aksesibilitas menyeluruh.
+- Viewport 390, 640, 768, 1024, 1280, dan 1536 px diperiksa pada Portal, profil, admin, penggantian password, katalog, audit, dan keenam equipment tanpa scroll horizontal halaman. Smoke test platform juga memakai desktop 1440 px. Screenshot terang/gelap Portal, Auth, dan peta desktop/mobile ditinjau visual; berkas lokal berada di `test-results/refresh-*.png`.
+- Temuan yang diperbaiki: Escape dropdown menutup parent sheet, timer toast ter-reset oleh rerender, konfirmasi reset password salah tempat, kontras link equipment aktif tertimpa CSS lama, header kolom detail ikut melekat saat scroll horizontal, serta label rentang umur yang salah karakter. Harness mengikuti kontrol custom dan mengabaikan subtree tersembunyi saat streaming Next.js.
+
+Preferensi tampilan dan status aktivitas dibaca tersimpan pada browser, bukan pada akun. Notifikasi hanya menampilkan batch sesuai grant saat permintaan berlangsung; tidak membuat aktivitas dummy. Timer memakai kedaluwarsa sesi Auth tanpa memperpanjangnya. Semua fixture tetap di database uji terpisah. Validasi ini belum mencakup Safari/Firefox, gesture pada perangkat sentuh fisik, atau load test produksi. Context7 tidak tersedia pada tool sesi ini; primitive browser/React dirujuk ke dokumentasi resmi yang ditautkan pada panduan tema.
+
 ## Audit dark mode dan kontrol ikon — 23 Oktober 2026
 
 - Dropdown topbar/Auth diganti tombol ikon 36 px (40 px mobile). Satu klik mengganti Terang/Gelap; pilihan Sistem dipindahkan ke Profil → Tampilan. Ikon, tooltip, dan `aria-pressed` mengikuti tema aktual, termasuk perubahan perangkat ketika mode Sistem aktif. Space/Enter juga diuji.

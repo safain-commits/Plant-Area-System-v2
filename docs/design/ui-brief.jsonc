@@ -1,0 +1,603 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HANDOFF BRIEF v2 — Plant Area System (Portal · Auth · Bag Filter)
+// Visual reference: "ACRU" finance dashboard (soft, card-based, lime + orange)
+// Units: px unless noted. Breakpoints = Tailwind defaults (sm 640 · md 768 ·
+// lg 1024 · xl 1280 · 2xl 1536). Token refs use "palette-step" (e.g. primary-500).
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  "meta": {
+    "version": "2.0",
+    "date": "2026-10-23",
+    "designIntent": "Fresh, airy, premium data dashboard. Light-gray canvas, borderless white cards, ink (near-black) for primary actions, lime as the hero data color, orange for contrast, fine diagonal hatch on active data marks, big medium-weight numerals, small quiet gray labels, soft spring-like motion.",
+    // v2 decisions (supersede v1 and any UI rules in PRD-v2 / UI-THEME.md):
+    "decisions": [
+      "Fresh visual design. PRD UI/theme rules no longer apply; functional behavior is unchanged.",
+      "Sidebar follows the theme: light in light mode, dark in dark mode.",
+      "Sidebar can collapse into a 76px icon rail (see components.sidebar.collapse).",
+      "Primary button = ink (reference 'Upgrade now'). Lime = data, focus halo and one optional 'accent' commit button per view.",
+      "Inputs, dropdowns, menus and motion follow the 'premium' specs below. shadcn/ui primitives may be used, fully restyled to these tokens.",
+      "Bag-age scale retuned: lime (new) → yellow → orange → red (oldest, ≥ 900 days).",
+      "Bag selection = ink ring (no longer a fill), because orange/red now belong to the age scale."
+    ]
+  },
+
+  "principles": [
+    "Separation by tone, not lines: gray canvas + white cards, no card borders in light mode.",
+    "One hero color per widget: the active/focused datum is lime; everything inactive is a flat gray placeholder of the same shape (skeleton-like).",
+    "Secondary (pumpkin) means contrast: negative values, behind-target, warnings.",
+    "Ink is for decisions: primary buttons, checked controls, selection rings, tooltips.",
+    "Active data marks carry a fine 45° hatch texture; inactive marks are flat.",
+    "Numbers lead: large, medium weight, tight tracking, tabular figures. Labels are small and gray.",
+    "Motion is quick, soft and physical: things scale and slide from where they came from, and nothing bounces more than once.",
+    "4px spacing base; 24px card padding; 16px grid gutter."
+  ],
+
+  // ───────────────────────────── COLOR ─────────────────────────────
+  "color": {
+    "palettes": {
+      // PRIMARY — Lime (hero data, progress fills, gauge, hero card, focus halo, accent button)
+      "primary": {
+        "50": "#F7FCEB", "100": "#ECF7D2", "200": "#DAEFA8", "300": "#C1E375",
+        "400": "#A6D44B", "500": "#8CC233", "600": "#6E9E25", "700": "#547820",
+        "800": "#445F1F", "900": "#3A501E", "950": "#1D2C0B"
+      },
+      // SECONDARY — Pumpkin (negative bars, behind-target progress, warnings, notification dot)
+      "secondary": {
+        "50": "#FFF6EC", "100": "#FFEAD3", "200": "#FFD2A6", "300": "#FFB36F",
+        "400": "#FE9A47", "500": "#FB7F1F", "600": "#EC6414", "700": "#C44B12",
+        "800": "#9C3C17", "900": "#7E3315", "950": "#441709"
+      },
+      // GRAY — true neutral ("ink" = gray-950)
+      "gray": {
+        "0": "#FFFFFF", "50": "#FAFAFA", "100": "#F3F3F3", "150": "#ECECEC",
+        "200": "#E4E4E4", "300": "#D4D4D4", "400": "#A3A3A3", "500": "#737373",
+        "600": "#666666", "700": "#474747", "800": "#262626", "850": "#1C1C1C",
+        "900": "#151515", "950": "#0B0B0B", "1000": "#050505"
+      }
+    },
+
+    // Accents: data-viz, media, status only. Never for large UI surfaces.
+    "accents": {
+      "highlight":     { "light": "#EDF25C", "dark": "#DDE64A", "usage": "3rd data series (cap segment), gauge gradient start, mosaic tiles. Never as text." },
+      "highlightSoft": { "light": "#F7F9C9", "dark": "#3A3D14", "usage": "Tint behind highlight series in legends/tooltips." },
+      "lavender":      { "light": "#B9AEF2", "dark": "#9D8FE8", "usage": "Info/neutral badges, 'Planned' module tag." },
+      "danger":        { "light": "#E5484D", "dark": "#FF6369", "usage": "Destructive actions and form errors only. Never in charts." },
+      "brandMarks":    "Third-party/equipment logos keep native colors, on a 40px gray-100 (dark: gray-850) rounded tile."
+    },
+
+    // ── BAG-AGE SCALE (data-viz, theme-invariant fills) ──
+    // Continuous 0 → 900 days, interpolated in OKLab between stops; saturates at ≥ 900.
+    // Lightness peaks at yellow then drops steadily to red, so the order still reads in grayscale / color-blind views.
+    "ageScale": {
+      "stops": [
+        { "days": 0,   "token": "age-0",   "value": "#8FCB2F", "name": "Fresh lime",   "onText": "gray-950" },
+        { "days": 150, "token": "age-150", "value": "#BDD62E", "name": "Lime-yellow",  "onText": "gray-950" },
+        { "days": 300, "token": "age-300", "value": "#EBD52F", "name": "Yellow",       "onText": "gray-950" },
+        { "days": 450, "token": "age-450", "value": "#F7B32B", "name": "Amber",        "onText": "gray-950" },
+        { "days": 600, "token": "age-600", "value": "#F4862A", "name": "Orange",       "onText": "gray-950" },
+        { "days": 750, "token": "age-750", "value": "#E65A2A", "name": "Red-orange",   "onText": "gray-950" },
+        { "days": 900, "token": "age-900", "value": "#CF2E2E", "name": "Red (≥ 900)",  "onText": "gray-0" }
+      ],
+      "mode": "Map cells = continuous interpolation. Legends, distribution bars and filters = 7 discrete buckets (0–149, 150–299, 300–449, 450–599, 600–749, 750–899, ≥ 900) using the stop color of each bucket.",
+      "cellEdge": "Light: inset 1px rgba(11,11,11,0.06) so yellow cells hold their shape on white. Dark: none.",
+      "saturatedCue": "Cells ≥ 900 days get a 3px ink notch (light) / white notch (dark) in the top-right corner (non-color cue).",
+      "empty": { "light": "gray-150", "dark": "gray-800", "detailView": "+ 1px dashed gray-300 / gray-700 border", "label": "Never installed" },
+      "legend": "Horizontal gradient bar, height 8, radius 4, ticks at 0 · 150 · 300 · 450 · 600 · 750 · 900+ days (micro textMuted), plus an 'empty' swatch at the end",
+      "rules": [
+        "Fills are identical in light and dark themes.",
+        "Never apply hatch to age cells.",
+        "Never use primary/secondary tokens for age; always the age tokens."
+      ]
+    },
+
+    "semantic": {
+      "light": {
+        "canvas": "gray-100",
+        "shellBackdrop": "gray-200",
+        "surface": "gray-0",
+        "surfaceMuted": "gray-50",
+        "surfaceSunken": "gray-100",
+        "surfaceOverlay": "rgba(255,255,255,0.88) + backdrop blur 16px",   // menus, popovers, command palette
+        "placeholder": "gray-150",
+        "placeholderCap": "gray-100",
+        "border": "gray-200",
+        "borderStrong": "gray-300",
+        "divider": "gray-150",
+        "textPrimary": "gray-950",
+        "textSecondary": "gray-700",
+        "textMuted": "gray-500",
+        "textPlaceholder": "gray-400",
+        "ink": "gray-950", "onInk": "gray-0",
+        "buttonPrimaryBg": "gray-950", "buttonPrimaryHover": "gray-800", "buttonPrimaryText": "gray-0",
+        "buttonAccentBg": "primary-400", "buttonAccentHover": "primary-500", "buttonAccentText": "gray-950",
+        "controlOn": "gray-950",               // checked checkbox, switch track, radio dot
+        "accentFill": "primary-500",
+        "accentFillSoft": "primary-200",
+        "positiveText": "primary-700",
+        "negativeText": "secondary-700",
+        "warningText": "secondary-700",
+        "selectionRing": "gray-950", "selectionGap": "gray-0",
+        "focusBorder": "primary-600", "focusHalo": "rgba(140,194,51,0.28)",
+        "tooltipBg": "gray-950", "tooltipText": "gray-0",            // small UI tooltips
+        "chartTooltipBg": "gray-0", "chartTooltipBorder": "gray-150", // data tooltips
+        "scrim": "rgba(11,11,11,0.32) + blur 4px",
+        "sidebar": {
+          "bg": "gray-0", "border": "transparent",            // white panel on gray canvas (reference)
+          "text": "gray-700", "textMuted": "gray-500", "icon": "gray-600",
+          "itemHoverBg": "gray-50", "itemHoverText": "gray-950",
+          "itemActiveBg": "gray-100", "itemActiveText": "gray-950", "itemActiveIcon": "gray-950",
+          "indicator": "gray-950",
+          "treeLine": "gray-200",
+          "divider": "gray-150",
+          "badgeBg": "gray-950", "badgeText": "gray-0",
+          "promoCardBg": "gray-0", "promoCardBorder": "gray-200",
+          "edgeHandleBg": "gray-0", "edgeHandleBorder": "gray-200"
+        }
+      },
+      "dark": {
+        "canvas": "gray-950",
+        "shellBackdrop": "gray-1000",
+        "surface": "gray-900",
+        "surfaceMuted": "gray-850",
+        "surfaceSunken": "gray-950",
+        "surfaceOverlay": "rgba(28,28,28,0.86) + backdrop blur 16px",
+        "placeholder": "gray-800",
+        "placeholderCap": "gray-850",
+        "border": "gray-800",
+        "cardBorder": "gray-850",
+        "borderStrong": "gray-700",
+        "divider": "gray-850",
+        "textPrimary": "gray-50",
+        "textSecondary": "gray-300",
+        "textMuted": "gray-400",
+        "textPlaceholder": "gray-600",
+        "ink": "gray-50", "onInk": "gray-950",
+        "buttonPrimaryBg": "gray-50", "buttonPrimaryHover": "gray-200", "buttonPrimaryText": "gray-950",
+        "buttonAccentBg": "primary-400", "buttonAccentHover": "primary-300", "buttonAccentText": "gray-950",
+        "controlOn": "primary-400",            // lime reads better than white on dark
+        "accentFill": "primary-500",
+        "accentFillSoft": "primary-900",
+        "positiveText": "primary-300",
+        "negativeText": "secondary-300",
+        "warningText": "secondary-300",
+        "selectionRing": "gray-0", "selectionGap": "gray-900",
+        "focusBorder": "primary-400", "focusHalo": "rgba(166,212,75,0.28)",
+        "tooltipBg": "gray-50", "tooltipText": "gray-950",
+        "chartTooltipBg": "gray-850", "chartTooltipBorder": "gray-700",
+        "scrim": "rgba(0,0,0,0.55) + blur 4px",
+        "sidebar": {
+          "bg": "gray-900", "border": "gray-850",
+          "text": "gray-300", "textMuted": "gray-400", "icon": "gray-400",
+          "itemHoverBg": "gray-850", "itemHoverText": "gray-50",
+          "itemActiveBg": "gray-800", "itemActiveText": "gray-50", "itemActiveIcon": "gray-50",
+          "indicator": "primary-400",                         // lime accent in dark
+          "treeLine": "gray-800",
+          "divider": "gray-850",
+          "badgeBg": "gray-50", "badgeText": "gray-950",
+          "promoCardBg": "gray-850", "promoCardBorder": "gray-800",
+          "edgeHandleBg": "gray-850", "edgeHandleBorder": "gray-700"
+        }
+      }
+    },
+
+    "gradients": {
+      "gaugeArc": "Along arc direction: accents.highlight 0% → primary-300 45% → primary-500 100%",
+      "heroCard": "radial-gradient at top-left: primary-400 0% → primary-500 55% → primary-600 100%",
+      "mosaicFade": "Tile group masked with linear fade, opaque at right edge → 0% at left (≈ 3 tile widths)",
+      "skeletonShimmer": "90°: placeholder → placeholderCap → placeholder, 1.6s loop",
+      "scrollFade": "24px mask fade at top/bottom of any scrolling list or menu when more content exists",
+      "ageLegend": "Linear 90° through all ageScale stops at their day positions"
+    },
+
+    "textures": {
+      "hatch": {
+        "angle": "135deg", "stripe": "1.5px", "period": "6px",
+        "color": "rgba(255,255,255,0.22)",
+        "appliesTo": ["primary fills", "secondary fills", "highlight fills"],
+        "notOn": ["placeholders", "text", "icons", "bag-age cells"]
+      },
+      "contour": {
+        "lines": "6–8 concentric wavy lines flowing top-right → bottom-left",
+        "stroke": "1px rgba(255,255,255,0.12)",
+        "onNeutralCard": "1px gray-200 (dark: gray-800)"
+      },
+      "noise": "Optional 2% monochrome grain on surfaceOverlay panels for a frosted feel"
+    },
+
+    "shadows": {
+      "light": {
+        "card": "none",
+        "cardHover": "0 1px 2px rgba(11,11,11,0.04), 0 10px 28px -14px rgba(11,11,11,0.16)",
+        "panelEdge": "12px 0 24px -18px rgba(11,11,11,0.18)",
+        "control": "0 1px 2px rgba(11,11,11,0.04), inset 0 1px 0 rgba(255,255,255,0.6)",
+        "inputInset": "inset 0 1px 2px rgba(11,11,11,0.04)",
+        "overlay": "0 0 0 1px rgba(11,11,11,0.05), 0 4px 8px -2px rgba(11,11,11,0.06), 0 18px 44px -12px rgba(11,11,11,0.20)",
+        "chartTooltip": "0 2px 6px rgba(11,11,11,0.06), 0 12px 32px -10px rgba(29,44,11,0.25)",
+        "heroCard": "0 14px 28px -16px rgba(84,120,32,0.55)",
+        "sidebarFloating": "8px 0 32px -12px rgba(11,11,11,0.18)"   // when expanded as overlay (md–lg)
+      },
+      "dark": {
+        "card": "inset 0 1px 0 rgba(255,255,255,0.03)",
+        "cardHover": "inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 32px -12px rgba(0,0,0,0.7)",
+        "panelEdge": "12px 0 24px -18px rgba(0,0,0,0.6)",
+        "control": "inset 0 1px 0 rgba(255,255,255,0.04)",
+        "inputInset": "inset 0 1px 2px rgba(0,0,0,0.4)",
+        "overlay": "0 0 0 1px rgba(255,255,255,0.06), 0 18px 44px -10px rgba(0,0,0,0.75)",
+        "chartTooltip": "0 12px 32px -8px rgba(0,0,0,0.7)",
+        "heroCard": "0 14px 28px -16px rgba(0,0,0,0.8)",
+        "sidebarFloating": "8px 0 32px -8px rgba(0,0,0,0.7)"
+      }
+    }
+  },
+
+  // ─────────────────────────── TYPOGRAPHY ───────────────────────────
+  "typography": {
+    "family": {
+      "sans": "Geometric grotesk (reference ≈ Satoshi / General Sans); fallback Inter, system-ui",
+      "numerals": "tabular-nums + lining figures on every amount, count, date, coordinate"
+    },
+    "scale": {
+      "display-xl": { "size": 40, "line": 44, "weight": 500, "tracking": "-0.02em", "use": "Hero metric" },
+      "display-lg": { "size": 32, "line": 36, "weight": 500, "tracking": "-0.02em", "use": "KPI values, card hero numbers" },
+      "display-md": { "size": 28, "line": 32, "weight": 500, "tracking": "-0.015em", "use": "Gauge center value" },
+      "title-lg":   { "size": 20, "line": 28, "weight": 500, "tracking": "-0.01em", "use": "Page title, dialog title, promo title" },
+      "title-md":   { "size": 18, "line": 24, "weight": 500, "tracking": "-0.01em", "use": "Card titles" },
+      "nav":        { "size": 15, "line": 22, "weight": 400, "use": "Sidebar items (active = 500)" },
+      "body":       { "size": 14, "line": 20, "weight": 400, "use": "Inputs, menu items, list text, buttons (500)" },
+      "body-sm":    { "size": 13, "line": 18, "weight": 400, "use": "Field labels (500), legends, KPI labels" },
+      "caption":    { "size": 12, "line": 16, "weight": 400, "color": "textMuted", "use": "Subtitles, helper text, menu group labels" },
+      "micro":      { "size": 11, "line": 14, "weight": 400, "color": "textMuted", "use": "Dates, status, counters, kbd hints" },
+      "nano":       { "size": 10, "line": 12, "weight": 400, "color": "textMuted", "use": "Chart tooltip header" }
+    },
+    "patterns": {
+      "metricBlock": "label (body-sm, textSecondary) → 8px → value (display-lg) → 8px → trend row (micro)",
+      "trendRow": "14px trend icon + % (500, positiveText|negativeText) + ' from last month' (textMuted)",
+      "fraction": "'2,100' textPrimary 500 + ' / 3,264' textMuted 400",
+      "kbd": "micro 500, height 18, padding 0 5, radius 5, surfaceSunken bg, 1px border, textMuted"
+    }
+  },
+
+  // ─────────────────────── SPACING · RADIUS · ICONS ───────────────────────
+  "spacing": {
+    "base": 4,
+    "scale": [0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 64],
+    "cardPadding": { "base": 20, "md": 24 },
+    "gridGap": { "base": 12, "md": 16 },
+    "stackGap": { "tight": 4, "default": 8, "field": 6, "group": 16, "section": 24 }
+  },
+  "radius": {
+    "shell": 32, "card": 16, "overlay": 14, "heroCard": 12, "tile": 12,
+    "input": 12, "control": 10, "menuItem": 8, "avatarSquare": 10,
+    "bar": 6, "kbd": 5, "progress": 4, "bagCell": 3, "legendDot": 2, "pill": 9999
+  },
+  "iconography": {
+    "style": "Outline, 1.5px stroke, rounded caps & joins",
+    "sizes": { "nav": 20, "control": 18, "inline": 16, "trend": 14 },
+    "color": "inherit from text token; never lime on white (contrast)"
+  },
+
+  // ───────────────────────────── LAYOUT ─────────────────────────────
+  "layout": {
+    "shell": {
+      "sidebar": { "expandedWidth": 248, "collapsedWidth": 76, "itemInset": 16, "paddingTop": 28 },
+      "main": { "padding": { "base": 16, "md": 24 }, "maxContentWidth": 1680, "align": "center" },
+      "header": { "controlHeight": 48, "gapBelow": 24 }
+    },
+    "dashboardGrid@2xl": {
+      "columns": "[main 1fr] [rail 360px]", "gap": 16,
+      "main": [
+        { "row": 1, "items": ["heroChartCard (split: chart 1fr | kpiRail 240px)"] },
+        { "row": 2, "items": ["capacityCard", "tipsCard"], "cols": "1fr 1fr" },
+        { "row": 3, "items": ["distributionCard", "gaugeCard", "progressListCard"], "cols": "1fr 1fr 1fr" }
+      ],
+      "rail": ["featureWidget (auto height)", "activityListCard (stretches to bottom of row 3; list scrolls)"],
+      "rowHeights": "cards in a row stretch to equal height"
+    }
+  },
+
+  // ─────────────────────────── BREAKPOINTS ───────────────────────────
+  "breakpoints": {
+    "base (<640)": {
+      "sidebar": "Off-canvas drawer, 300px, follows theme; slides in from left; scrim; swipe-left or scrim tap closes. No collapse state on mobile",
+      "header": "Hamburger + logo | theme, bell, avatar. Search → icon opening full-screen command palette. Settings & header action move into avatar menu",
+      "grid": "1 column, gap 12, card padding 20",
+      "heroChartCard": "Chart on top (height 220); KPI rail → horizontal snap-scroll row of metric chips",
+      "overlays": "Selects, menus, date pickers open as bottom sheets",
+      "type": "display-xl → 32px, display-lg → 24px",
+      "tipsCard": "Mosaic hidden",
+      "touch": "Min target 44×44; chart tooltip on tap; inputs height 48"
+    },
+    "sm (≥640)": {
+      "grid": "2 columns for small cards; progressList & activityList full width",
+      "heroChartCard": "KPI rail = equal columns under chart"
+    },
+    "md (≥768)": {
+      "sidebar": "Persistent rail, COLLAPSED by default (76px). Expanding opens it as an overlay (248px, sidebarFloating shadow) without reflowing content",
+      "header": "Search field visible (280px)",
+      "grid": "gap 16, card padding 24; featureWidget | activityList side by side",
+      "overlays": "Selects/menus as anchored popovers"
+    },
+    "lg (≥1024)": {
+      "heroChartCard": "Split: chart left, KPI rail 220px right",
+      "rows": "Row 2 = 2 cols; Row 3 = distribution | gauge, progressList full width with 2 internal columns",
+      "rail": "Rail widgets as a 2-col row below main content",
+      "sidebar": "Same as md (collapsed rail, overlay expand)"
+    },
+    "xl (≥1280)": {
+      "sidebar": "EXPANDED by default (248px) and docked: collapsing/expanding pushes content (grid animates). User choice overrides default and persists per browser",
+      "grid": "Right rail column (320px); main keeps lg row structure",
+      "header": "Search 360px"
+    },
+    "2xl (≥1536)": {
+      "grid": "Reference layout (rail 360px, row 3 = 3 columns)",
+      "header": "Search 384px"
+    }
+  },
+
+  // ─────────────────────────── COMPONENTS ───────────────────────────
+  "components": {
+    "sidebar": {
+      "logo": "Wordmark 22px/600 with a small primary-400 accent tick. Collapsed: 32px monogram tile",
+      "navItem": "Height 48, radius 12, inset 16px from sidebar edges; icon 20 at fixed x + 14px gap + label (nav). Hover: itemHoverBg + itemHoverText (120ms)",
+      "navItemActive": "itemActiveBg pill, itemActiveText weight 500, itemActiveIcon + 3×20px indicator bar (radius 2) pinned to the pill's left edge. Indicator slides between items on route change (shared-element, 280ms)",
+      "group": "Parent row + chevron (rotates 180°, 200ms). Children animate open by height (220ms) with 1px treeLine + rounded elbow; child height 36, body; active child = textPrimary 500 + elbow in ink",
+      "countBadge": "Min 20px pill, badgeBg/badgeText, micro 600",
+      "divider": "1px divider, 20px vertical margin, inset 16px",
+      "promoCard": "Bottom slot: promoCardBg + 1px promoCardBorder, radius 16, padding 16; 32px ink circle with white bolt icon; 28px ghost close button; title-md; body-sm textMuted; full-width primary (ink) button height 40. In-app: session card (time left of the 8h session + 'Sign out') or Appearance shortcut",
+      "footer": "'Collapse sidebar' row: chevrons-left icon + label (nav, textMuted → textPrimary on hover) + kbd hint '⌘B' / 'Ctrl B' right-aligned on hover",
+
+      "collapse": {
+        "triggers": [
+          "Footer row 'Collapse sidebar' / 'Expand sidebar'",
+          "Edge handle: 24px round button straddling the sidebar's right edge, 72px from top; appears on sidebar hover (fade 120ms), chevron flips direction",
+          "Keyboard: ⌘B (macOS) / Ctrl+B",
+          "Double-click on empty sidebar area (optional)"
+        ],
+        "widths": { "expanded": 248, "collapsed": 76 },
+        "persistence": "Remember state per browser; default by breakpoint (md–lg collapsed, xl+ expanded)",
+        "collapsedAnatomy": {
+          "logo": "32px monogram tile centered",
+          "navItem": "44×44 icon button centered; same hover/active colors; indicator bar stays on the left edge",
+          "group": "Click (or hover 150ms) opens a flyout menu to the right (8px offset) titled with the group name, listing children; parent shows active state when a child is active",
+          "countBadge": "Becomes 8px dot (badgeBg) with 2px sidebar-bg ring at icon top-right; count shown in tooltip",
+          "divider": "Shrinks to 28px centered",
+          "promoCard": "Becomes a 44px icon button with a thin circular progress ring (session time left); click opens the full card as a popover",
+          "footer": "Icon-only chevrons-right button",
+          "tooltips": "Every icon shows a right-side tooltip after 300ms (0ms when moving between items): label + kbd hint"
+        },
+        "motion": {
+          "width": "300ms, cubic-bezier(0.32, 0.72, 0, 1)",
+          "collapse": "Labels fade out + slide 6px left in 120ms, THEN width shrinks",
+          "expand": "Width grows first; labels fade in + slide from -6px after 120ms, 15ms stagger top→bottom",
+          "icons": "Icons never move horizontally (fixed 16px inset + 44px box in both states)",
+          "content": "Docked (xl+): main grid animates with the same curve; charts re-measure after the transition ends (no mid-animation redraw). Overlay (md–lg): sidebar floats over content with sidebarFloating shadow, scrim not used, closes on outside click / Esc",
+          "reducedMotion": "Instant width change, labels cross-fade 80ms"
+        },
+        "a11y": "Toggle announces expanded/collapsed state; focus stays on the toggle after switching; collapsed items keep their accessible names"
+      }
+    },
+
+    "header": {
+      "search": "Trigger field: height 48, radius 12, surface, no border, 18px search icon, placeholder 'Quick search', kbd '⌘K' right. Hover: control shadow. Click or ⌘K opens commandPalette",
+      "iconButton": "48×48, radius 12, surface, icon 20; hover surfaceMuted + icon nudge (scale 1.06); notification dot 8px secondary-500 with 2px surface ring and a soft one-time pulse on new item",
+      "themeSwitcher": "iconButton (sun/moon/monitor). Click opens a small menu: Light · Dark · System (check on current). Switching plays a circular reveal from the button (450ms); fallback 200ms cross-fade. Never resets form drafts or selections",
+      "userChip": "Height 48, radius 12, surface, 32px round avatar, name body-sm 500 + email micro; opens account menu",
+      "headerAction": "Height 48, radius 12, surface, icon + body 500"
+    },
+
+    "card": {
+      "base": "surface, radius 16, padding 24, no border (light) / cardBorder (dark)",
+      "interactive": "Clickable cards: hover lifts -2px + cardHover shadow (200ms); press scale 0.99",
+      "header": "title-md + optional caption subtitle (2px gap); actions right",
+      "headerActions": ["selectChip", "outlineButton", "iconButtonGhost (pencil, kebab)"]
+    },
+
+    // ── PREMIUM FORM CONTROLS ──
+    "inputs": {
+      "field": {
+        "anatomy": "Label (body-sm 500, textPrimary) → 6px → control → 6px → helper row (caption: helper text left, counter right)",
+        "height": { "default": 44, "dense": 36, "mobile": 48 },
+        "shape": "radius 12, padding 0 14, body text",
+        "rest": "Light: surfaceMuted bg + 1px border + inputInset shadow. Dark: surfaceSunken bg + 1px border",
+        "hover": "borderStrong (120ms)",
+        "focus": "bg → surface, border → focusBorder, 4px focusHalo ring grows in from 0 (160ms ease-out). Leading icon tints from textMuted → textPrimary",
+        "filled": "Clear (×) button fades + scales in (0.8→1, 120ms) at right when value is non-empty and field is focused/hovered",
+        "error": "border danger, halo danger @18%, field does a single 4px horizontal shake (240ms) on submit; message slides down 4px + fades in with 14px alert icon",
+        "success": "Optional 16px check icon fades in at right (primary-600) after async validation",
+        "disabled": "surfaceSunken, textPlaceholder, no shadow, 60% opacity label",
+        "readOnly": "No border, surfaceSunken, copy button on hover",
+        "placeholder": "textPlaceholder; never used instead of a label",
+        "autofill": "Override browser autofill tint to surfaceMuted + textPrimary"
+      },
+      "affixes": "Leading icon 18 (textMuted) at 14px; prefix/suffix text chips (e.g. 'WIB', 'days') as micro 500 pill in surfaceSunken inside the field",
+      "textarea": "Min 3 rows, auto-grows to 8 then scrolls with scrollFade; counter 'n / 500' turns warningText at ≥ 90%, danger at limit; subtle resize handle hidden",
+      "numberStepper": "Field with − / + 32px ghost buttons inside right; value ticks with a 120ms vertical slide; hold-to-repeat",
+      "dateTime": "Field shows 'DD MMM YYYY · HH:mm' + 'WIB' suffix chip; opens calendar popover (month header with ghost chevrons, 36px day cells radius 10, today = 1px ink ring, selected = ink fill + white text, range = primary-100 band) and a time column (scroll-snap list 32px rows); 'Now' quick action",
+      "checkbox": "18px, radius 5, 1px borderStrong; checked = controlOn fill + onInk check that draws in (stroke animation 160ms); indeterminate = bar",
+      "radio": "18px circle; selected = controlOn ring 5px (spring scale 0.6→1)",
+      "switch": "36×20 track; on = controlOn track, thumb 16px white with subtle shadow, slides with spring (stiff, no overshoot > 2px); thumb widens 2px while pressed",
+      "segmented": "Container surfaceSunken radius 12 padding 3; active segment = surface + control shadow; the active pill SLIDES between options (shared indicator, 240ms)",
+      "fileDrop": "Dashed 1.5px borderStrong, radius 16; drag-over = primary-50 bg + focusBorder dashed + icon lifts 4px"
+    },
+
+    // ── PREMIUM DROPDOWNS / MENUS / OVERLAYS ──
+    "overlays": {
+      "panel": "surfaceOverlay (frosted), radius 14, padding 6, overlay shadow, min-width = trigger width, max-height 320 with scrollFade",
+      "selectTrigger": "Same geometry as input field (or selectChip in card headers: height 32, radius 10, 1px border, body-sm); chevron rotates 180° on open (200ms); open state keeps focus halo",
+      "item": {
+        "geometry": "Height 36, radius 8, padding 0 10, gap 10: optional icon 16 + label (body) + right meta (kbd, count or check)",
+        "highlight": "A single highlight pill (surfaceSunken; dark gray-800) GLIDES between items following pointer/keyboard (140ms), instead of per-item hover flashes",
+        "selected": "Label 500 + 16px check (textPrimary) right; check draws in",
+        "destructive": "danger text, danger @10% highlight",
+        "disabled": "textPlaceholder, no highlight"
+      },
+      "groupLabel": "caption 500, textMuted, padding 8 10 4",
+      "separator": "1px divider, margin 4 -6",
+      "combobox": "For lists > 8 (equipment, brand, users): sticky 40px search row at top (no border, 16px search icon, divider below); matched characters in 500 textPrimary, rest textSecondary; 'No results' state with icon; keyboard ↑↓ Enter Esc",
+      "multiSelect": "Selected values as 24px chips inside the trigger (surfaceSunken, radius 8, × on hover); overflow collapses to '+3' chip; chips animate in/out (scale + width)",
+      "dropdownMenu": "Same panel/item specs; submenus open after 100ms hover with a forgiving pointer path (no accidental close), chevron-right meta",
+      "commandPalette": "Centered 640px dialog at 18vh, surfaceOverlay, radius 16; 56px search input (title-md size, no border); grouped results (Recent, Pages, Equipment, Batches) with item specs above; footer hint row (↑↓ navigate · ↵ open · esc close) in micro",
+      "tooltip": "tooltipBg/tooltipText, body-sm-12 500, padding 6 10, radius 8, 6px arrow; delay 400ms first, 0ms within a group",
+      "popover": "panel specs with padding 16; optional 8px arrow",
+      "dialog": "surface, radius 20, padding 24, overlay shadow, max-width 480/640; header title-lg + close ghost button; footer right-aligned buttons; scrim",
+      "sheet": "Right side panel 420px (desktop) for detail/edit forms; mobile = bottom sheet, top radius 20, 36×4 grab handle, drag to dismiss, snap points 50% / 92%",
+      "toast": "Bottom-right (mobile: top), surface + overlay shadow, radius 14, 14px icon + title body 500 + description caption + optional action; stacks with depth (next toasts scale 0.95, offset 8px), expand on hover; auto-dismiss 5s with pause on hover"
+    },
+
+    "buttons": {
+      "primary": "buttonPrimaryBg/Text, height 40 (sm 32, lg 48), radius 10, body 500, control shadow; hover buttonPrimaryHover; press scale 0.97 (80ms)",
+      "accent": "buttonAccentBg/Text — max ONE per view for the main commit action (e.g. 'Save installation')",
+      "outline": "surface bg, 1px border, textPrimary; hover surfaceMuted + borderStrong",
+      "ghost": "transparent; hover surfaceSunken",
+      "destructive": "danger bg, white text; confirm in dialog",
+      "loading": "Label fades to 0, 16px spinner fades in centered; width locked (no jump)",
+      "iconOnly": "Square, same heights; tooltip required",
+      "linkArrow": "body 500 + chevron-right 14, gap 6; hover chevron shifts 2px"
+    },
+
+    "heroChartCard": {
+      "structure": "One card, two panels: chart panel (surface, radius 16, panelEdge shadow) over KPI rail",
+      "chartHeader": "Left: display-xl + caption. Right: selectChip + segmented icon toggle; legend below (10px square dots + body-sm, gap 16)",
+      "barChart": {
+        "height": { "base": 220, "lg": 280 },
+        "yAxis": "micro textPlaceholder, 4–5 ticks incl. negatives",
+        "grid": "1px divider lines",
+        "bars": "Slot width ≈ 66%, radius 6, 4px gap between stacked segments",
+        "positiveStack": "primary-500 base + accents.highlight cap",
+        "negativeStack": "secondary-400 below zero",
+        "inactiveBars": "placeholder + placeholderCap, no hatch",
+        "activeBar": "Hovered/selected/latest slot: full colors + hatch; color cross-fades 160ms when moving between slots",
+        "xAxis": "body-sm textMuted"
+      },
+      "chartTooltip": "chartTooltipBg, 1px border, radius 10, padding 8/10, chartTooltip shadow; nano date header; rows = 6px dot + label + right value 500. Follows the active slot with a 120ms glide",
+      "kpiRail": "3 metricBlocks, 40px apart; values count up on load/change (600ms, ease-out)"
+    },
+    "capacityBar": {
+      "geometry": "H24, radius 4, fill + 4px gap + track",
+      "fill": "primary-400 + hatch; ≥ 90% → secondary-400; width animates 320ms",
+      "track": "placeholder",
+      "labels": "current left (textPrimary), max right (textMuted)"
+    },
+    "tipsCard": {
+      "content": "title-md, body-sm textSecondary (≤ 2 lines), linkArrow 16px below",
+      "mosaic": "Right side 4×4 grid of 24px radius-4 tiles, staircase up-right; primary-200/400, secondary-300, placeholder; hatched; mosaicFade"
+    },
+    "distributionBar": {
+      "geometry": "H24, 2px gaps, radius 4 per segment, width = share %",
+      "legend": "Rows H24: 10px dot + body-sm label + right % (tabular)",
+      "colors": "Category data: secondary-400, secondary-300, highlight, primary-200, primary-400, primary-600, placeholder. Age data: ageScale buckets"
+    },
+    "gauge": {
+      "shape": "180° arc, stroke 40, 4 segments, 6px gaps",
+      "fill": "gaugeArc + hatch; sweeps in 600ms",
+      "center": "display-md + caption at arc baseline"
+    },
+    "progressList": {
+      "row": "48px thumbnail tile (radius 12) + content: name body 500 | fraction right; bar H14 radius 4 (primary-400 on-track, secondary-400 behind) + hatch; helper micro",
+      "rowGap": 20
+    },
+    "activityList": {
+      "row": "H56: 40px logo tile radius 10 + name body + date micro | value body 500 + status micro; hover = surfaceMuted row radius 12",
+      "status": "Done = positiveText, Failed = negativeText, Pending = textMuted",
+      "overflow": "Scroll inside card with scrollFade"
+    },
+    "heroCard": {
+      "card": "1.586:1, radius 12, heroCard gradient + contour + shadow; ink text; subtle 3D tilt (max 4°) following pointer on desktop",
+      "carousel": "Next card peeks ~80px; snap scroll, 12px gap"
+    },
+    "quickActionTiles": {
+      "tile": "56×56 (base 48), radius 12, 1px border, icon 20; label body-sm 8px below",
+      "hover": "surfaceMuted + icon lifts 2px"
+    },
+    "badge": {
+      "count": "Min 20px pill, ink colors",
+      "status": "H22, padding 0 8, pill, micro 500, 6px leading dot; light = palette-100 bg / palette-800 text; dark = palette-900 bg / palette-200 text"
+    },
+
+    // ── BAG MAP ──
+    "bagMap": {
+      "container": "Each compartment in its own card section; compartment title body 500 + count micro",
+      "cell": "radius bagCell (3), gap 2; overview ≈ 10–12px, detail ≥ 32px desktop / ≥ 44px mobile; fill = ageScale (continuous), empty = ageScale.empty",
+      "detailCellContent": "Coordinate micro 500 (onText per stop) + age in days on hover",
+      "hover": "1px borderStrong ring + scale 1.08 (overview: ring only) + chartTooltip: coordinate, age (days + since date WIB), brand",
+      "selected": "2px selectionRing outside a 1.5px selectionGap (double ring) + 10px check badge (detail view); pops in (scale 0.9→1, 160ms)",
+      "multiSelect": "Drag-to-select marquee (1px ink dashed, ink @6% fill); shift-click range; floating selection bar at bottom: 'n positions selected' + clear + primary action, slides up 240ms",
+      "rowColumnLabels": "micro textMuted, sticky while scrolling; hovered cell highlights its row & column labels (textPrimary)",
+      "spacerGaps": "Extra 8px margin only (no lines)",
+      "legend": "ageScale.legend pinned above the map; clicking a bucket filters/dims other cells to 25% opacity (200ms)"
+    }
+  },
+
+  // ───────────────────────── STATES & MOTION ─────────────────────────
+  "states": {
+    "hover": "Surfaces → surfaceMuted (120ms)",
+    "focusVisible": "Inputs: focusBorder + focusHalo. Buttons/links/cells: 2px focusBorder ring with 2px offset",
+    "disabled": "40–60% opacity, no hover",
+    "loading": "Skeleton in placeholder with shimmer; content cross-fades in (200ms) — never pops",
+    "empty": "48px icon tile + body-sm textMuted + optional outline button; charts render all-placeholder bars",
+    "error": "16px danger icon + body-sm danger text; retry ghost button"
+  },
+  "motion": {
+    "durations": { "instant": 80, "fast": 140, "base": 200, "moderate": 280, "slow": 400, "data": 600 },
+    "easing": {
+      "standard": "cubic-bezier(0.2, 0, 0, 1)",
+      "enter": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "exit": "cubic-bezier(0.4, 0, 1, 1)",
+      "drawer": "cubic-bezier(0.32, 0.72, 0, 1)",
+      "spring": "stiffness 380, damping 32 (≈ no visible overshoot)"
+    },
+    "patterns": {
+      "overlayEnter": "opacity 0→1, scale 0.96→1, translate 4px from trigger side; transform-origin at trigger; 180ms enter",
+      "overlayExit": "opacity → 0, scale → 0.98; 120ms exit (exit is always faster than enter)",
+      "dialogEnter": "scrim fade 200ms; panel scale 0.96→1 + y 8→0, 280ms enter",
+      "sheetEnter": "slide 100% → 0, 320ms drawer curve; drag follows finger 1:1, release snaps with spring",
+      "pageEnter": "Cards fade up 8px, 40ms stagger, max 6 cards, first load of a route only",
+      "numbers": "KPI count-up 600ms; changed values roll digits vertically (tabular, no layout shift)",
+      "charts": "Bars grow from zero line (400ms, 30ms stagger); gauge/progress sweep 600ms",
+      "sharedIndicators": "Active nav indicator, segmented pill and menu highlight glide between positions (spring)",
+      "press": "Buttons/tiles scale 0.97 on press, 80ms",
+      "themeSwitch": "Circular reveal from switcher 450ms; fallback cross-fade 200ms",
+      "sidebar": "See components.sidebar.collapse.motion"
+    },
+    "rules": [
+      "Animate only opacity and transform (plus sidebar width/grid with the drawer curve).",
+      "Nothing above 400ms except data and theme reveal.",
+      "No looping animation except skeleton shimmer and spinners."
+    ],
+    "reducedMotion": "All movement replaced by ≤ 120ms opacity fades; no count-up, shimmer, tilt, shake or reveal"
+  },
+
+  // ─────────────────────────── ACCESSIBILITY ───────────────────────────
+  "accessibility": {
+    "contrast": [
+      "Lime is a FILL only; text on lime is always gray-950 (≥ 9:1)",
+      "Trend/status text: primary-700 / secondary-700 (light), primary-300 / secondary-300 (dark)",
+      "Captions: gray-500 on light (4.7:1), gray-400 on dark",
+      "Age cells: onText gray-950 for 0–899 days, gray-0 for ≥ 900 (all ≥ 4.5:1)"
+    ],
+    "nonColorCues": "Trends = arrows; status = words; selection = double ring + check; ≥ 900 days = corner notch; age always readable in tooltip/detail",
+    "keyboard": "Full keyboard support for menus, comboboxes, command palette, bag map (arrow keys move, Space toggles, Shift+arrows extend)",
+    "targets": "≥ 44px below md"
+  },
+
+  // ─────────────────────── IMPLEMENTATION NOTES ───────────────────────
+  "implementationNotes": {
+    "componentBase": "shadcn/ui allowed (Sidebar with icon-collapse, Select, Combobox = Command + Popover, DropdownMenu, Popover, Tooltip, Dialog, Sheet, Drawer for mobile bottom sheets, Calendar, Command, Tabs, Switch, Checkbox, RadioGroup, Input, Textarea, Skeleton, Sonner toast). Restyle fully through tokens — no default shadcn look (radius, shadows, colors, motion all from this file).",
+    "motionLib": "Layout/shared-element animations (gliding highlight, nav indicator, segmented pill, number roll) may use a motion library; simple enter/exit via CSS transitions/keyframes.",
+    "tokens": "Expose palettes + semantic tokens as CSS variables per theme; components consume semantic tokens only."
+  },
+
+  // ──────────────── PATTERN MAPPING → Plant Area System ────────────────
+  "patternMapping": {
+    "portal.appTiles": "Interactive cards: icon tile + app name + caption. Planned module = surfaceMuted, lavender 'Planned' badge, no link",
+    "bagFilter.kpiRail": "Total positions · Installed · Never installed · ≥ 900 days",
+    "bagFilter.heroChart": "Installations per day (7d/30d), stacked by brand or new vs replacement",
+    "bagFilter.progressList": "Per-equipment coverage: '2,100 / 3,264 positions'",
+    "bagFilter.gauge": "% positions installed within user scope",
+    "bagFilter.distributionBar": "Age distribution — ageScale buckets",
+    "bagFilter.activityList": "Recent batches: WO / reason, brand, count, actor, WIB time",
+    "bagFilter.capacityBar": "Batch size n / 500 (≥ 450 → secondary)",
+    "bagFilter.installForm": "Sheet (desktop right / mobile bottom): equipment combobox, brand select, date-time WIB, reason textarea with counter, WO input, accent 'Save' button",
+    "sidebar.promoCard": "Session card (time left of the 8h session + Sign out; sessions cannot be extended)"
+  }
+}

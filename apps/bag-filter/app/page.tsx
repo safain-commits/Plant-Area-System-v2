@@ -1,5 +1,5 @@
 import { pageIdentity } from '@plant/server';
-import { Shell, Heading } from '@plant/ui';
+import { Shell, Heading, Dashboard } from '@plant/ui';
 import { equipment, equipmentSideSummary } from '@plant/contracts';
 export const dynamic = 'force-dynamic';
 export default async function BagFilter() {
@@ -14,6 +14,11 @@ export default async function BagFilter() {
       >
         <span className="badge">Data aktual</span>
       </Heading>
+      {grant && <Dashboard />}
+      <div className="section-title">
+        <h2>Equipment</h2>
+        <small>Sesuai cakupan Anda</small>
+      </div>
       <div className="equipment-grid">
         {equipment
           .filter((e) => grant?.equipment.includes(e.code))

@@ -15,6 +15,7 @@ import { getBagDb } from './database';
 import { equipmentTable, coordinates, batches, installations, bagAudit } from './schema';
 export { getBagDb, closeBagDb } from './database';
 export * as bagSchema from './schema';
+export { dashboard, activity } from './insights';
 
 export function canonicalReplacement(input: unknown) {
   const parsed = replacementSchema.safeParse(input);
@@ -122,16 +123,26 @@ export async function seedEquipment() {
         .onDuplicateKeyUpdate({ set: { equipmentCode: eq.code } });
   }
 }
-export type SnapshotPosition = Position & { id: string; batchId: string; installedAt: string };
+export type SnapshotPosition = Position & {
+  id: string;
+  batchId: string;
+  installedAt: string;
+  brand: string | null;
+};
 export async function snapshot(code: string) {
   const eq = getEquipment(code);
   if (!eq) throw new AppError(404, 'Equipment tidak ditemukan.');
   const [result] = await getBagDb().execute(sql`
-    SELECT CAST(r.id AS CHAR) AS id, r.batch_id AS batchId, r.side, r.compartment, r.col AS \`column\`, r.row_no AS \`row\`, r.installed_at AS installedAt
+    SELECT CAST(r.id AS CHAR) AS id, r.batch_id AS batchId, r.side, r.compartment, r.col AS \`column\`, r.row_no AS \`row\`, r.installed_at AS installedAt, b.brand
     FROM (SELECT i.*, ROW_NUMBER() OVER (PARTITION BY side,compartment,col,row_no ORDER BY installed_at DESC,id DESC) AS rn
-      FROM installations i WHERE equipment_code=${code}) r WHERE r.rn=1`);
+      FROM installations i WHERE equipment_code=${code}) r INNER JOIN replacement_batches b ON b.id=r.batch_id WHERE r.rn=1`);
   const positions = (
-    result as unknown as (Position & { id: string; batchId: string; installedAt: Date })[]
+    result as unknown as (Position & {
+      id: string;
+      batchId: string;
+      installedAt: Date;
+      brand: string | null;
+    })[]
   ).map((p) => ({ ...p, installedAt: dateString(p.installedAt) }));
   return {
     equipment: eq,
@@ -184,7 +195,7 @@ export async function batchHistory(code: string, query = '', after: string | nul
     sql`,`,
   );
   const filter = query.trim()
-    ? sql`AND (b.wo LIKE ${q} OR b.reason LIKE ${q}
+    ? sql`AND (b.id=${query.trim()} OR b.wo LIKE ${q} OR b.reason LIKE ${q}
     OR DATE_FORMAT(DATE_ADD(b.installed_at, INTERVAL 7 HOUR),'%Y-%m-%d %H:%i') LIKE ${q}
     OR EXISTS (SELECT 1 FROM installations p WHERE p.batch_id=b.id AND CONCAT(${compartmentLabel},' ',ELT(p.col,${columnLabels}),p.row_no) LIKE ${q}))`
     : sql``;

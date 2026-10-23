@@ -12,6 +12,8 @@ import {
   getBagDb,
   closeBagDb,
   bagSchema,
+  dashboard,
+  activity,
 } from '@plant/bag-core';
 import {
   getAuthDb,
@@ -45,6 +47,83 @@ const body = (
   reason = 'Integration replacement',
 ) => ({ equipmentCode: '561-BF1', positions, installedAt, reason, wo: '', brand: 'Filtras' });
 const key = () => randomUUID();
+
+test('dashboard and activity use current installations and exact equipment scope', async () => {
+  const now = Date.now(),
+    reason = `Dashboard ${randomUUID()}`;
+  await createReplacement(
+    actor,
+    {
+      equipmentCode: 'L61-BF1',
+      positions: [
+        { side: 'Timur', compartment: 8, column: 7, row: 2 },
+        { side: 'Barat', compartment: 8, column: 6, row: 2 },
+      ],
+      installedAt: new Date(now).toISOString(),
+      brand: 'Filtras',
+      reason,
+      wo: '',
+    },
+    key(),
+  );
+  await createReplacement(
+    actor,
+    {
+      equipmentCode: 'L61-BF1',
+      positions: [{ side: 'Timur', compartment: 8, column: 5, row: 2 }],
+      installedAt: new Date(now - 901 * 86400000).toISOString(),
+      brand: 'Other',
+      reason,
+      wo: '',
+    },
+    key(),
+  );
+  const data = await dashboard(['L61-BF1'], 7, now);
+  assert.equal(data.total, 2048);
+  assert.deepEqual(
+    data.perEquipment.map((e) => e.code),
+    ['L61-BF1'],
+  );
+  const state = await snapshot('L61-BF1');
+  assert.equal(data.installed, state.recorded);
+  assert.equal(data.neverInstalled, 2048 - state.recorded);
+  assert.equal(
+    data.distribution.reduce((s, n) => s + n, 0),
+    state.recorded,
+  );
+  assert.ok(data.older900 >= 1);
+  assert.ok(data.series.at(-1)!.total >= 2);
+  assert.equal(data.series.length, 7);
+  const events = await activity(['L61-BF1'], reason);
+  assert.equal(events.length, 2);
+  assert.ok(events.every((e) => e.equipmentCode === 'L61-BF1'));
+  assert.ok(!(await activity(['L62-BF1'], reason)).length);
+  assert.deepEqual((await dashboard([], 30, now)).perEquipment, []);
+  await assert.rejects(dashboard(['L61-BF1'], 31));
+  await assert.rejects(activity([], 'x'.repeat(201)));
+  const boundary = Date.parse('2026-08-01T16:59:45Z');
+  const beforeMidnight = await dashboard(['L62-BF1'], 7, boundary);
+  const beforeNextDay = await dashboard(['L62-BF1'], 7, boundary + 60000);
+  await createReplacement(
+    actor,
+    {
+      equipmentCode: 'L62-BF1',
+      positions: [{ side: 'Barat', compartment: 8, column: 8, row: 16 }],
+      installedAt: '2026-08-01T17:00:15Z',
+      brand: 'Cipta Medya',
+      reason: `WIB boundary ${randomUUID()}`,
+      wo: '',
+    },
+    key(),
+  );
+  const nearMidnight = await dashboard(['L62-BF1'], 7, boundary);
+  assert.equal(nearMidnight.previousTotal, beforeMidnight.previousTotal);
+  assert.equal(nearMidnight.periodTotal, beforeMidnight.periodTotal);
+  assert.equal(
+    (await dashboard(['L62-BF1'], 7, boundary + 60000)).periodTotal,
+    beforeNextDay.periodTotal + 1,
+  );
+});
 after(async () => {
   await closeAuthDb();
   await closeBagDb();

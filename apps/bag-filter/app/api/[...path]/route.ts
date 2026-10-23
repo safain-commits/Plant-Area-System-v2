@@ -1,6 +1,14 @@
 import { AppError, getEquipment, equipment, positionSchema, validPosition } from '@plant/contracts';
 import { apiIdentity, failure, readJson, verifyOrigin } from '@plant/server';
-import { snapshot, batchHistory, createReplacement, positionHistory, auditHistory } from '@plant/bag-core';
+import {
+  snapshot,
+  batchHistory,
+  createReplacement,
+  positionHistory,
+  auditHistory,
+  dashboard,
+  activity,
+} from '@plant/bag-core';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path: string[] }> };
 const json = (value: unknown, status = 200) =>
@@ -9,6 +17,19 @@ export async function GET(request: Request, context: Context) {
   try {
     const path = (await context.params).path,
       params = new URL(request.url).searchParams;
+    if (['dashboard', 'activity', 'discovery'].includes(path.join('/'))) {
+      const actor = await apiIdentity(request, 'read');
+      const codes = actor.grants.find((g) => g.appId === 'bag-filter')!.equipment;
+      if (path[0] === 'dashboard') return json(await dashboard(codes, Number(params.get('days') || 7)));
+      if (path[0] === 'activity') return json({ items: await activity(codes) });
+      return json({
+        equipment: equipment.filter(
+          (e) =>
+            codes.includes(e.code) && e.code.toLowerCase().includes((params.get('q') || '').toLowerCase()),
+        ),
+        items: await activity(codes, params.get('q') || ''),
+      });
+    }
     if (path.join('/') === 'equipment') {
       const actor = await apiIdentity(request, 'read');
       const codes = actor.grants.find((g) => g.appId === 'bag-filter')!.equipment;

@@ -1,6 +1,11 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Icon } from './icon';
+import { Overlay } from './overlay';
+import { Select } from './fields';
+import { ConfirmationProvider } from './confirm';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
@@ -89,51 +94,75 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [update],
   );
   return (
-    <ThemeContext.Provider value={{ preference, resolved, ready, choose }}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={{ preference, resolved, ready, choose }}>
+      <ConfirmationProvider>{children}</ConfirmationProvider>
+    </ThemeContext.Provider>
   );
 }
 
 export function ThemeToggle() {
-  const theme = useContext(ThemeContext);
-  if (!theme) throw new Error('ThemeToggle requires ThemeProvider');
-  const dark = theme.resolved === 'dark';
-  const description = `Tema ${dark ? 'gelap' : 'terang'}${theme.preference === 'system' ? ' mengikuti sistem' : ''}. Ganti ke ${dark ? 'terang' : 'gelap'}.`;
+  const theme = useContext(ThemeContext)!;
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLButtonElement>(null);
+  const choose = (value: ThemePreference) => {
+    setOpen(false);
+    const r = anchor.current?.getBoundingClientRect(),
+      x = (r?.left || 0) + (r?.width || 0) / 2,
+      y = (r?.top || 0) + (r?.height || 0) / 2;
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const transition = document.startViewTransition(() => flushSync(() => theme.choose(value)));
+      void transition.ready
+        .then(() =>
+          document.documentElement.animate(
+            {
+              clipPath: [
+                'circle(0px at ' + x + 'px ' + y + 'px)',
+                'circle(' + Math.hypot(innerWidth, innerHeight) + 'px at ' + x + 'px ' + y + 'px)',
+              ],
+            },
+            {
+              duration: 400,
+              easing: 'cubic-bezier(.16,1,.3,1)',
+              pseudoElement: '::view-transition-new(root)',
+            },
+          ),
+        )
+        .catch(() => {});
+    } else theme.choose(value);
+  };
   return (
-    <button
-      type="button"
-      className="theme-toggle"
-      aria-label="Tema gelap"
-      aria-pressed={dark}
-      title={description}
-      disabled={!theme.ready}
-      onClick={() => theme.choose(dark ? 'light' : 'dark')}
-    >
-      <svg
-        className="theme-icon theme-icon-sun"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <>
+      <button
+        ref={anchor}
+        type="button"
+        className="theme-toggle icon-button"
+        aria-label="Tema"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={`Tema: ${theme.preference}`}
+        disabled={!theme.ready}
+        onClick={() => setOpen(true)}
       >
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
-      </svg>
-      <svg
-        className="theme-icon theme-icon-moon"
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M20.9 13.3A9 9 0 0 1 10.7 3.1a9 9 0 1 0 10.2 10.2Z" />
-      </svg>
-    </button>
+        <Icon name={theme.preference === 'system' ? 'monitor' : theme.resolved === 'dark' ? 'moon' : 'sun'} />
+      </button>
+      <Overlay open={open} onClose={() => setOpen(false)} title="Tema" kind="menu" anchor={anchor} hideTitle>
+        <div className="menu-list" role="group" aria-label="Pilih tema">
+          {(['light', 'dark', 'system'] as const).map((value, i) => (
+            <button
+              type="button"
+              className="menu-item"
+              key={value}
+              aria-pressed={theme.preference === value}
+              onClick={() => choose(value)}
+            >
+              <Icon name={value === 'system' ? 'monitor' : value === 'dark' ? 'moon' : 'sun'} />
+              <span>{['Terang', 'Gelap', 'Sistem'][i]}</span>
+              {theme.preference === value && <Icon name="check" />}
+            </button>
+          ))}
+        </div>
+      </Overlay>
+    </>
   );
 }
 
@@ -143,7 +172,8 @@ export function ThemePreferenceControl() {
   return (
     <label className="theme-preference">
       Preferensi tema
-      <select
+      <Select
+        aria-label="Preferensi tema"
         value={theme.preference}
         disabled={!theme.ready}
         onChange={(event) => theme.choose(normalize(event.target.value))}
@@ -151,7 +181,7 @@ export function ThemePreferenceControl() {
         <option value="system">Sistem</option>
         <option value="light">Terang</option>
         <option value="dark">Gelap</option>
-      </select>
+      </Select>
       <small>Tersimpan pada browser ini. Sistem mengikuti pengaturan perangkat secara otomatis.</small>
     </label>
   );

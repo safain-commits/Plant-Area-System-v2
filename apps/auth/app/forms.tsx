@@ -1,4 +1,5 @@
 'use client';
+import { Input, Button } from '@plant/ui';
 import { useState } from 'react';
 import { safeReturnTo } from '@plant/contracts';
 export function LoginForm({ returnTo }: { returnTo: string }) {
@@ -29,20 +30,20 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
     >
       <label>
         Email
-        <input name="email" type="email" autoComplete="username" required maxLength={254} />
+        <Input name="email" type="email" autoComplete="username" required maxLength={254} />
       </label>
       <label>
         Password
-        <input name="password" type="password" autoComplete="current-password" required maxLength={128} />
+        <Input name="password" type="password" autoComplete="current-password" required maxLength={128} />
       </label>
       {error && (
         <p className="notice error" role="alert">
           {error}
         </p>
       )}
-      <button className="primary" disabled={busy}>
-        {busy ? 'Memeriksa akun…' : 'Masuk →'}
-      </button>
+      <Button className="primary" busy={busy}>
+        Masuk →
+      </Button>
     </form>
   );
 }
@@ -79,7 +80,7 @@ export function PasswordForm({ temporary }: { temporary: boolean }) {
     >
       <label>
         {temporary ? 'Password sementara' : 'Password saat ini'}
-        <input
+        <Input
           name="currentPassword"
           type="password"
           autoComplete="current-password"
@@ -89,7 +90,7 @@ export function PasswordForm({ temporary }: { temporary: boolean }) {
       </label>
       <label>
         Password baru
-        <input
+        <Input
           name="newPassword"
           type="password"
           autoComplete="new-password"
@@ -101,7 +102,7 @@ export function PasswordForm({ temporary }: { temporary: boolean }) {
       </label>
       <label>
         Ulangi password baru
-        <input
+        <Input
           name="confirmPassword"
           type="password"
           autoComplete="new-password"
@@ -115,9 +116,9 @@ export function PasswordForm({ temporary }: { temporary: boolean }) {
           {error}
         </p>
       )}
-      <button className="primary" disabled={busy}>
-        {busy ? 'Menyimpan…' : 'Ganti password'}
-      </button>
+      <Button className="primary" busy={busy}>
+        Ganti password
+      </Button>
       <p className="fine">Seluruh sesi akan diakhiri. Masuk kembali dengan password baru.</p>
     </form>
   );

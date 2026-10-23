@@ -55,6 +55,18 @@ docker exec plant-restore bash -c 'set -o pipefail; gzip -t /tmp/restore.sql.gz;
 
 ## Pembaruan dan rollback
 
+### UI refresh v2
+
+Pembaruan ini menambah endpoint ringkasan/pencarian/aktivitas dan metadata waktu kedaluwarsa sesi, tanpa migrasi database. Bangun serta perbarui ketiga image agar komponen bersama dan kontrak sesi konsisten:
+
+```sh
+docker compose build auth portal bag-filter
+docker compose up -d --no-deps --wait auth portal bag-filter
+docker compose restart nginx
+```
+
+Periksa login, dashboard sesuai scope, pencatatan, dan logout. Preferensi tema/sidebar tersimpan per browser; riwayat pencarian dan penanda aktivitas dibaca dipisahkan menurut ID pengguna. Dashboard menghitung tanggal pemasangan WIB; notifikasi berdasarkan waktu pencatatan batch, sehingga transaksi bertanggal mundur tetap muncul sebagai aktivitas terbaru. Timer sesi hanya indikator, bukan perpanjangan sesi. Rollback memakai ketiga image sebelumnya; tidak perlu membatalkan migrasi UI.
+
 ### Upgrade katalog equipment v2.1
 
 Rilis ini menambah L61/L62 (masing-masing 2.048 posisi), merename 422-BF2 menjadi 422-BF1, dan mengubah sisi 421/422 menjadi A/B. Simpan backup sebelum upgrade dan image lama. Hentikan gateway dan ketiga aplikasi selama migrasi karena versi lama memakai kode/koordinat berbeda.

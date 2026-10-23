@@ -2,6 +2,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ageHours,
+  ageStops,
+  ageBucket,
   bagColor,
   bagBrands,
   type BagBrand,
@@ -17,8 +19,19 @@ import {
   type Equipment,
   type Position,
 } from '@plant/contracts';
-import { Heading, dataTextTone } from '@plant/ui';
-type Installed = Position & { id: string; batchId: string; installedAt: string };
+import {
+  Heading,
+  dataTextTone,
+  Overlay,
+  Toast,
+  Select,
+  Input,
+  Textarea,
+  DateTimeField,
+  Icon,
+  Button,
+} from '@plant/ui';
+type Installed = Position & { id: string; batchId: string; installedAt: string; brand: string | null };
 type Snapshot = {
   equipment: Equipment;
   positions: Installed[];
@@ -54,7 +67,15 @@ async function read<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (!r.ok) throw Error(d.error || 'Data belum dapat dimuat.');
   return d;
 }
-export default function BagMonitor({ initial, writable }: { initial: Snapshot; writable: boolean }) {
+export default function BagMonitor({
+  initial,
+  writable,
+  initialBatch = '',
+}: {
+  initial: Snapshot;
+  writable: boolean;
+  initialBatch?: string;
+}) {
   const [data, setData] = useState(initial),
     [now, setNow] = useState(() => Date.parse(initial.serverTime));
   const eq = data.equipment,
@@ -72,13 +93,20 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
     [revision, setRevision] = useState(0);
-  const [search, setSearch] = useState(''),
+  const [search, setSearch] = useState(initialBatch),
     [history, setHistory] = useState<Page<Batch>>({ items: [], nextCursor: null }),
     [historyBusy, setHistoryBusy] = useState(false),
     [historyError, setHistoryError] = useState('');
   const [timeline, setTimeline] = useState<Page<TimelineItem>>({ items: [], nextCursor: null }),
     [timelineBusy, setTimelineBusy] = useState(false),
     [timelineError, setTimelineError] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false),
+    [bucket, setBucket] = useState<number | 'empty' | null>(null);
+  const [hovered, setHovered] = useState<{ position: Position; x: number; y: number } | null>(null),
+    [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const anchorSelection = useRef<Position | null>(null),
+    drag = useRef<{ x: number; y: number; active: boolean; base: Position[] } | null>(null),
+    suppressClick = useRef(false);
   const retry = useRef<{ key: string; payload: string } | null>(null);
   const latest = useMemo(() => new Map(data.positions.map((p) => [positionKey(p), p])), [data.positions]);
   const selectedKeys = useMemo(() => new Set(selected.map(positionKey)), [selected]);
@@ -140,10 +168,87 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
     setCompartment(p.compartment);
     setFocused(p);
   }
-  function toggle(p: Position) {
-    if (busy) return;
+  function selectRange(p: Position) {
+    const anchor = anchorSelection.current;
+    if (!anchor || anchor.side !== p.side || anchor.compartment !== p.compartment) {
+      anchorSelection.current = p;
+      return [p];
+    }
+    const positions = rowOrder(eq, p.side).flatMap((row) =>
+      Array.from({ length: 8 }, (_, c) => ({ ...p, column: c + 1, row })),
+    );
+    const a = positions.findIndex((v) => positionKey(v) === positionKey(anchor)),
+      b = positions.findIndex((v) => positionKey(v) === positionKey(p));
+    return positions.slice(Math.min(a, b), Math.max(a, b) + 1);
+  }
+  function addPositions(items: Position[], base = selected) {
+    const merged = new Map([...base, ...items].map((p) => [positionKey(p), p]));
+    if (merged.size > 500) {
+      setError('Maksimal 500 posisi untuk satu penyimpanan.');
+      return;
+    }
+    setSelected([...merged.values()]);
+  }
+  function cellKey(e: React.KeyboardEvent<HTMLButtonElement>, p: Position) {
+    if ([' ', 'Enter'].includes(e.key)) {
+      e.preventDefault();
+      toggle(p, e);
+      return;
+    }
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    e.preventDefault();
+    const rows = rowOrder(eq, p.side),
+      index = rows.indexOf(p.row);
+    const next = {
+      ...p,
+      column: Math.min(
+        8,
+        Math.max(1, p.column + (e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0)),
+      ),
+      row: rows[
+        Math.min(
+          rows.length - 1,
+          Math.max(0, index + (e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0)),
+        )
+      ],
+    };
+    if (e.shiftKey && writable && !busy) {
+      if (!anchorSelection.current) anchorSelection.current = p;
+      addPositions(selectRange(next));
+    }
+    focus(next);
+    document
+      .querySelector<HTMLButtonElement>('.bag-cell[data-position-key="' + positionKey(next) + '"]')
+      ?.focus();
+  }
+  function hover(p: Position, el: HTMLElement) {
+    clearTimeout(hoverTimer.current);
+    const r = el.getBoundingClientRect();
+    const target = {
+      position: p,
+      x: Math.max(8, Math.min(innerWidth - 280, r.right + 8)),
+      y: Math.max(8, Math.min(innerHeight - 140, r.top - 16)),
+    };
+    if (Date.now() < hoverWarmUntil.current) setHovered(target);
+    else hoverTimer.current = setTimeout(() => setHovered(target), 280);
+  }
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
+    hoverWarmUntil = useRef(0);
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  function leaveHover() {
+    clearTimeout(hoverTimer.current);
+    if (hovered) hoverWarmUntil.current = Date.now() + 600;
+    setHovered(null);
+  }
+  function toggle(p: Position, event?: { shiftKey: boolean }) {
+    if (busy || suppressClick.current) return;
     focus(p);
     if (!writable) return;
+    if (event?.shiftKey) {
+      addPositions(selectRange(p));
+      return;
+    }
+    anchorSelection.current = p;
     const key = positionKey(p);
     setSelected((previous) => {
       if (previous.some((item) => positionKey(item) === key))
@@ -187,6 +292,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
       setNotice(
         `${result.count} posisi tersimpan dalam satu batch${result.replayed ? ' (permintaan sebelumnya sudah tersimpan)' : ''}.`,
       );
+      setSheetOpen(false);
       setSelected([]);
       setReason('');
       setBrand('');
@@ -238,11 +344,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
           </button>
         </div>
       )}
-      {notice && (
-        <p className="notice" role="status">
-          {notice}
-        </p>
-      )}
+      <Toast message={notice} onDismiss={() => setNotice('')} />
       <div className="stats">
         <article className="stat">
           <span>KOMPARTEMEN</span>
@@ -271,6 +373,31 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
             <h2>Peta kompartemen</h2>
           </div>
           <span className="badge">{eq.compartments} comp.</span>
+        </div>
+        <div className="age-legend" aria-label="Filter umur bag">
+          <div className="age-gradient" />
+          <div className="age-buckets">
+            {ageStops.map((stop, i) => (
+              <button
+                type="button"
+                key={stop.days}
+                aria-pressed={bucket === i}
+                onClick={() => setBucket((v) => (v === i ? null : i))}
+              >
+                <i style={{ background: stop.color }} />
+                {stop.days}
+                {i === 6 ? '+' : '–' + (ageStops[i + 1].days - 1)} hari
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={bucket === 'empty'}
+              onClick={() => setBucket((v) => (v === 'empty' ? null : 'empty'))}
+            >
+              <i style={{ background: 'var(--empty-bag)' }} />
+              Belum tercatat
+            </button>
+          </div>
         </div>
         {eq.sides.map(({ name: band }, index) => (
           <div
@@ -318,13 +445,24 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                             return (
                               <button
                                 key={c}
-                                className="overview-cell"
+                                className={`overview-cell${age !== null && age >= 21600 ? ' is-old' : ''}`}
+                                data-position-key={key}
                                 tabIndex={-1}
-                                style={{ background: picked ? 'var(--bag-selected)' : bagColor(age) }}
+                                style={{
+                                  background: bagColor(age),
+                                  opacity:
+                                    bucket === null ||
+                                    (bucket === 'empty'
+                                      ? age === null
+                                      : age !== null && ageBucket(age) === bucket)
+                                      ? 1
+                                      : 0.25,
+                                }}
                                 aria-label={`${display} ${letters[c]}${row}`}
+                                onPointerEnter={(e) => hover(p, e.currentTarget)}
+                                onPointerLeave={leaveHover}
                                 aria-pressed={picked}
-                                title={`Comp. ${display} · ${letters[c]}${row} · ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
-                                onClick={() => toggle(p)}
+                                onClick={(event) => toggle(p, event)}
                               />
                             );
                           })}
@@ -355,23 +493,6 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
             })}
           </div>
         ))}
-        <div className="legend">
-          <span>
-            <i style={{ background: 'var(--bag-selected)' }} />
-            Dipilih
-          </span>
-          <span>
-            <i style={{ background: bagColor(null) }} />
-            Belum tercatat
-          </span>
-          {[0, 450, 900].map((days) => (
-            <span key={days}>
-              <i style={{ background: bagColor(days * 24) }} />
-              {days === 900 ? '≥' : ''}
-              {days} hari
-            </span>
-          ))}
-        </div>
         {eq.rowDividerAfter !== null && (
           <p className="fine">
             Jeda visual antara baris {eq.rowDividerAfter} dan {eq.rowDividerAfter + 1}.
@@ -394,7 +515,8 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
           <div className="form-grid">
             <label>
               Sisi
-              <select
+              <Select
+                aria-label="Sisi"
                 value={side}
                 onChange={(e) => {
                   setSide(e.target.value as Position['side']);
@@ -404,11 +526,12 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                 {eq.sides.map((s) => (
                   <option key={s.name}>{s.name}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label>
               Kompartemen
-              <select
+              <Select
+                aria-label="Kompartemen"
                 value={compartment}
                 onChange={(e) => {
                   setCompartment(Number(e.target.value));
@@ -420,156 +543,292 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
                     Comp. {displayCompartment({ side, compartment: i + 1 }, eq)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
-          <div className="bag-grid" role="group" aria-label={`Detail kompartemen ${currentComp}`}>
-            <span />
-            {letters.split('').map((letter) => (
-              <span className="grid-label" key={letter}>
-                {letter}
-              </span>
-            ))}
-            {rowOrder(eq, side).map((row) => {
-              return (
-                <Fragment key={row}>
-                  {rowDividerBefore(eq, side, row) && (
-                    <div
-                      className="bag-stiffener"
-                      role="separator"
-                      aria-label={`Jeda antara baris ${eq.rowDividerAfter} dan ${eq.rowDividerAfter! + 1}`}
-                    />
-                  )}
-                  <span className="grid-label row-number">{row}</span>
-                  {Array.from({ length: 8 }, (_, c) => {
-                    const p = { side, compartment, column: c + 1, row },
-                      key = positionKey(p),
-                      age = ageHours(latest.get(key)?.installedAt || null, now),
-                      picked = selectedKeys.has(key);
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        className="bag-cell"
-                        style={{
-                          background: picked ? 'var(--bag-selected)' : bagColor(age),
-                          color: picked
-                            ? 'var(--on-selection)'
-                            : `var(--data-${dataTextTone(bagColor(age))})`,
-                        }}
-                        aria-pressed={picked}
-                        aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
-                        onClick={() => toggle(p)}
-                      >
-                        {age === null ? '·' : Math.floor(age / 24)}
-                      </button>
-                    );
-                  })}
-                </Fragment>
-              );
-            })}
+          <div className="bag-grid-scroll">
+            <div
+              className="bag-grid"
+              role="group"
+              aria-label={`Detail kompartemen ${currentComp}`}
+              onPointerDown={(e) => {
+                if (writable && !busy && e.pointerType === 'mouse' && e.button === 0)
+                  drag.current = { x: e.clientX, y: e.clientY, active: false, base: selected };
+              }}
+              onPointerMove={(e) => {
+                const d = drag.current;
+                if (!d) return;
+                if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5) {
+                  d.active = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  const rect = {
+                    x: Math.min(d.x, e.clientX),
+                    y: Math.min(d.y, e.clientY),
+                    width: Math.abs(e.clientX - d.x),
+                    height: Math.abs(e.clientY - d.y),
+                  };
+                  setMarquee(rect);
+                  const cells = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('.bag-cell'));
+                  const picked = cells
+                    .filter((el) => {
+                      const r = el.getBoundingClientRect();
+                      return (
+                        r.right >= rect.x &&
+                        r.left <= rect.x + rect.width &&
+                        r.bottom >= rect.y &&
+                        r.top <= rect.y + rect.height
+                      );
+                    })
+                    .map((el) => ({
+                      side,
+                      compartment,
+                      column: Number(el.dataset.column),
+                      row: Number(el.dataset.row),
+                    }));
+                  addPositions(picked, d.base);
+                }
+              }}
+              onPointerUp={(e) => {
+                if (drag.current?.active) {
+                  suppressClick.current = true;
+                  setTimeout(() => {
+                    suppressClick.current = false;
+                  }, 0);
+                }
+                drag.current = null;
+                setMarquee(null);
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              onPointerCancel={() => {
+                drag.current = null;
+                setMarquee(null);
+              }}
+            >
+              <span />
+              {letters.split('').map((letter) => (
+                <span
+                  className={`grid-label${hovered?.position.column === letters.indexOf(letter) + 1 ? ' is-hovered' : ''}`}
+                  key={letter}
+                >
+                  {letter}
+                </span>
+              ))}
+              {rowOrder(eq, side).map((row) => {
+                return (
+                  <Fragment key={row}>
+                    {rowDividerBefore(eq, side, row) && (
+                      <div
+                        className="bag-stiffener"
+                        role="separator"
+                        aria-label={`Jeda antara baris ${eq.rowDividerAfter} dan ${eq.rowDividerAfter! + 1}`}
+                      />
+                    )}
+                    <span
+                      className={`grid-label row-number${hovered?.position.row === row ? ' is-hovered' : ''}`}
+                    >
+                      {row}
+                    </span>
+                    {Array.from({ length: 8 }, (_, c) => {
+                      const p = { side, compartment, column: c + 1, row },
+                        key = positionKey(p),
+                        age = ageHours(latest.get(key)?.installedAt || null, now),
+                        picked = selectedKeys.has(key);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`bag-cell${age === null ? ' is-empty' : age >= 21600 ? ' is-old' : ''}`}
+                          data-position-key={key}
+                          data-column={c + 1}
+                          data-row={row}
+                          tabIndex={
+                            focused
+                              ? positionKey(focused) === key
+                                ? 0
+                                : -1
+                              : row === rowOrder(eq, side)[0] && c === 0
+                                ? 0
+                                : -1
+                          }
+                          onKeyDown={(e) => cellKey(e, p)}
+                          onFocus={(e) => hover(p, e.currentTarget)}
+                          onPointerEnter={(e) => hover(p, e.currentTarget)}
+                          onPointerLeave={leaveHover}
+                          onBlur={leaveHover}
+                          style={{
+                            background: bagColor(age),
+                            color:
+                              age === null
+                                ? 'var(--textSecondary)'
+                                : `var(--data-${dataTextTone(bagColor(age))})`,
+                            opacity:
+                              bucket === null ||
+                              (bucket === 'empty' ? age === null : age !== null && ageBucket(age) === bucket)
+                                ? 1
+                                : 0.25,
+                          }}
+                          aria-pressed={picked}
+                          aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
+                          onClick={(event) => toggle(p, event)}
+                        >
+                          {letters[c]}
+                          {row}
+                        </button>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
           <p className="fine" style={{ marginTop: 18 }}>
-            Angka dalam hari.{' '}
+            Koordinat bag. Umur tersedia saat diarahkan.{' '}
             {writable ? 'Klik ulang untuk menghapus pilihan.' : 'Klik posisi untuk membaca riwayat.'}
           </p>
         </section>
         <div>
           <section className="panel">
             <p className="eyebrow">PENCATATAN PENGGANTIAN</p>
-            <h2>{writable ? `${selected.length} posisi dipilih` : 'Akses baca'}</h2>
+            <h2>{selected.length} posisi dipilih</h2>
+            <p className="fine">
+              Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
+            </p>
             {writable ? (
-              <>
-                <div className="selected-list">
-                  {selected.map((p) => (
-                    <button
-                      key={positionKey(p)}
-                      disabled={busy}
-                      onClick={() => toggle(p)}
-                      aria-label={`Hapus ${positionLabel(p, eq)}`}
-                    >
-                      {positionLabel(p, eq)} ×
-                    </button>
-                  ))}
-                  {selected.length > 0 && (
-                    <button disabled={busy} onClick={() => setSelected([])}>
-                      Bersihkan semua
-                    </button>
-                  )}
-                </div>
-                {!selected.length && (
-                  <p className="fine">
-                    Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
-                  </p>
-                )}
-                <form className="form-stack" onSubmit={save}>
-                  <label>
-                    Tanggal & jam pemasangan (WIB)
-                    <input
-                      type="datetime-local"
-                      value={installedAt}
-                      onChange={(e) => setInstalledAt(e.target.value)}
-                      required
-                      min="2000-01-01T00:00"
-                      max={wibInput(now + 60000)}
-                      disabled={busy}
-                    />
-                  </label>
-                  <label>
-                    Brand/Pabrikan
-                    <select
-                      aria-label="Brand/Pabrikan"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value as BagBrand | '')}
-                      required
-                      disabled={busy}
-                    >
-                      <option value="" disabled>
-                        Pilih Brand/Pabrikan
-                      </option>
-                      {bagBrands.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Alasan penggantian / pemasangan awal
-                    <textarea
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      required
-                      maxLength={500}
-                      rows={2}
-                      disabled={busy}
-                      placeholder="Contoh: bag bocor atau pemasangan awal"
-                    />
-                  </label>
-                  <label>
-                    WO Number (opsional)
-                    <input
-                      value={wo}
-                      onChange={(e) => setWo(e.target.value)}
-                      maxLength={100}
-                      disabled={busy}
-                    />
-                  </label>
-                  <button className="primary" disabled={busy || !selected.length}>
-                    {busy ? 'Menyimpan…' : `Simpan ${selected.length} bag`}
-                  </button>
-                </form>
-                <p className="fine" style={{ marginTop: 15, marginBottom: 0 }}>
-                  Satu tanggal, Brand/Pabrikan, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang
-                  disimpan tidak dapat diubah pada rilis ini.
-                </p>
-              </>
+              <button type="button" data-sheet-trigger onClick={() => setSheetOpen(true)}>
+                <Icon name="plus" /> Catat penggantian
+              </button>
             ) : (
               <p className="read-only">
                 Anda dapat membaca status dan history equipment. Hak pencatatan diberikan oleh admin portal.
               </p>
             )}
           </section>
+          <Overlay
+            open={sheetOpen}
+            onClose={() => {
+              if (!busy) setSheetOpen(false);
+            }}
+            title="Pencatatan penggantian"
+            kind="sheet"
+          >
+            {' '}
+            <section className="installation-form">
+              {error && (
+                <p className="notice error" role="alert">
+                  {error}
+                </p>
+              )}
+              <p className="eyebrow">PENCATATAN PENGGANTIAN</p>
+              <h2>{writable ? `${selected.length} posisi dipilih` : 'Akses baca'}</h2>
+              {writable ? (
+                <>
+                  <div className="selected-list">
+                    {selected.map((p) => (
+                      <button
+                        key={positionKey(p)}
+                        disabled={busy}
+                        onClick={(event) => toggle(p, event)}
+                        aria-label={`Hapus ${positionLabel(p, eq)}`}
+                      >
+                        {positionLabel(p, eq)} ×
+                      </button>
+                    ))}
+                    {selected.length > 0 && (
+                      <button disabled={busy} onClick={() => setSelected([])}>
+                        Bersihkan semua
+                      </button>
+                    )}
+                  </div>
+                  {!selected.length && (
+                    <p className="fine">
+                      Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
+                    </p>
+                  )}
+                  <form className="form-stack" onSubmit={save}>
+                    <label>
+                      Tanggal & jam pemasangan (WIB)
+                      <DateTimeField
+                        type="datetime-local"
+                        value={installedAt}
+                        onChange={(e) => setInstalledAt(e.target.value)}
+                        required
+                        min="2000-01-01T00:00"
+                        max={wibInput(now + 60000)}
+                        disabled={busy}
+                      />
+                    </label>
+                    <label>
+                      Brand/Pabrikan
+                      <Select
+                        aria-label="Brand/Pabrikan"
+                        value={brand}
+                        onChange={(e) => setBrand(e.target.value as BagBrand | '')}
+                        required
+                        disabled={busy}
+                      >
+                        <option value="" disabled>
+                          Pilih Brand/Pabrikan
+                        </option>
+                        {bagBrands.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label>
+                      Alasan penggantian / pemasangan awal
+                      <Textarea
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        required
+                        maxLength={500}
+                        rows={2}
+                        disabled={busy}
+                        placeholder="Contoh: bag bocor atau pemasangan awal"
+                      />
+                    </label>
+                    <label>
+                      WO Number (opsional)
+                      <Input
+                        value={wo}
+                        onChange={(e) => setWo(e.target.value)}
+                        maxLength={100}
+                        disabled={busy}
+                      />
+                    </label>
+                    <Button className="accent" busy={busy} disabled={!selected.length}>
+                      {`Simpan ${selected.length} bag`}
+                    </Button>
+                  </form>
+                  <p className="fine" style={{ marginTop: 15, marginBottom: 0 }}>
+                    Satu tanggal, Brand/Pabrikan, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang
+                    disimpan tidak dapat diubah pada rilis ini.
+                  </p>
+                </>
+              ) : (
+                <p className="read-only">
+                  Anda dapat membaca status dan history equipment. Hak pencatatan diberikan oleh admin portal.
+                </p>
+              )}
+            </section>
+            <div className="batch-capacity">
+              <div>
+                <span>Ukuran batch</span>
+                <span>{selected.length} / 500</span>
+              </div>
+              <div className="capacity-track">
+                <span
+                  className="hatched"
+                  style={{
+                    transform: `scaleX(${selected.length / 500})`,
+                    background: selected.length >= 450 ? 'var(--secondary-400)' : 'var(--primary-400)',
+                  }}
+                />
+              </div>
+            </div>
+          </Overlay>
           <section className="panel" id="position-history">
             <p className="eyebrow">RIWAYAT KOORDINAT</p>
             <h2>{focused ? `Comp. ${positionLabel(focused, eq)}` : 'Pilih satu posisi'}</h2>
@@ -651,7 +910,7 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
         </div>
         <label>
           Cari WO, alasan, tanggal, atau koordinat
-          <input
+          <Input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -749,6 +1008,40 @@ export default function BagMonitor({ initial, writable }: { initial: Snapshot; w
           </button>
         )}
       </section>
+      {writable && selected.length > 0 && (
+        <div className="selection-bar" role="region" aria-label="Pilihan bag">
+          <strong>{selected.length} posisi dipilih</strong>
+          <button type="button" className="ghost" disabled={busy} onClick={() => setSelected([])}>
+            Bersihkan semua
+          </button>
+          <button type="button" disabled={busy} onClick={() => setSheetOpen(true)}>
+            Catat penggantian
+          </button>
+        </div>
+      )}
+      {marquee && (
+        <div
+          className="selection-marquee"
+          style={{ left: marquee.x, top: marquee.y, width: marquee.width, height: marquee.height }}
+        />
+      )}
+      {hovered &&
+        (() => {
+          const installed = latest.get(positionKey(hovered.position)),
+            hours = ageHours(installed?.installedAt || null, now);
+          return (
+            <div className="bag-tooltip" role="tooltip" style={{ left: hovered.x, top: hovered.y }}>
+              <strong>Comp. {positionLabel(hovered.position, eq)}</strong>
+              <small>{hours === null ? 'Belum tercatat' : Math.floor(hours / 24) + ' hari'}</small>
+              {installed && (
+                <>
+                  <small>{formatDate(installed.installedAt)} WIB</small>
+                  <small>Brand/Pabrikan: {installed.brand || 'Belum tercatat'}</small>
+                </>
+              )}
+            </div>
+          );
+        })()}
     </>
   );
 }

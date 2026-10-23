@@ -55,7 +55,7 @@ Contoh payload batch:
 | 421-BF1 / 422-BF1 | A, B           | 1–15, tampil dengan sufiks sisi | A → H                   | 1–17        | `15B H1`     |
 | L61-BF1 / L62-BF1 | Timur, Barat   | 1–8; Barat tampil 16–9          | A → H                   | 1–16        | `16 A1`      |
 
-Respons equipment/state menyertakan `rows`, `columns`, `sides: [{name,labels,descendingRows}]`, `rowDividerAfter`, dan `centeredLabels`, selain jumlah kompartemen/bag. `labels` diindeks nomor lokal minus satu. `rowDividerAfter` adalah nomor baris fisik sebelum batas pemisah: nilai 8 memisahkan baris 8?9 pada L61/L62, nilai 9 memisahkan baris 9?10 pada 421/422. Batas mengikuti orientasi naik/turun setiap sisi dan ditampilkan sebagai margin tanpa border, bukan posisi tambahan.
+Respons equipment/state menyertakan `rows`, `columns`, `sides: [{name,labels,descendingRows}]`, `rowDividerAfter`, dan `centeredLabels`, selain jumlah kompartemen/bag. `labels` diindeks nomor lokal minus satu. `rowDividerAfter` adalah nomor baris fisik sebelum batas pemisah: nilai 8 memisahkan baris 8–9 pada L61/L62, nilai 9 memisahkan baris 9–10 pada 421/422. Batas mengikuti orientasi naik/turun setiap sisi dan ditampilkan sebagai margin tanpa border, bukan posisi tambahan.
 
 Batch dan timeline menolak sisi/koordinat yang tidak sesuai equipment dengan 400. Kode `422-BF2` tidak diterima dan alamat equipment lama menghasilkan 404. History memakai label lapangan baru. Sesudah migrasi, klien harus reload dan memakai representasi koordinat baru; hash batch lama diperbarui sehingga payload baru yang ekuivalen dengan key lama tetap replay.
 
@@ -66,3 +66,15 @@ Pencatatan baru wajib mengirim `brand`, salah satu dari `Intensiv filter (Origin
 Respons batch dan timeline memuat `brand: string | null`; null untuk catatan sebelum penambahan field dan ditampilkan “Belum tercatat”. Audit pencatatan baru memuat `details.brand`. Hash dan audit historis tidak diisi merek secara asumsi.
 
 Error JSON `{error,code}`; kegagalan tak terduga memakai `{error,requestId}`. 400 invalid, 401 belum login/sesi berakhir, 403 izin/origin, 404 tidak tersedia, 409 konflik, 413 body terlalu besar, 415 tipe body, 429 login limiter, 503 dependency gagal. Body batch maksimal128KB; endpoint Auth management8KB. Tidak ada endpoint koreksi/delete transaksi di rilis ini.
+
+## UI refresh: ringkasan, pencarian, aktivitas, dan sesi
+
+Semua endpoint berikut memakai identitas server, permission read Bag Filter, scope equipment terkini, dan Cache-Control no-store. Viewer dapat membaca ringkasan; admin portal tanpa grant Bag Filter tidak mendapat akses data aplikasi.
+
+- GET /bag-filter/api/dashboard?days=7 atau days=30: total, installed, neverInstalled, older900, distribution (tujuh bucket umur), perEquipment, series (tanggal WIB, total bag, jumlah per brand), periodTotal, previousTotal, recent, serverTime. Grafik menjumlahkan posisi dalam batch menurut installedAt; distribusi menghitung pemasangan aktif menurut installedAt lalu ID. Periode mencakup hari ini WIB dan pembanding dengan jumlah hari yang sama sebelumnya. Transaksi tanggal mundur masuk tanggal pemasangannya.
+- GET /bag-filter/api/activity: maksimal 12 batch terbaru, diurutkan createdAt lalu ID, dalam scope pengguna. Ini sumber notifikasi; status sudah dibaca tersimpan per browser/pengguna, tanpa tabel notifikasi baru.
+- GET /bag-filter/api/discovery?q=teks: equipment dalam scope dan maksimal 12 batch yang cocok dengan equipment, WO, alasan, brand, atau ID. Maksimal 200 karakter; pencarian LIKE meng-escape wildcard input.
+- Snapshot equipment menambahkan brand pada setiap posisi aktif. Batch history menerima ID batch sebagai pencarian persis agar deep link ?batch=ID membuka hasil yang sama.
+- Identitas internal Auth menambahkan sessionExpiresAt (ISO UTC). Nilai hanya untuk timer; kedaluwarsa tetap diperiksa server, tidak dapat diperpanjang oleh UI.
+
+Tidak ada migrasi database pada UI refresh ini.

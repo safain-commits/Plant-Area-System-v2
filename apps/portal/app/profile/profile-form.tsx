@@ -1,4 +1,5 @@
 'use client';
+import { Input, Button } from '@plant/ui';
 import { useState } from 'react';
 import type { Identity } from '@plant/contracts';
 export function ProfileForm({ identity }: { identity: Identity }) {
@@ -34,11 +35,11 @@ export function ProfileForm({ identity }: { identity: Identity }) {
       <div className="form-grid">
         <label>
           Nama
-          <input name="name" defaultValue={identity.name} minLength={2} maxLength={100} required />
+          <Input name="name" defaultValue={identity.name} minLength={2} maxLength={100} required />
         </label>
         <label>
           Jabatan
-          <input name="position" defaultValue={identity.position} maxLength={100} />
+          <Input name="position" defaultValue={identity.position} maxLength={100} />
         </label>
       </div>
       <p className="muted">Email akun: {identity.email}</p>
@@ -53,9 +54,9 @@ export function ProfileForm({ identity }: { identity: Identity }) {
         </p>
       )}
       <div>
-        <button className="primary" disabled={busy}>
-          {busy ? 'Menyimpan…' : 'Simpan profil'}
-        </button>
+        <Button className="primary" busy={busy}>
+          Simpan profil
+        </Button>
       </div>
     </form>
   );

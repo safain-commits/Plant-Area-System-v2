@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Locator } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { getAuthDb, authSchema, resetPassword, closeAuthDb } from '@plant/auth-core';
@@ -9,6 +9,20 @@ const origin = process.env.PUBLIC_ORIGIN!,
 const path = '/bag-filter/equipment/561-bf1';
 const post = (request: APIRequestContext, url: string, data: unknown, headers: Record<string, string> = {}) =>
   request.post(url, { data, headers: { origin, ...headers } });
+async function choose(select: Locator, value: string) {
+  const label = await select.evaluate((el, v) => {
+    const options = (el.parentElement!.querySelector('select') as HTMLSelectElement).options;
+    return Array.from(options)
+      .find((o) => o.value === v)
+      ?.textContent?.trim();
+  }, value);
+  if (!label) throw Error('Option not found: ' + value);
+  await select.click();
+  await select.page().getByRole('option', { name: label, exact: true }).click();
+}
+async function openInstallation(page: import('@playwright/test').Page) {
+  await page.locator('[data-sheet-trigger]:visible').click();
+}
 test.beforeAll(async () => {
   const [admin] = await getAuthDb()
     .select()
@@ -66,6 +80,8 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   await page.getByLabel('Password', { exact: true }).fill(temporary);
   await page.getByRole('button', { name: /Masuk/ }).click();
   await expect(page).toHaveURL(/\/auth\/change-password/);
+  // Next may still be replacing a streamed subtree when the document URL first changes.
+  await expect(page.getByLabel('Password sementara', { exact: true })).toHaveCount(1);
   await page.getByLabel('Password sementara', { exact: true }).fill(temporary);
   await page.locator('input[name="newPassword"]').fill(password);
   await page.getByLabel('Ulangi password baru').fill(password);
@@ -91,14 +107,16 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   expect((await page.request.get('/bag-filter/api/equipment/422-BF2/state')).status()).toBe(404);
   for (const code of ['421-BF1', '422-BF1']) {
     await page.goto(`/bag-filter/equipment/${code.toLowerCase()}`);
-    await expect(page.getByLabel('Brand/Pabrikan', { exact: true }).locator('option')).toHaveText([
-      'Pilih Brand/Pabrikan',
+    await openInstallation(page);
+    await page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true }).click();
+    await expect(page.getByRole('option')).toHaveText([
       'Intensiv filter (Original)',
       'Filtras',
       'Cipta Medya',
       'Other',
     ]);
-    await expect(page.getByLabel('Brand/Pabrikan', { exact: true })).toHaveValue('');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Tutup Pencatatan penggantian', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Detail kompartemen 1A', exact: true })).toBeVisible();
     const top = page.locator('.overview-band[aria-label="Sisi A"]');
     const bottom = page.locator('.overview-band[aria-label="Sisi B"]');
@@ -115,8 +133,8 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     await expect(top.locator('.overview-line').first().locator(':scope > :first-child')).toHaveClass(
       'overview-row-number',
     );
-    await page.getByRole('combobox', { name: /^Sisi/ }).selectOption('B');
-    await page.getByRole('combobox', { name: /^Kompartemen/ }).selectOption('15');
+    await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'B');
+    await choose(page.getByRole('combobox', { name: /^Kompartemen/ }), '15');
     await expect(
       page.getByRole('group', { name: 'Detail kompartemen 15B', exact: true }).getByRole('button').first(),
     ).toHaveAttribute('aria-label', /Kolom A, baris 1:/);
@@ -155,15 +173,16 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
       .getByRole('group', { name: 'Detail kompartemen 1', exact: true })
       .getByRole('button', { name: /Kolom A, baris 16:/ })
       .click();
-    await page.getByRole('combobox', { name: /^Sisi/ }).selectOption('Barat');
+    await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'Barat');
     await page
       .getByRole('group', { name: 'Detail kompartemen 16', exact: true })
       .getByRole('button', { name: /Kolom H, baris 1:/ })
       .click();
     const reason = `Layout ${code} ${randomUUID()}`;
-    await page.getByLabel('Brand/Pabrikan', { exact: true }).selectOption('Filtras');
+    await openInstallation(page);
+    await choose(page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true }), 'Filtras');
     await page.getByLabel('Alasan penggantian / pemasangan awal').fill(reason);
-    await page.getByLabel('Tanggal & jam pemasangan (WIB)').fill('2026-09-01T08:00');
+    await page.locator('.installation-form input[type="datetime-local"]').fill('2026-09-01T08:00');
     await page.getByRole('button', { name: 'Simpan 2 bag', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('2 posisi tersimpan');
     await page.getByLabel('Cari WO, alasan, tanggal, atau koordinat').fill(reason);
@@ -172,7 +191,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     await expect(page.locator('.history-item')).toContainText('16 H1');
     await expect(page.locator('.history-item')).toContainText('Brand/Pabrikan: Filtras');
     await expect(page.locator('#position-history')).toContainText('Brand/Pabrikan: Filtras');
-    await expect(page.getByLabel('Brand/Pabrikan', { exact: true })).toHaveValue('');
+    await expect(page.locator('.installation-form [role=combobox]')).toHaveAttribute('value', '');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/${code}-desktop.png`, fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -225,15 +244,16 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     .getByRole('group', { name: 'Detail kompartemen 1', exact: true })
     .getByRole('button', { name: /Kolom H, baris 17:/ })
     .click();
-  await page.getByRole('combobox', { name: /^Sisi/ }).selectOption('Selatan');
+  await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'Selatan');
   await page
     .getByRole('group', { name: 'Detail kompartemen 24', exact: true })
     .getByRole('button', { name: /Kolom A, baris 1:/ })
     .click();
   const reason = `Browser batch ${randomUUID()}`;
-  await page.getByLabel('Brand/Pabrikan', { exact: true }).selectOption('Filtras');
+  await openInstallation(page);
+  await choose(page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true }), 'Filtras');
   await page.getByLabel('Alasan penggantian / pemasangan awal').fill(reason);
-  await page.getByLabel('Tanggal & jam pemasangan (WIB)').fill('2026-09-01T08:00');
+  await page.locator('.installation-form input[type="datetime-local"]').fill('2026-09-01T08:00');
   await page.getByRole('button', { name: 'Simpan 2 bag', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('2 posisi tersimpan');
   await page.getByLabel('Cari WO, alasan, tanggal, atau koordinat').fill(reason);
@@ -299,6 +319,13 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   for (const code of ['L61-BF1', 'L62-BF1'])
     expect((await viewer.request.get(`/bag-filter/api/equipment/${code}/state`)).status()).toBe(403);
   expect((await viewer.request.get('/api/admin/users')).status()).toBe(403);
+  const scoped = await (await viewer.request.get('/bag-filter/api/dashboard?days=7')).json();
+  expect(scoped.perEquipment.map((e: { code: string }) => e.code)).toEqual(['561-BF1']);
+  const events = await (await viewer.request.get('/bag-filter/api/activity')).json();
+  expect(events.items.every((e: { equipmentCode: string }) => e.equipmentCode === '561-BF1')).toBe(true);
+  const discovery = await (await viewer.request.get('/bag-filter/api/discovery?q=L61')).json();
+  expect(discovery.equipment).toEqual([]);
+  expect(discovery.items).toEqual([]);
   await post(adminRequest, `/api/admin/users/${id}/grant`, {
     grant: { appId: 'bag-filter', role: 'operator', equipment: ['561-BF1'] },
   });

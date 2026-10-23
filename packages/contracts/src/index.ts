@@ -15,6 +15,7 @@ export type Identity = {
   portalAdmin: boolean;
   mustChangePassword: boolean;
   grants: Grant[];
+  sessionExpiresAt?: string;
 };
 export const sides = ['Utara', 'Selatan', 'A', 'B', 'Timur', 'Barat'] as const;
 export type Position = { side: (typeof sides)[number]; compartment: number; column: number; row: number };
@@ -106,10 +107,27 @@ export const equipmentSideSummary = (eq: Equipment) =>
   eq.sides.map((s) => `${eq.perSide} ${s.name}`).join(' / ');
 export const ageHours = (installedAt: string | null, now = Date.now()) =>
   installedAt === null ? null : Math.max(0, Math.floor((now - Date.parse(installedAt)) / 3_600_000));
+export const ageStops = [
+  { days: 0, color: '#8FCB2F' },
+  { days: 150, color: '#BDD62E' },
+  { days: 300, color: '#EBD52F' },
+  { days: 450, color: '#F7B32B' },
+  { days: 600, color: '#F4862A' },
+  { days: 750, color: '#E65A2A' },
+  { days: 900, color: '#CF2E2E' },
+] as const;
+export const ageBucket = (hours: number) => Math.min(6, Math.floor(Math.max(0, hours) / (150 * 24)));
 export function bagColor(hours: number | null) {
-  if (hours === null) return '#e6eae9';
-  const f = Math.min(Math.max(hours / 21600, 0), 1);
-  return `hsl(${Math.round(128 + f * 20)} ${Math.round(78 - f * 22)}% ${Math.round(61 - f * 47)}%)`;
+  if (hours === null) return 'var(--empty-bag)';
+  const days = Math.min(900, Math.max(0, hours / 24));
+  const index = Math.min(5, Math.floor(days / 150));
+  const a = ageStops[index],
+    b = ageStops[index + 1],
+    f = (days - a.days) / 150;
+  const rgb = [1, 3, 5].map((i) =>
+    Math.round(parseInt(a.color.slice(i, i + 2), 16) * (1 - f) + parseInt(b.color.slice(i, i + 2), 16) * f),
+  );
+  return '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 export const formatDate = (value: string) =>
   new Date(value).toLocaleString('id-ID', {

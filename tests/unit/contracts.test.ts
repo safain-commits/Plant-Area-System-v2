@@ -117,7 +117,7 @@ test('24/7 age and 0, 450, 900 and >900 day colors', () => {
   for (const days of [0, 450, 900, 1200])
     assert.equal(ageHours(new Date(now - days * 86400000).toISOString(), now), days * 24);
   assert.equal(ageHours(null), null);
-  assert.equal(bagColor(null), '#e6eae9');
+  assert.equal(bagColor(null), 'var(--empty-bag)');
   assert.notEqual(bagColor(0), bagColor(450 * 24));
   assert.equal(bagColor(900 * 24), bagColor(1200 * 24));
 });

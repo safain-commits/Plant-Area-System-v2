@@ -1,15 +1,15 @@
 # PRD — Plant Area System v2
 
-Versi 2.1 · 23 Oktober 2026 · Pemilik produk: Maintenance Tuban.
+Versi 2.2 · 23 Oktober 2026 · Pemilik produk: Maintenance Tuban.
 Rilis pertama: Portal, Centralized Auth, dan Bag Filter. Akun internal, Linux + Docker, satu domain dengan path per aplikasi, data aktual kosong.
 
 ## 1. Tujuan
 
 Sediakan satu pintu login untuk aplikasi maintenance yang dapat dibangun dan diperbarui secara terpisah. Portal hanya menampilkan aplikasi aktif sesuai izin. Modul mendatang tampil sebagai rencana tanpa tautan operasional.
 
-### Tampilan bersama
+### Tampilan bersama (UI refresh v2)
 
-Portal, Auth, dan Bag Filter memakai tema clean modern industrial dari palette Lime, Black, White, Myrtle Green, Pumpkin, Lavender, dan Slate. Tersedia tombol ikon Terang/Gelap; pilihan Sistem di Profil ? Tampilan, default mengikuti perangkat. Sidebar tetap gelap, aksi utama/menu aktif Lime dengan teks hitam, pilihan bag Pumpkin. Preferensi tersimpan per browser dan konsisten lintas aplikasi serta tab, termasuk setelah logout. Pergantian tema mempertahankan draft form dan posisi bag terpilih. Warna umur bag dan nilai abu-abu kosong tetap sama pada kedua tema. Rincian token dan perilaku ada di [UI-THEME.md](UI-THEME.md).
+Acuan visual aktif adalah [UI-REFRESH.md](design/UI-REFRESH.md) dan [ui-brief.jsonc](design/ui-brief.jsonc). Sidebar mengikuti tema, dapat diciutkan menjadi rail 76 px, dan menyediakan navigasi mobile. Tombol utama memakai ink, data utama lime, dan peringatan pumpkin. Dashboard, pencarian cepat, notifikasi aktivitas batch, dan timer sesi memakai data aktual sesuai scope. Tema Terang/Gelap/Sistem tersedia melalui menu ikon. Kontrak fitur, koordinat equipment, role, transaksi, dan tanggal tetap berlaku. Rincian implementasi serta pengecualian kontras ada di [UI-THEME.md](UI-THEME.md).
 
 ## 2. Akun dan akses
 
@@ -52,7 +52,7 @@ Total 18.784 posisi bag. Konfigurasi peta mengikuti equipment, dengan nomor bari
 
 `422-BF1` adalah kode yang benar; `422-BF2` hanya merupakan nama lama dalam audit baseline dan migrasi, bukan alias operasional. Upgrade mempertahankan ID, tanggal, actor, batch, serta posisi fisik transaksi; Utara/Selatan lama pada 421/422 menjadi A/B dengan nomor lokal dan indeks kolom tetap.
 
-- Tema forest green; pilihan oranye; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target klik lebih besar, dan antarmuka mobile.
+- Tema netral light/dark sesuai UI refresh v2; pilihan double ring dan tanda centang tanpa mengubah warna umur; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target sentuh minimal 44 px dan scroll internal di mobile.
 - Umur berjalan 24/7 sejak pemasangan. Skala warna 0–900 hari, dijenuhkan setelah 900 hari; umur tampilan diperbarui setiap 60 detik.
 - Satu batch: 1–500 posisi unik dalam satu equipment, boleh lintas kompartemen/sisi.
 - Tanggal dan alasan wajib; alasan 1–500 karakter, WO opsional maksimal 100 karakter.
@@ -82,7 +82,7 @@ Better Auth memakai adapter Drizzle/MySQL. Cookie host-only, Secure, HttpOnly, S
 
 Origin wajib cocok untuk operasi tulis. Login dibatasi 10 kegagalan per akun/IP selama 15 menit melalui tabel database dengan lock transaksi. Endpoint bawaan Better Auth yang dipublikasikan hanya sign-in dan sign-out; endpoint pengelolaan khusus memakai guard sendiri.
 
-Kontrak HTTP lengkap ada di `API.md`. Payload batch: `equipmentCode`, `positions`, `installedAt`, `reason`, `wo?`. Actor ditentukan server. Header `Idempotency-Key` wajib, 8–128 karakter; sama actor/key/payload mengembalikan batch semula, payload berbeda 409. Batch, seluruh pemasangan, dan audit atomik. Nama actor disimpan sebagai snapshot, tanpa foreign key antar database.
+Kontrak HTTP lengkap ada di `API.md`. Payload batch: `equipmentCode`, `positions`, `installedAt`, `brand`, `reason`, `wo?`. Actor ditentukan server. Header `Idempotency-Key` wajib, 8–128 karakter; sama actor/key/payload mengembalikan batch semula, payload berbeda 409. Batch, seluruh pemasangan, dan audit atomik. Nama actor disimpan sebagai snapshot, tanpa foreign key antar database.
 
 ## 5. Operasional dan penerimaan
 

@@ -24,8 +24,8 @@ export function relativeLuminance(color: string) {
 
 export function dataTextTone(color: string): 'dark' | 'light' {
   const luminance = relativeLuminance(color);
-  // Correspond to --data-dark (#000000) and --data-light (#FFFFFF).
-  return (luminance + 0.05) / (relativeLuminance('#000000') + 0.05) >= 1.05 / (luminance + 0.05)
+  // Correspond to --data-dark (#050505) and --data-light (#FFFFFF).
+  return (luminance + 0.05) / (relativeLuminance('#050505') + 0.05) >= 1.05 / (luminance + 0.05)
     ? 'dark'
     : 'light';
 }

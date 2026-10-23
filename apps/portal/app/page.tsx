@@ -1,5 +1,5 @@
 import { pageIdentity } from '@plant/server';
-import { Shell, Heading } from '@plant/ui';
+import { Shell, Heading, Dashboard } from '@plant/ui';
 import { appCatalog } from '@plant/contracts';
 export const dynamic = 'force-dynamic';
 export default async function Portal() {
@@ -20,44 +20,7 @@ export default async function Portal() {
           Akun aktif
         </span>
       </Heading>
-      <section className="hero">
-        <div>
-          <p className="eyebrow">DARI WORKSHOP SAMPAI PLANT FLOOR</p>
-          <h2>
-            Setiap pekerjaan terhubung.
-            <br />
-            Setiap riwayat tercatat.
-          </h2>
-          <p>
-            Pilih aplikasi untuk memulai pekerjaan. Satu akun membawa Anda ke area yang menjadi tanggung jawab
-            Anda.
-          </p>
-        </div>
-        <div className="hero-mark" aria-hidden="true">
-          ▥
-        </div>
-      </section>
-      <div className="stats">
-        <article className="stat">
-          <span>APLIKASI ANDA</span>
-          <strong>
-            {allowed.length} <small>aplikasi</small>
-          </strong>
-          <small>Akses telah diberikan</small>
-        </article>
-        <article className="stat">
-          <span>CAKUPAN BAG FILTER</span>
-          <strong>
-            {grant?.equipment.length || 0} <small>equipment</small>
-          </strong>
-          <small>Sesuai tanggung jawab</small>
-        </article>
-        <article className="stat">
-          <span>AKUN & AKSES</span>
-          <strong style={{ fontSize: 20 }}>{identity.portalAdmin ? 'Admin portal' : 'Pengguna'}</strong>
-          <small>{identity.position || 'Maintenance Tuban'}</small>
-        </article>
-      </div>
+      {grant && <Dashboard />}
       <div className="section-title">
         <h2>Aplikasi Anda</h2>
         <small>Siap digunakan</small>
