@@ -4,6 +4,10 @@ Portal SSO, Bag Filter, dan Consumable Room dengan Node.js 26, Next.js, Better A
 
 Dokumen: [audit](docs/AUDIT.md), [PRD v2](docs/PRD-v2.md), [rencana implementasi](docs/IMPLEMENTATION-PLAN.md), [kontrak API](docs/API.md), [tema UI](docs/UI-THEME.md), [operasional](docs/OPERATIONS.md), [hasil validasi](docs/VALIDATION.md).
 
+Deployment VPS `tq-cmms.com` dengan **Nginx host yang sudah ada**: gunakan [runbook VPS](docs/deployment/VPS-TQ-CMMS.md) dan [handover OpenClaw](docs/deployment/OPENCLAW-HANDOVER.md). Runbook memakai override khusus agar gateway Docker hanya membuka port loopback dan tidak berebut port 80/443 dengan website lain.
+
+Untuk membawa data aktual Docker lokal, gunakan [panduan migrasi/backup restore](docs/deployment/DATABASE-LOCAL-TO-VPS.md) dan [prompt OpenClaw khusus database](docs/deployment/OPENCLAW-DATABASE-HANDOVER.md). Restore mempertahankan ketiga database, akun dan izin; jalur ini tidak memakai bootstrap atau impor master ulang.
+
 Ikon Tema di topbar dan form Auth membuka pilihan **Terang/Gelap/Sistem**. Default mengikuti perangkat dan pilihan tersimpan pada browser untuk seluruh aplikasi. UI refresh v2 memakai sidebar yang dapat diciutkan, dashboard data aktual, pencarian cepat (**Ctrl/Cmd+K**), notifikasi aktivitas sesuai scope, dan form pencatatan dalam sheet. Peta memakai skala umur lime–kuning–oranye–merah serta seleksi double ring tanpa mengubah warna umur. Acuan visual tersedia di [brief UI](docs/design/UI-REFRESH.md).
 
 ## Persiapan

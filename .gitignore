@@ -7,6 +7,7 @@ coverage/
 playwright-report/
 test-results/
 .test-runtime/
+.deploy/
 testsprite_tests/
 *.tsbuildinfo
 infra/certs/*.key

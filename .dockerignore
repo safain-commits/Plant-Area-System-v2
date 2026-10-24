@@ -8,6 +8,7 @@ node_modules
 !.env.example
 **/*.tsbuildinfo
 .test-runtime
+.deploy
 testsprite_tests
 test-results
 playwright-report

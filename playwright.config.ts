@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import { existsSync } from 'node:fs';
+if (existsSync('.test-runtime/REAL-DATA-PRESENT.json'))
+  throw Error('This preview contains real data. Browser tests require a separate test deployment.');
 if (existsSync('.test-runtime/host.env')) process.loadEnvFile('.test-runtime/host.env');
 if (process.env.TEST_DATABASE !== '1') throw Error('Browser tests require the isolated test deployment.');
 export default defineConfig({

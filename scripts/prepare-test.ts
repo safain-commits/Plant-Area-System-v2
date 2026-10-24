@@ -1,7 +1,10 @@
 // Creates an isolated, disposable test deployment. Never use its credentials in production.
 import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile, access, readFile } from 'node:fs/promises';
 const directory = '.test-runtime';
+if (existsSync(`${directory}/REAL-DATA-PRESENT.json`))
+  throw Error('This preview contains real data. Prepare tests in a separate checkout and Docker project.');
 await mkdir(directory, { recursive: true });
 try {
   await access(`${directory}/stack.env`);

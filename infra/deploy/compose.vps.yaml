@@ -1,0 +1,66 @@
+# Use only with compose.yaml; see docs/deployment/VPS-TQ-CMMS.md.
+# Requires Docker Compose >= 2.24.4 for !override.
+x-logging: &bounded-logging
+  driver: local
+  options:
+    max-size: '10m'
+    max-file: '3'
+x-app-budget: &app-budget
+  mem_limit: 512m
+  cpus: 0.75
+  logging: *bounded-logging
+services:
+  mysql:
+    mem_limit: 1280m
+    cpus: 1.0
+    logging: *bounded-logging
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --innodb-buffer-pool-size=384M
+      - --max-connections=80
+      - --binlog-expire-logs-seconds=604800
+  migrate:
+    mem_limit: 768m
+    cpus: 1.0
+    logging: *bounded-logging
+  bootstrap:
+    mem_limit: 512m
+    cpus: 0.75
+    logging: *bounded-logging
+  auth:
+    <<: *app-budget
+    environment:
+      NODE_OPTIONS: --max-old-space-size=320
+  portal:
+    <<: *app-budget
+    environment:
+      NODE_OPTIONS: --max-old-space-size=320
+  bag-filter:
+    <<: *app-budget
+    environment:
+      NODE_OPTIONS: --max-old-space-size=320
+  consumables:
+    <<: *app-budget
+    environment:
+      NODE_OPTIONS: --max-old-space-size=320
+  nginx:
+    mem_limit: 128m
+    cpus: 0.5
+    logging: *bounded-logging
+    # Replace, rather than append to, the public bindings in compose.yaml.
+    ports: !override
+      - '127.0.0.1:18080:80'
+      - '127.0.0.1:18443:443'
+    volumes:
+      - type: bind
+        source: ./.deploy/real-ip.conf
+        target: /etc/nginx/conf.d/00-real-ip.conf
+        read_only: true
+        bind:
+          create_host_path: false
+  backup:
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *bounded-logging
