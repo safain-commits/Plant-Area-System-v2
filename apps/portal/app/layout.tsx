@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import '@plant/ui/styles.css';
-import { ThemeProvider, ThemeScript } from '@plant/ui';
+import { brandIcon, ThemeProvider, ThemeScript } from '@plant/ui';
 export const metadata: Metadata = {
-  title: 'Portal | Plant Area System',
-  description: 'Maintenance Tuban ? Plant Area System',
+  title: 'Portal | TQ-CMMS',
+  description: 'TQ-CMMS — Maintenance Tuban',
   robots: { index: false, follow: false },
+  icons: { icon: brandIcon() },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

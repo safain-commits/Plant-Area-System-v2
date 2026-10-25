@@ -1,6 +1,6 @@
 import { safeReturnTo } from '@plant/contracts';
 import { LoginForm } from '../forms';
-import { ThemeToggle } from '@plant/ui';
+import { BrandLogo, ThemeToggle } from '@plant/ui';
 export const dynamic = 'force-dynamic';
 export default async function Login({
   searchParams,
@@ -11,13 +11,8 @@ export default async function Login({
   return (
     <main className="auth-layout">
       <aside className="auth-story">
-        <a className="brand" href="/">
-          P
-          <span>
-            PLANT AREA
-            <br />
-            <small>TUBAN OPERATIONS</small>
-          </span>
+        <a className="brand" href="/" aria-label="TQ-CMMS — Kembali ke portal">
+          <BrandLogo />
         </a>
         <div>
           <p className="eyebrow">MAINTENANCE · CONNECTED</p>
@@ -29,10 +24,13 @@ export default async function Login({
           <p>Masuk ke portal untuk membuka aplikasi maintenance sesuai tanggung jawab Anda.</p>
           <div className="auth-lines" aria-hidden="true" />
         </div>
-        <small>PLANT AREA SYSTEM / INTERNAL</small>
+        <small>TQ-CMMS / TUBAN OPERATIONS</small>
       </aside>
       <section className="auth-form">
-        <div className="auth-theme">
+        <div className="auth-form-header">
+          <a className="auth-brand" href="/" aria-label="TQ-CMMS — Kembali ke portal">
+            <BrandLogo />
+          </a>
           <ThemeToggle />
         </div>
         <p className="eyebrow">SELAMAT DATANG</p>

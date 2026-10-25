@@ -8,6 +8,12 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "brand:generate": "node scripts/generate-brand.mjs",
+    "dev:setup": "tsx scripts/dev.ts setup",
+    "dev:up": "tsx scripts/dev.ts up",
+    "dev:down": "tsx scripts/dev.ts down",
+    "dev:status": "tsx scripts/dev.ts status",
+    "dev:logs": "tsx scripts/dev.ts logs",
     "build": "pnpm --filter \"./apps/*\" --workspace-concurrency=1 build",
     "typecheck": "tsc --noEmit && pnpm --filter \"./apps/*\" typecheck",
     "test": "tsx --test tests/unit/*.test.ts",

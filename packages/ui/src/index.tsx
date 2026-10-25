@@ -11,6 +11,7 @@ export { ThemeScript } from './theme-script';
 export { dataTextTone } from './color';
 export { Workspace as Shell } from './workspace';
 export { Icon } from './icon';
+export { BrandLogo, brandIcon } from './brand';
 export { Button } from './button';
 export { Select, Input, Textarea, DateTimeField } from './fields';
 export { Overlay, Toast } from './overlay';

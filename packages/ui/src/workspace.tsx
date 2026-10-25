@@ -13,6 +13,7 @@ import { Overlay } from './overlay';
 import { ThemeToggle } from './theme';
 import { LogoutButton } from './logout';
 import { SidebarNavigation } from './sidebar-navigation';
+import { BrandLogo } from './brand';
 
 type Activity = {
   id: string;
@@ -373,13 +374,8 @@ export function Workspace({
   );
   const side = (
     <aside ref={sidebar} className="sidebar" aria-label="Sidebar">
-      <a href="/" className="brand">
-        <span className="brand-monogram">
-          P<span />
-        </span>
-        <span className="sidebar-label">
-          PLANT AREA<small>TUBAN OPERATIONS</small>
-        </span>
+      <a href="/" className="brand" aria-label="TQ-CMMS — Kembali ke portal">
+        <BrandLogo compact={collapsed && !mobile} />
       </a>
       <p className="nav-label sidebar-label">WORKSPACE</p>
       <SidebarNavigation
@@ -556,8 +552,14 @@ export function Workspace({
         </header>
         <main className="page-content">{children}</main>
         <footer className="footer">
-          <span>PLANT AREA SYSTEM</span>
-          <span>Maintenance Tuban · Asia/Jakarta</span>
+          <span>TQ-CMMS</span>
+          <span>
+            Developed by{' '}
+            <a href="https://linearsaf.com/" target="_blank" rel="noopener noreferrer">
+              LinearSAF
+            </a>{' '}
+            • © 2026
+          </span>
         </footer>
       </div>
       <Overlay

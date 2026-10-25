@@ -1,5 +1,28 @@
 # Hasil validasi implementasi v2
 
+## Integrasi identitas TQ-CMMS — 25 Oktober 2026
+
+Kedua SVG sumber dipertahankan di `brand/`. Generator mengekspor geometri ke komponen UI bersama dan favicon empat aplikasi; XML DTD/metadata editor/ID tidak dibawa ke output. Pemeriksaan generator `--check` dan root TypeScript lulus; typecheck keempat aplikasi juga lulus pada container development Node.js 26.12.1. Konfigurasi Nginx development diuji dan gateway direstart dengan jalur publik favicon yang baru.
+
+Chromium melalui HTTPS9443 memeriksa logo form login pada tema light/dark, warna ink/aksen, logo sidebar expanded/collapsed, serta logo halaman ganti password. Login dan navigasi Portal–Bag Filter–Consumables berhasil. Metadata favicon mengikuti prefix tiap aplikasi; keempat URL favicon merespons 200 dengan `image/svg+xml` tanpa sesi dan tanpa redirect login. Drawer navigasi kedua tema serta login mobile 390 px diperiksa; tidak ada overflow halaman atau page error. Screenshot desktop 1440 px dan mobile ditinjau. Bukti privat berada di `.deploy/brand-verification/`.
+
+Tidak menjalankan build produksi keempat aplikasi atau suite bisnis/database untuk perubahan artwork ini. Pengujian memakai akun/database development; tidak mengubah VPS, data arsip sumber, scope, transaksi atau schema. Favicon SVG mengikuti preferensi warna browser/OS, sedangkan logo UI mengikuti tema aplikasi termasuk override manual.
+
+## Runtime development terisolasi PC — 25 Oktober 2026
+
+Runtime `plant-v2-dev` telah disiapkan dan dijalankan pada Docker Desktop Linux Engine di Windows melalui `scripts/dev.ts`, memakai Node.js 26.12.1. Gateway development HTTPS9443/HTTP9080 serta MySQL14306 hanya terikat loopback. Empat aplikasi memakai Next.js development server dan dependency Linux pada image tools. Runtime mempunyai volume dan rahasia baru; tidak memakai data VPS atau membuka kembali database arsip sumber migrasi.
+
+Pemeriksaan yang benar-benar dijalankan:
+
+- Build image tools dengan frozen lockfile, migrasi/bootstrap database development, empat healthcheck aplikasi, serta `nginx -t` lulus.
+- Root `tsc --noEmit` dan 12 unit test lulus. Link lokal panduan diperiksa: 34 tautan tersedia. Ini bukan build produksi keempat aplikasi atau suite integrasi bisnis lengkap.
+- Chromium memverifikasi login akun development, SSO Portal–Bag Filter–Consumables, logout dan penolakan API sesudah logout, respons JSON 401 anonim, serta penutupan endpoint internal. Pergantian password awal tersimpan dan password baru diverifikasi; kredensial hanya disimpan pada file privat development.
+- Perubahan sementara source Auth dan CSS package UI terdeteksi melalui hot reload; perubahan uji dihapus kembali. Dashboard kedua aplikasi merespons JSON 200 dan tampilan lengkap Portal/Consumables ditinjau pada desktop 1440 px. Landing Bag Filter diperiksa pada mobile 390 px tanpa overflow. Tidak ada page error pada smoke browser yang lulus.
+- Database development berisi satu admin, enam equipment dan 18.784 koordinat; nol pemasangan bag dan nol master material. Setup ulang mempertahankan hash credential/certificate. Perbandingan fingerprint sebelum/sesudah restart MySQL pada pengujian persistensi terakhir cocok persis.
+- Fingerprint seluruh database arsip `plant-v2-test` sebelum/sesudah pekerjaan cocok persis. MySQL sumber tetap baca saja; enam container aplikasi/gateway/backup lama tetap berhenti. Tidak ada operasi VPS, impor data perusahaan, reset database nyata, maupun pengaktifan penulis sumber lama.
+
+Bukti runtime, snapshot dan screenshot berada secara privat pada `.deploy/dev-verification/`; kredensial development terakhir pada `.deploy/dev/login.env`. Semua diabaikan Git/Docker. Sertifikat localhost masih self-signed dan belum dipercaya OS/browser. Runtime Mac belum diuji. Suite integration/E2E/operations lama tetap mengasumsikan project uji `plant-v2-test` sehingga tidak dijalankan pada PC sumber yang berisi arsip nyata.
+
 ## Sidebar dan dashboard Consumable Room — 23 Oktober 2026
 
 Implementasi mengikuti [UI Polish](design/CONSUMABLE-ROOM-UI-POLISH.md). Preview HTTPS lokal telah diperbarui dengan empat image aplikasi. Tidak ada migrasi, perubahan query stok, atau perubahan izin untuk penyempurnaan ini.

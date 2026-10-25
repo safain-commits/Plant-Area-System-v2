@@ -10,7 +10,7 @@ Development lokal terisolasi → branch fitur → pengujian → push/PR
 
 **Pembaruan membawa kode dan migrasi yang direview. Database VPS tetap menjadi sumber data produksi.** Dump laptop dari migrasi awal tidak diunggah ulang untuk memperbarui fitur.
 
-Dokumen ini menjelaskan alur kerja; penulisannya tidak membuat lingkungan development baru atau mengubah VPS. Panduan eksekusi server tetap [runbook VPS bagian 15](VPS-TQ-CMMS.md#15-upgrade-dan-rollback).
+Tooling development lokal tersedia melalui `scripts/dev.ts` dan perintah `pnpm dev:*`; runtime telah diverifikasi pada PC Windows pada 25 Oktober 2026. Pekerjaan ini tidak mengubah VPS. Panduan eksekusi server tetap [runbook VPS bagian 15](VPS-TQ-CMMS.md#15-upgrade-dan-rollback).
 
 ## 1. Pisahkan lingkungan lebih dahulu
 
@@ -27,7 +27,7 @@ Sesuai pilihan pemilik, **folder PC saat ini tetap workspace aktif**. Yang dibek
 
 Pemisahan folder bukan syarat utama isolasi Docker. Nama project yang sama pada Docker Engine yang sama dapat memakai container/volume yang sama. Runtime development pada PC harus memakai identitas Compose yang berbeda dari arsip `plant-v2-test`. Pastikan Docker context menunjuk engine lokal perangkat, bukan engine VPS.
 
-Rancangan development lokal baru:
+Konfigurasi development lokal:
 
 - Project Compose: `plant-v2-dev`; volume database baru `plant-v2-dev_mysql-data`.
 - Gateway: `https://localhost:9443`, HTTP loopback `9080`, MySQL loopback `14306` bila akses dari host diperlukan.
@@ -36,7 +36,11 @@ Rancangan development lokal baru:
 - Sertifikat localhost development dalam `.deploy/dev/certs/`, terpisah dari certificate/source deployment lama.
 - Mulai dengan data sintetis. Jika debugging memerlukan data perusahaan, gunakan salinan yang telah disamarkan dan tetap privat; kredensial produksi tidak dipakai untuk development.
 
-**Rancangan di atas belum disiapkan oleh dokumen ini.** Sebelum dipakai, merged Compose, lokasi volume, URL database, port dan isolasi terhadap sumber lama harus diperiksa. Sertifikat development, user dan bootstrap dibuat hanya pada database baru itu.
+Jalankan `pnpm dev:setup`, lalu `pnpm dev:up` dari root workspace dengan Docker lokal aktif. Setup memvalidasi identitas project, volume dan binding loopback; membuat rahasia/certificate sendiri; serta menolak context remote atau resource existing tanpa profil yang sesuai. `dev:up` membangun tools, memigrasikan database baru, menjalankan bootstrap idempoten, dan menyalakan empat app serta gateway. Setup ulang mempertahankan credential/certificate.
+
+URL browser: **https://localhost:9443**. Certificate self-signed belum dipercaya OS/browser, sehingga peringatan certificate dapat muncul. Email awal `developer@example.test`; password sementara tersimpan privat sebagai `BOOTSTRAP_PASSWORD` pada `.deploy/dev/stack.env` dan wajib diganti. Pada PC yang telah diverifikasi, password development setelah uji awal ada di `.deploy/dev/login.env`. Lihat `.deploy/dev/DEV-HANDOVER.md`; jangan commit file rahasia atau memakai password produksi. Jika password diganti lagi, gunakan password terbaru.
+
+`pnpm dev:status` memeriksa container, `pnpm dev:logs` menampilkan log, dan `pnpm dev:down` menghentikan runtime tanpa menghapus volume. Development dimulai tanpa master perusahaan, pemasangan bag atau transaksi stok. Runtime Mac belum diuji; gunakan prompt MacBook untuk verifikasi native pada perangkat tersebut.
 
 PC dan Mac dapat memakai nama project/port development yang sama apabila masing-masing memakai Docker Engine lokalnya sendiri. Volume di PC tidak menjadi volume Mac dan data development tidak otomatis tersinkron.
 
@@ -48,7 +52,7 @@ Jangan menjalankan script tersebut dari clone baru pada Docker Engine laptop yan
 
 Untuk menjalankan seluruh suite lokal dengan identitas baru, script dan guard perlu dibuat dapat dikonfigurasi secara konsisten, lalu diuji isolasinya. Sampai pekerjaan itu selesai, jalankan pengujian integrasi/E2E/operasional lengkap melalui CI pada runner terpisah. Pemeriksaan unit, typecheck dan build yang tidak membutuhkan database tetap dapat dilakukan lokal.
 
-`pnpm dev` tersedia untuk empat Next.js app pada port `3000`–`3003`, tetapi SSO lengkap tetap membutuhkan environment per layanan dan gateway HTTPS dengan prefix/origin yang benar. Compose saat ini memakai build aplikasi; hot reload lintas empat app memerlukan konfigurasi development tersendiri.
+`pnpm dev:up` menjalankan empat Next.js development server melalui gateway HTTPS dengan prefix/origin yang sama. Source app dan package bersama dipasang sebagai bind mount baca saja, sedangkan dependency Linux tetap di image. Hot reload app dan UI bersama telah diuji. Setelah perubahan dependency, konfigurasi build yang tidak terpasang, atau migrasi, jalankan `dev:up` lagi. Perintah lama `pnpm dev` menjalankan app pada host port `3000`–`3003` dan tetap memerlukan pengaturan environment/gateway manual.
 
 ## 2. Kerjakan satu perubahan pada branch fitur
 

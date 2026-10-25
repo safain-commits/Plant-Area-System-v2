@@ -1,6 +1,6 @@
 import { pageIdentity } from '@plant/server';
 import { PasswordForm } from '../forms';
-import { LogoutButton, ThemeToggle } from '@plant/ui';
+import { BrandLogo, LogoutButton, ThemeToggle } from '@plant/ui';
 export const dynamic = 'force-dynamic';
 export default async function ChangePassword() {
   const identity = await pageIdentity('/', true);
@@ -9,8 +9,8 @@ export default async function ChangePassword() {
       <div className="auth-theme">
         <ThemeToggle />
       </div>
-      <a href="/" className="wordmark">
-        PLANT AREA / TUBAN
+      <a href="/" className="password-brand" aria-label="TQ-CMMS — Kembali ke portal">
+        <BrandLogo />
       </a>
       <section className="panel">
         <p className="eyebrow">KEAMANAN AKUN</p>

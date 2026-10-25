@@ -52,6 +52,19 @@ server {
     location ^~ /consumables/health { return 404; }
     location ^~ /health/ { return 404; }
     location = /gateway-health { access_log off; return 204; }
+    # Public artwork only: favicon requests must not redirect to the login page.
+    location = /favicon.svg {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://portal_upstream;
+    }
+    location = /bag-filter/favicon.svg {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://bag_upstream;
+    }
+    location = /consumables/favicon.svg {
+        include /etc/nginx/plant-proxy.conf;
+        proxy_pass http://consumables_upstream;
+    }
     location = /auth { return 308 /auth/login; }
     location = /_verify_consumables {
         internal;

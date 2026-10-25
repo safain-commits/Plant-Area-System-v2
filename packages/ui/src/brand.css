@@ -1,0 +1,52 @@
+.brand-logo {
+  display: block;
+  width: 200px;
+  max-width: 100%;
+  height: auto;
+  flex-shrink: 0;
+  color: var(--textPrimary);
+}
+.brand-logo-ink {
+  fill: currentColor;
+}
+.brand-logo-accent {
+  fill: var(--logo-accent, var(--primary-400));
+}
+.brand-logo-compact {
+  width: 44px;
+  height: 44px;
+}
+.sidebar .brand {
+  min-height: 44px;
+  width: 100%;
+  padding: 0;
+  gap: 0;
+  border-radius: var(--radius-control);
+}
+.sidebar .brand-logo[data-brand='full'] {
+  width: 160px;
+}
+.auth-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: calc(100% - 60px);
+  border-radius: var(--radius-control);
+}
+.auth-story .brand-logo {
+  color: var(--gray-950);
+  --logo-accent: var(--gray-950);
+}
+.password-brand {
+  display: inline-flex;
+  min-height: 44px;
+  margin-bottom: 24px;
+  border-radius: var(--radius-control);
+}

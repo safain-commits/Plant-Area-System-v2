@@ -45,6 +45,24 @@ Buka `PUBLIC_ORIGIN`. Login dengan akun bootstrap dan ganti password sementara. 
 
 Hapus `BOOTSTRAP_PASSWORD` dari `.env` setelah digunakan dan simpan password baru di pengelola password organisasi. Bootstrap yang dijalankan ulang tidak mengubah akun yang sudah ada. Jangan memakai `docker compose down -v` pada deployment berisi data.
 
+## Development lokal PC/Mac
+
+Dengan Node/pnpm yang dipin dan Docker Engine lokal aktif, jalankan dari root workspace:
+
+```sh
+pnpm dev:setup
+pnpm dev:up
+pnpm dev:status
+```
+
+Buka **https://localhost:9443**. Sertifikat localhost bersifat self-signed dan belum dipercaya browser/OS; browser dapat menampilkan peringatan sertifikat. Login awal memakai email `developer@example.test` dan `BOOTSTRAP_PASSWORD` dalam `.deploy/dev/stack.env`, lalu wajib mengganti password. Jika verifikasi awal sudah dilakukan pada PC ini, kredensial development terakhir tersedia secara privat dalam `.deploy/dev/login.env`; lihat juga `.deploy/dev/DEV-HANDOVER.md`. Gunakan password terbaru Anda setelah menggantinya lagi.
+
+Runtime `plant-v2-dev` memakai volume baru, kredensial sendiri dan binding loopback: HTTPS9443, HTTP9080 serta MySQL14306. Tidak memakai akun/data VPS atau database arsip `plant-v2-test`. Data awal kosong, selain admin, katalog aplikasi dan konfigurasi enam equipment. Seluruh rahasia/sertifikat/generated override berada di `.deploy/dev/`, diabaikan Git/Docker.
+
+Source `apps/*/app` dan `packages/*/src` mendukung hot reload. Perubahan dependency atau migrasi memerlukan `pnpm dev:up` untuk membangun ulang tools dan menjalankan migrator. `pnpm dev:down` menghentikan runtime tanpa menghapus volume; `pnpm dev:logs` menampilkan log terakhir. Setup ulang mempertahankan kredensial dan sertifikat. Script menolak Docker context remote; tidak memasang trust certificate ke OS. Runtime telah diuji pada PC Windows ini; setup Mac tetap perlu diverifikasi di perangkatnya.
+
+Suite integration/E2E/operasi lama masih khusus lingkungan uji disposable di bawah; jangan menjalankannya terhadap database development atau arsip nyata.
+
 ## Lingkungan uji lokal terpisah
 
 **Khusus PC sumber migrasi:** project `plant-v2-test` lama berisi data nyata dan tetap dibekukan sesudah cutover. Jangan menjalankan blok di bawah pada Docker Engine yang masih mempunyai project tersebut, termasuk dari clone lain: nama project dan sebagian port/nama container masih tetap dalam script uji. Development boleh memakai workspace saat ini, dengan runtime project, volume, port, sertifikat dan kredensial baru sesuai panduan di atas. Suite lengkap dapat berjalan pada runner CI terpisah.
