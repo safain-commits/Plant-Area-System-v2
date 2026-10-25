@@ -1,5 +1,13 @@
 # Hasil validasi implementasi v2
 
+## Perbaikan tes waktu sesi pada CI — 25 Oktober 2026
+
+[Run 40201041233](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/40201041233) gagal pada assertion `expiresAt - createdAt === 28.800.000`: hasil aktual 28.799.999 ms. Source Better Auth 1.7.12 membaca waktu secara terpisah saat mengisi kedua field, sehingga perbedaan satu milidetik sah. Assertion yang gagal juga menghentikan langkah reset password dan menyebabkan kegagalan lanjutan pada subtest limiter.
+
+Tes kini mencatat awal/akhir login dan memeriksa bahwa waktu pembuatan berada dalam rentang itu serta kedaluwarsa berada pada rentang yang sama ditambah tepat delapan jam. Pemeriksaan expiry tidak diperpanjang setelah pembacaan sesi tetap dipertahankan. Subtest limiter menyiapkan password fixture secara eksplisit. Tidak mengubah konfigurasi sesi, kontrol keamanan, dependency atau schema produksi.
+
+Root `tsc --noEmit`, format file yang diubah dan seluruh 24 pemeriksaan integrasi pada empat file lulus dengan Node.js 26.12.1/MySQL 8.4 dalam container sementara. MySQL memakai network namespace tersendiri tanpa host port; tidak memakai database development, arsip sumber, atau VPS. Container/volume/network sementara dibersihkan setelah pengujian. Bukti privat: `.deploy/ci-check-c5a51c0fd9/result.json`. Hasil runner lokal ini belum merupakan bukti seluruh tahapan GitHub Actions lulus.
+
 ## Integrasi identitas TQ-CMMS — 25 Oktober 2026
 
 Kedua SVG sumber dipertahankan di `brand/`. Generator mengekspor geometri ke komponen UI bersama dan favicon empat aplikasi; XML DTD/metadata editor/ID tidak dibawa ke output. Pemeriksaan generator `--check` dan root TypeScript lulus; typecheck keempat aplikasi juga lulus pada container development Node.js 26.12.1. Konfigurasi Nginx development diuji dan gateway direstart dengan jalur publik favicon yang baru.

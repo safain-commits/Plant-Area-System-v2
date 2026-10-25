@@ -289,6 +289,7 @@ test('MySQL transaction, history, retries, pagination and authentication', async
     password = 'Permanent-Password-456';
   let userId = '',
     cookie = '';
+  let sessionWindow: [number, number] = [0, 0];
   async function signIn(pass: string, ip = '127.0.0.10') {
     return login(
       new Request(`${process.env.PUBLIC_ORIGIN}/auth/api/sign-in/email`, {
@@ -330,7 +331,9 @@ test('MySQL transaction, history, retries, pagination and authentication', async
     const identity = await identityForCookie(cookie, true);
     await changePassword(identity, temporary, password);
     await assert.rejects(identityForCookie(cookie));
+    const signInStartedAt = Date.now();
     const next = await signIn(password);
+    sessionWindow = [signInStartedAt, Date.now()];
     assert.equal(next.status, 200);
     cookie = next.headers
       .getSetCookie()
@@ -338,14 +341,22 @@ test('MySQL transaction, history, retries, pagination and authentication', async
       .join('; ');
     const current = await identityForCookie(cookie);
     assert.equal(current.mustChangePassword, false);
-    assert.deepEqual(current.grants.find(g=>g.appId==='bag-filter')?.equipment, ['561-BF1']);
+    assert.deepEqual(current.grants.find((g) => g.appId === 'bag-filter')?.equipment, ['561-BF1']);
   });
   await t.test('8-hour absolute session, grant updates, expiry, disable, reset and logout', async () => {
     const [session] = await getAuthDb()
       .select()
       .from(authSchema.session)
       .where(eq(authSchema.session.userId, userId));
-    assert.equal(session.expiresAt.getTime() - session.createdAt.getTime(), 8 * 3600000);
+    // Better Auth reads the clock separately for expiresAt and createdAt.
+    // Bound expiry by the actual sign-in interval rather than requiring those
+    // independent reads to fall in the same millisecond.
+    const [signInStartedAt, signInFinishedAt] = sessionWindow;
+    const expiresAt = session.expiresAt.getTime(),
+      createdAt = session.createdAt.getTime(),
+      lifetime = 8 * 3600000;
+    assert.ok(createdAt >= signInStartedAt && createdAt <= signInFinishedAt);
+    assert.ok(expiresAt >= signInStartedAt + lifetime && expiresAt <= signInFinishedAt + lifetime);
     await setGrant(actor, userId, { appId: 'bag-filter', role: 'viewer', equipment: ['562-BF1'] });
     assert.equal((await identityForCookie(cookie)).grants[0].role, 'viewer');
     const [unchanged] = await getAuthDb()
@@ -389,6 +400,9 @@ test('MySQL transaction, history, retries, pagination and authentication', async
     await assert.rejects(identityForCookie(cookie));
   });
   await t.test('database limiter rejects the eleventh failure per account/IP', async () => {
+    // Establish this test's password explicitly so a failure in the preceding
+    // session lifecycle test cannot cause a misleading limiter failure.
+    await resetPassword(actor, userId, temporary);
     for (let i = 0; i < 10; i++) assert.equal((await signIn('Wrong-password-000', '127.0.0.99')).status, 401);
     const blocked = await signIn(temporary, '127.0.0.99');
     assert.equal(blocked.status, 429);
