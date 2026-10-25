@@ -8,6 +8,10 @@ Deployment VPS `tq-cmms.com` dengan **Nginx host yang sudah ada**: gunakan [runb
 
 Untuk membawa data aktual Docker lokal, gunakan [panduan migrasi/backup restore](docs/deployment/DATABASE-LOCAL-TO-VPS.md) dan [prompt OpenClaw khusus database](docs/deployment/OPENCLAW-DATABASE-HANDOVER.md). Restore mempertahankan ketiga database, akun dan izin; jalur ini tidak memakai bootstrap atau impor master ulang.
 
+Setelah VPS live, gunakan [alur pengembangan PC/Mac sampai pembaruan VPS](docs/deployment/DEVELOPMENT-TO-VPS.md). Folder `plant-area-system` pada PC tetap workspace aktif; Mac memakai clone GitHub sendiri. Runtime/database development dipisahkan dari arsip sumber migrasi dan produksi. Fitur dirilis melalui GitHub dan SHA yang lolos CI; workflow CI saat ini belum mempunyai job deploy otomatis.
+
+Setup MacBook dapat diserahkan kepada Claude Code memakai [prompt development MacBook](docs/deployment/CLAUDE-CODE-MACBOOK.md), termasuk environment lokal, SSO HTTPS, hot reload dan verifikasi.
+
 Ikon Tema di topbar dan form Auth membuka pilihan **Terang/Gelap/Sistem**. Default mengikuti perangkat dan pilihan tersimpan pada browser untuk seluruh aplikasi. UI refresh v2 memakai sidebar yang dapat diciutkan, dashboard data aktual, pencarian cepat (**Ctrl/Cmd+K**), notifikasi aktivitas sesuai scope, dan form pencatatan dalam sheet. Peta memakai skala umur lime–kuning–oranye–merah serta seleksi double ring tanpa mengubah warna umur. Acuan visual tersedia di [brief UI](docs/design/UI-REFRESH.md).
 
 ## Persiapan
@@ -43,6 +47,8 @@ Hapus `BOOTSTRAP_PASSWORD` dari `.env` setelah digunakan dan simpan password bar
 
 ## Lingkungan uji lokal terpisah
 
+**Khusus PC sumber migrasi:** project `plant-v2-test` lama berisi data nyata dan tetap dibekukan sesudah cutover. Jangan menjalankan blok di bawah pada Docker Engine yang masih mempunyai project tersebut, termasuk dari clone lain: nama project dan sebagian port/nama container masih tetap dalam script uji. Development boleh memakai workspace saat ini, dengan runtime project, volume, port, sertifikat dan kredensial baru sesuai panduan di atas. Suite lengkap dapat berjalan pada runner CI terpisah.
+
 Environment pengujian memakai project Compose **plant-v2-test**, volume sendiri, hostname localhost, HTTPS8443, serta MySQL13306 hanya pada loopback. Script uji tidak boleh diarahkan ke produksi.
 
 ```sh
@@ -77,9 +83,9 @@ pnpm check:export # opsional; memeriksa arsip jika tersedia di workspace lokal
 
 Tes operasi me-restart MySQL/Bag Filter/Consumable Room, menghentikan sementara Auth, dan membuat server restore sementara pada project uji. Jangan menjalankannya saat pengujian browser masih berlangsung. Laporan browser ada di `playwright-report/`, screenshot di `test-results/`; keduanya lokal dan tidak dikomit.
 
-`pnpm dev` menjalankan Portal3000, Auth3001, Bag Filter3002. Lingkungan development harus memasok env tiap layanan dan gateway HTTPS yang meneruskan prefix/host dengan konfigurasi setara; Compose adalah cara menjalankan SSO lengkap yang telah diuji. Script Node tidak memuat `.env` otomatis; gunakan `node --env-file=... --import tsx ...`.
+`pnpm dev` menjalankan Portal3000, Auth3001, Bag Filter3002, dan Consumables3003. Lingkungan development harus memasok env tiap layanan dan gateway HTTPS yang meneruskan prefix/host dengan konfigurasi setara; Compose adalah cara menjalankan SSO lengkap yang telah diuji. Script Node tidak memuat `.env` otomatis; gunakan `node --env-file=... --import tsx ...`.
 
-Build terpisah: `pnpm --filter @plant/portal build`, `pnpm --filter @plant/auth build`, atau `pnpm --filter @plant/bag-filter build`. Dockerfile menerima `--build-arg APP=portal|auth|bag-filter`. Pembaruan satu aplikasi: build image baru, kemudian `docker compose up -d --no-deps bag-filter` (sesuaikan nama layanan). Simpan image/tag lama untuk rollback.
+Build terpisah: `pnpm --filter @plant/portal build`, `pnpm --filter @plant/auth build`, `pnpm --filter @plant/bag-filter build`, atau `pnpm --filter @plant/consumables build`. Dockerfile menerima `--build-arg APP=portal|auth|bag-filter|consumables`. Pembaruan satu aplikasi: build image baru, kemudian `docker compose up -d --no-deps bag-filter` (sesuaikan nama layanan). Pada VPS gunakan fungsi `dc` dan override produksi sesuai runbook. Simpan image/tag lama untuk rollback.
 
 Kebutuhan sebelum go-live: hostname dan sertifikat organisasi, rahasia deployment, salinan backup di luar host, uji orientasi oleh operator, serta restore drill pada server tujuan.
 

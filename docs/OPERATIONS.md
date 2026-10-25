@@ -4,6 +4,8 @@ Untuk VPS pengguna dengan Nginx existing di host dan domain `tq-cmms.com`, ikuti
 
 Pemindahan data aktual laptop memakai [panduan database lokal ke VPS](deployment/DATABASE-LOCAL-TO-VPS.md) dan [handover database OpenClaw](deployment/OPENCLAW-DATABASE-HANDOVER.md). Bekukan seluruh penulis sumber, pindahkan tiga database lewat dump privat, cocokkan fingerprint sebelum migrator, lalu cabut sesi pada target. Jangan menjalankan bootstrap/impor master untuk database hasil restore. Jika `.deploy/compose.mysql-pin.yaml` disiapkan saat pemindahan, sertakan pada seluruh perintah Compose VPS, termasuk backup/upgrade.
 
+Setelah go-live, ikuti [alur development PC/Mac → GitHub → VPS](deployment/DEVELOPMENT-TO-VPS.md). Workspace PC saat ini tetap digunakan untuk kode; runtime lokal baru memakai container/database terisolasi dan arsip sumber `plant-v2-test` tetap beku. Mac memakai clone GitHub dengan environment lokal sendiri. Pembaruan produksi mempertahankan database dan menerapkan migrasi yang direview, tanpa mengunggah ulang dump laptop.
+
 ## Topologi dan rahasia
 
 Nginx berada pada jaringan gateway dan private. Auth, Portal, Bag Filter, Consumable Room, MySQL, dan backup berada pada private network. Hanya80/443 Nginx dipublikasikan; override pengujian membuka MySQL13306 di loopback. Aplikasi berjalan sebagai user non-root dalam image Node26.12.1. MySQL menyimpan data dalam volume `mysql-data` milik project Compose.

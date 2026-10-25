@@ -547,6 +547,8 @@ Pantau uptime `/gateway-health` serta `/auth/login` dari luar, OOM/restart/unhea
 
 ## 15. Upgrade dan rollback
 
+Alur dari pekerjaan lokal/branch/CI sampai instruksi update OpenClaw tersedia di [panduan pengembangan sampai VPS](DEVELOPMENT-TO-VPS.md). Database produksi yang sudah menerima pencatatan tetap dipertahankan; jalur restore awal bukan proses update fitur.
+
 Simpan SHA/tag sebelumnya, image ID, `.env` privat, backup sebelum migrasi, serta vhost/trust yang sedang dipakai. Jangan menjalankan cleanup global `docker system prune -a --volumes` atau `down -v`.
 
 Urutan upgrade:
