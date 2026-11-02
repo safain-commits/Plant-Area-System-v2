@@ -42,3 +42,13 @@ export { Dashboard, AnimatedNumber } from './dashboard';
 
 export { useConfirmation } from './confirm';
 export { StockSummary } from './stock-summary';
+export {
+  readCart,
+  writeCart,
+  removeCart,
+  emptyCart,
+  cartKey,
+  cartCount,
+  type CartDraft,
+  type CartLine,
+} from './r22-cart';

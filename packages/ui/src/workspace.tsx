@@ -79,9 +79,10 @@ export function Workspace({
         { label: 'Ringkasan', href: '/consumables', icon: 'grid', group: 'Consumable Room' },
         ...(
           [
-            ['stock', 'Cek stok', 'read'],
-            ['receive', 'Penerimaan', 'receive'],
-            ['issue', 'Pemakaian', 'issue'],
+            ['stock', 'Cari material', 'read'],
+            ['consume', 'Consume Order', 'issue'],
+            ['return', 'Return Order', 'return'],
+            ['picklist', 'Penerimaan Picklist', 'receive'],
             ['history', 'Riwayat', 'read'],
             ['manage', 'Pengelolaan', 'manage'],
             ['audit', 'Audit', 'audit'],

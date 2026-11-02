@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Select, Textarea, Overlay, useConfirmation } from '@plant/ui';
+import { AddToOrder } from './add-to-order';
 import {
   canConsume,
   formatDate,
@@ -550,7 +551,10 @@ export function ConsumablesWorkspace({ identity, view }: { identity: Identity; v
       >
         {detail && (
           <>
-            <h2>{detail.material.description}</h2>
+            <h2>{detail.material.commonName || detail.material.description}</h2>
+            <p className="muted">
+              {detail.material.mmid} · {detail.material.description}
+            </p>
             <dl className="stock-detail-grid">
               {[
                 ['Nama umum', detail.material.commonName || '—'],
@@ -583,23 +587,14 @@ export function ConsumablesWorkspace({ identity, view }: { identity: Identity; v
                     {i.initialized ? quantity(i.quantity) + ' ' + i.unit : 'Belum dihitung'}
                   </strong>
                   <small>Rak: {i.rack || 'Belum diatur'}</small>
+                  <AddToOrder identity={identity} item={i} />
                   <div className="inline">
-                    {canConsume(identity, 'issue', i.locationId) &&
-                      i.initialized &&
-                      decimalUnits(i.quantity) > 0n && (
-                        <a
-                          className="button primary small"
-                          href={`/consumables/issue?material=${i.id}&location=${i.locationId}`}
-                        >
-                          Catat pemakaian
-                        </a>
-                      )}
                     {canConsume(identity, 'receive', i.locationId) && i.initialized && (
                       <a
                         className="button secondary small"
-                        href={`/consumables/receive?material=${i.id}&location=${i.locationId}`}
+                        href={`/consumables/picklist?material=${i.id}&location=${i.locationId}`}
                       >
-                        Penerimaan
+                        Penerimaan Picklist
                       </a>
                     )}
                     <a href={`/consumables/history?material=${i.id}&location=${i.locationId}`}>Riwayat</a>
@@ -677,10 +672,9 @@ function StockRows({
           onClick={() => onSelect(m)}
         >
           <span>
-            <strong>{m.mmid}</strong>
-            {m.description}
+            <strong>{m.commonName || m.description}</strong>
+            {m.mmid} · {m.description}
             <small>
-              {m.commonName}
               {m.critical ? ' · Critical' : ''}
               {!m.active || !m.inventoryActive || !m.locationActive ? ' · Nonaktif' : ''}
             </small>

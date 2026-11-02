@@ -131,10 +131,10 @@ export function StockSummary({
     percent = data.operational ? (counted / data.operational) * 100 : 0;
   const action =
     identity && canConsume(identity, 'receive')
-      ? { label: 'Catat penerimaan', href: '/consumables/receive', icon: 'receipt' as const }
+      ? { label: 'Penerimaan Picklist', href: '/consumables/picklist', icon: 'receipt' as const }
       : identity && canConsume(identity, 'issue')
-        ? { label: 'Catat pemakaian', href: '/consumables/issue', icon: 'issue' as const }
-        : { label: 'Cek stok', href: '/consumables/stock', icon: 'box' as const };
+        ? { label: 'Consume Order', href: '/consumables/consume', icon: 'issue' as const }
+        : { label: 'Cari material', href: '/consumables/stock', icon: 'box' as const };
   const metrics = [
     ['Material–lokasi', data.operational],
     ['Tersedia', data.available],

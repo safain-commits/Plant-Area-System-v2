@@ -13,6 +13,12 @@ const config: NextConfig = {
     '@plant/consumables-core',
   ],
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: '/issue', destination: '/consume', permanent: true },
+      { source: '/receive', destination: '/picklist', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

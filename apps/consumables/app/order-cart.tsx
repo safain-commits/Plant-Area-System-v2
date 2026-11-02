@@ -1,0 +1,522 @@
+'use client';
+import { useEffect, useRef, useState, useId } from 'react';
+import {
+  Button,
+  Input,
+  Select,
+  Textarea,
+  Toast,
+  useConfirmation,
+  cartKey,
+  readCart,
+  writeCart,
+  removeCart,
+  emptyCart,
+  type CartDraft,
+} from '@plant/ui';
+import {
+  canConsume,
+  normalizeHec,
+  HEC_PATTERN,
+  formatQuantity,
+  decimalUnits,
+  decimalString,
+  localDecimal,
+  validateStockQuantity,
+  type Identity,
+  type StockLocation,
+  type MaterialSearchResult,
+  type StockLineConflict,
+  type DocumentResult,
+} from '@plant/contracts';
+import { MaterialSearch } from './material-search';
+import { QuantityDialog } from './quantity-dialog';
+import { stockApi, StockApiError } from './r22-api';
+
+export function OrderCart({ identity, type }: { identity: Identity; type: 'consume' | 'return' }) {
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
+  const [locations, setLocations] = useState<StockLocation[]>([]),
+    [location, setLocation] = useState(''),
+    [draft, setDraft] = useState<CartDraft>(emptyCart),
+    [loaded, setLoaded] = useState('');
+  const [error, setError] = useState(''),
+    [busy, setBusy] = useState(false),
+    [reload, setReload] = useState(0),
+    [conflicts, setConflicts] = useState<StockLineConflict[]>([]),
+    [success, setSuccess] = useState<DocumentResult | null>(null),
+    [message, setMessage] = useState('');
+  const [selected, setSelected] = useState<MaterialSearchResult | null>(null),
+    [suggestions, setSuggestions] = useState<string[]>([]);
+  const confirm = useConfirmation(),
+    suggestionId = useId(),
+    prefill = useRef('');
+  const storageKey = location ? cartKey(identity.id, type, location) : '';
+  useEffect(() => {
+    const c = new AbortController();
+    stockApi('/locations', { signal: c.signal })
+      .then((d) => {
+        const active = d.items.filter((l: StockLocation) => l.active);
+        setLocations(active);
+        setLocation((current) =>
+          active.some((l: StockLocation) => l.id === current)
+            ? current
+            : active.find(
+                (l: StockLocation) => l.id === new URLSearchParams(window.location.search).get('location'),
+              )?.id || (active.length === 1 ? active[0].id : ''),
+        );
+        setError('');
+        setLocationsLoaded(true);
+      })
+      .catch((e) => {
+        if (e.name !== 'AbortError') setError(e.message);
+      });
+    return () => c.abort();
+  }, [reload]);
+  useEffect(() => {
+    if (!storageKey) {
+      setLoaded('');
+      return;
+    }
+    setDraft(readCart(storageKey));
+    setLoaded(storageKey);
+    setConflicts([]);
+    setSuccess(null);
+  }, [storageKey]);
+  useEffect(() => {
+    if (storageKey && loaded === storageKey && !success) writeCart(storageKey, draft);
+  }, [storageKey, loaded, draft, success]);
+  useEffect(() => {
+    if (!location || prefill.current === location) return;
+    const id = new URLSearchParams(window.location.search).get('material');
+    if (!id) return;
+    prefill.current = location;
+    stockApi('/materials/' + encodeURIComponent(id))
+      .then((d) => {
+        const stock = d.stocks.find((s: MaterialSearchResult) => s.locationId === location);
+        if (stock) setSelected(stock);
+        else setError('Material belum tersedia di lokasi yang dipilih.');
+      })
+      .catch((e) => setError(e.message));
+  }, [location]);
+  useEffect(() => {
+    const c = new AbortController();
+    const timer = setTimeout(() => {
+      stockApi('/hec-suggestions?q=' + encodeURIComponent(draft.hec), { signal: c.signal })
+        .then((d) => setSuggestions(d.items))
+        .catch(() => setSuggestions([]));
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      c.abort();
+    };
+  }, [draft.hec]);
+  const update = (patch: Partial<CartDraft>) => {
+    setDraft((v) => ({ ...v, ...patch }));
+    setError('');
+  };
+  const add = (m: MaterialSearchResult, q: string) => {
+    setDraft((v) => {
+      const existing = v.lines.find((l) => l.material.id === m.id);
+      return {
+        ...v,
+        lines: existing
+          ? v.lines.map((l) =>
+              l.material.id === m.id
+                ? {
+                    material: m,
+                    quantity: decimalString(decimalUnits(localDecimal(l.quantity)) + decimalUnits(q)).replace(
+                      /\.?0+$/,
+                      '',
+                    ),
+                  }
+                : l,
+            )
+          : [...v.lines, { material: m, quantity: q.replace(/\.?0+$/, '') }],
+      };
+    });
+    setMessage(`${m.commonName || m.description} ditambahkan`);
+  };
+  const title = type === 'consume' ? 'Consume Order' : 'Return Order';
+  const self = canConsume(identity, 'onbehalf') && draft.onbehalf ? draft.requesterName : identity.name;
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || !location || loaded !== storageKey) return;
+    try {
+      const hec = normalizeHec(draft.hec);
+      if (!HEC_PATTERN.test(hec)) throw Error('HEC wajib dengan format XXX-XXX, contoh 452-BU1.');
+      if (!draft.lines.length || draft.lines.length > 50)
+        throw Error('Pilih 1–50 material unik dalam satu order.');
+      const body = {
+        locationId: location,
+        hec,
+        wo: draft.wo.trim(),
+        note: draft.note.trim(),
+        ...(type === 'return' ? { sourceRef: draft.sourceRef.trim() } : {}),
+        ...(canConsume(identity, 'onbehalf') && draft.onbehalf
+          ? { requester: { name: draft.requesterName.trim(), nik: draft.requesterNik.trim() } }
+          : {}),
+        lines: draft.lines.map((l) => ({
+          materialId: l.material.id,
+          quantity: validateStockQuantity(localDecimal(l.quantity), l.material.decimalAllowed),
+        })),
+      };
+      if (canConsume(identity, 'onbehalf') && draft.onbehalf && !draft.requesterName.trim())
+        throw Error('Nama peminta wajib diisi.');
+      if (
+        !(await confirm(
+          `${title} · HEC ${hec} · WO ${draft.wo || '—'} · Peminta ${self} · ${body.lines.length} item. Finalisasi dan ${type === 'consume' ? 'kurangi' : 'tambahkan'} stok sekarang?`,
+        ))
+      )
+        return;
+      const fingerprint = JSON.stringify(body),
+        key = draft.pending?.fingerprint === fingerprint ? draft.pending.key : crypto.randomUUID();
+      const next = { ...draft, hec, pending: { fingerprint, key } };
+      setDraft(next);
+      writeCart(storageKey, next);
+      setBusy(true);
+      setError('');
+      setConflicts([]);
+      const result = await stockApi(type === 'consume' ? '/consume-orders' : '/return-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        body: JSON.stringify(body),
+      });
+      setSuccess(result);
+      removeCart(storageKey);
+      setDraft(emptyCart());
+    } catch (e) {
+      if (e instanceof StockApiError && e.lines.length) {
+        setConflicts(e.lines);
+        setDraft((v) => ({
+          ...v,
+          lines: v.lines.map((l) => {
+            const c = (e as StockApiError).lines.find((c) => c.materialId === l.material.id);
+            return c ? { ...l, material: { ...l.material, quantity: c.available } } : l;
+          }),
+        }));
+      }
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (success)
+    return (
+      <section className="panel r22-success" role="status">
+        <span className="badge">Dokumen final</span>
+        <h2>{title} tersimpan</h2>
+        <p className="display-lg">{success.document.number}</p>
+        <p>
+          {success.lines.length} item · HEC {success.document.hec} · {success.document.requesterName}
+        </p>
+        <div className="form-actions">
+          <a className="button primary" href={`/consumables/documents/${success.document.id}`}>
+            Lihat / Cetak bukti
+          </a>
+          <Button
+            className="secondary"
+            onClick={() => {
+              setSuccess(null);
+              setDraft(emptyCart());
+              setError('');
+            }}
+          >
+            Buat order baru
+          </Button>
+        </div>
+      </section>
+    );
+  if (!locationsLoaded)
+    return (
+      <section className="panel" role="status">
+        {error ? (
+          <>
+            <p className="notice error">{error}</p>
+            <Button className="secondary" onClick={() => setReload((v) => v + 1)}>
+              Coba lagi
+            </Button>
+          </>
+        ) : (
+          'Memuat lokasi dan keranjang…'
+        )}
+      </section>
+    );
+  if (!location)
+    return (
+      <section className="panel">
+        <h2>Pilih lokasi order</h2>
+        {locations.length ? (
+          <label>
+            Lokasi
+            <Select value="" onChange={(e) => setLocation(e.target.value)}>
+              <option value="">Pilih lokasi</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+        ) : (
+          <p className="empty">Belum ada lokasi aktif dalam akses Anda. Hubungi admin Consumable Room.</p>
+        )}
+      </section>
+    );
+  return (
+    <>
+      {error && (
+        <div className="notice error" role="alert">
+          {error}{' '}
+          <Button type="button" className="secondary small" onClick={() => setReload((v) => v + 1)}>
+            Perbarui data
+          </Button>
+        </div>
+      )}
+      <form onSubmit={submit} className="r22-order-layout">
+        <div className="r22-order-main">
+          <section className="panel">
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">R22 · {type === 'consume' ? 'PENGAMBILAN' : 'PENGEMBALIAN'}</p>
+                <h2>Informasi order</h2>
+              </div>
+              <span className="badge neutral">{type === 'consume' ? 'Stok keluar' : 'Stok masuk'}</span>
+            </div>
+            <fieldset disabled={busy || loaded !== storageKey} className="r22-fieldset">
+              <div className="form-grid">
+                {locations.length !== 1 && (
+                  <label>
+                    Lokasi
+                    <Select required value={location} onChange={(e) => setLocation(e.target.value)}>
+                      <option value="">Pilih lokasi</option>
+                      {locations.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                )}
+                {locations.length === 1 && (
+                  <div className="r22-static-field">
+                    <span>Lokasi</span>
+                    <strong>{locations[0].name}</strong>
+                  </div>
+                )}
+                <label>
+                  HEC / Functional Location
+                  <Input
+                    required
+                    maxLength={30}
+                    value={draft.hec}
+                    list={suggestionId}
+                    onChange={(e) => update({ hec: e.target.value })}
+                    onBlur={() => update({ hec: normalizeHec(draft.hec) })}
+                    placeholder="452-BU1"
+                  />
+                  <small>Format XXX-XXX, contoh 452-BU1</small>
+                  <datalist id={suggestionId}>
+                    {suggestions.map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
+                </label>
+                <label>
+                  WO Number (opsional)
+                  <Input value={draft.wo} maxLength={100} onChange={(e) => update({ wo: e.target.value })} />
+                </label>
+                {type === 'return' && (
+                  <label>
+                    No. Consume Order asal (opsional)
+                    <Input
+                      value={draft.sourceRef}
+                      maxLength={100}
+                      onChange={(e) => update({ sourceRef: e.target.value })}
+                    />
+                  </label>
+                )}
+                <label className="r22-span-all">
+                  Keterangan / deskripsi pekerjaan (opsional)
+                  <Textarea
+                    value={draft.note}
+                    maxLength={500}
+                    onChange={(e) => update({ note: e.target.value })}
+                  />
+                </label>
+              </div>
+              {canConsume(identity, 'onbehalf') && (
+                <label className="inline r22-onbehalf">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={draft.onbehalf}
+                    onChange={(e) => update({ onbehalf: e.target.checked })}
+                  />
+                  Input untuk client lain
+                </label>
+              )}
+              {canConsume(identity, 'onbehalf') && draft.onbehalf ? (
+                <div className="form-grid">
+                  <label>
+                    Nama peminta
+                    <Input
+                      required
+                      maxLength={100}
+                      value={draft.requesterName}
+                      onChange={(e) => update({ requesterName: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    NIK / Badge (opsional)
+                    <Input
+                      maxLength={30}
+                      value={draft.requesterNik}
+                      onChange={(e) => update({ requesterNik: e.target.value })}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <p className="fine">
+                  Dicatat sebagai: <strong>{identity.name}</strong> · Self-service
+                </p>
+              )}
+            </fieldset>
+          </section>
+          <section className="panel">
+            <MaterialSearch
+              locationId={location}
+              onSelect={(m) => {
+                if (draft.lines.length >= 50 && !draft.lines.some((l) => l.material.id === m.id)) {
+                  setError('Maksimal 50 material dalam satu order.');
+                  return;
+                }
+                setSelected(m);
+              }}
+            />
+            <div className="section-title r22-cart-title">
+              <h2>
+                Keranjang <span className="badge neutral">{draft.lines.length} item</span>
+              </h2>
+              {!!draft.lines.length && (
+                <Button
+                  type="button"
+                  className="secondary small"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (await confirm('Kosongkan seluruh item dalam keranjang ini?')) update({ lines: [] });
+                  }}
+                >
+                  Kosongkan
+                </Button>
+              )}
+            </div>
+            <div className="r22-cart-table" role="table" aria-label="Keranjang order">
+              <div className="r22-cart-head" role="row">
+                <span>No.</span>
+                <span>Material</span>
+                <span>Qty</span>
+                <span>Satuan</span>
+                <span>Aksi</span>
+              </div>
+              {!draft.lines.length ? (
+                <div className="empty">
+                  <h3>Keranjang masih kosong</h3>
+                  <p>Cari material, tentukan jumlah, lalu tambahkan ke order.</p>
+                </div>
+              ) : (
+                draft.lines.map((l, i) => {
+                  const problem = conflicts.find((c) => c.materialId === l.material.id);
+                  return (
+                    <div
+                      className={`r22-cart-row ${problem ? 'has-error' : ''}`}
+                      role="row"
+                      key={l.material.id}
+                    >
+                      <span className="r22-line-no">{i + 1}</span>
+                      <div>
+                        <strong>{l.material.commonName || l.material.description}</strong>
+                        <small>
+                          {l.material.mmid} · {l.material.description}
+                        </small>
+                        <small>
+                          Stok: {formatQuantity(l.material.quantity)} {l.material.unit}
+                          {l.material.rack ? ' · Rak ' + l.material.rack : ''}
+                        </small>
+                        {problem && (
+                          <p className="error-text" role="alert">
+                            {problem.error} Tersedia: {formatQuantity(problem.available)} {l.material.unit}
+                          </p>
+                        )}
+                      </div>
+                      <label className="r22-line-quantity">
+                        <span className="sr-only">Jumlah {l.material.mmid}</span>
+                        <Input
+                          disabled={busy}
+                          inputMode={l.material.decimalAllowed ? 'decimal' : 'numeric'}
+                          value={l.quantity}
+                          aria-invalid={!!problem}
+                          onChange={(e) =>
+                            setDraft((v) => ({
+                              ...v,
+                              lines: v.lines.map((row, j) =>
+                                j === i ? { ...row, quantity: e.target.value } : row,
+                              ),
+                            }))
+                          }
+                        />
+                      </label>
+                      <span>{l.material.unit}</span>
+                      <Button
+                        type="button"
+                        className="secondary small"
+                        aria-label={`Hapus ${l.material.mmid}`}
+                        disabled={busy}
+                        onClick={() => update({ lines: draft.lines.filter((_, j) => j !== i) })}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        </div>
+        <aside className="panel r22-cart-summary">
+          <p className="eyebrow">FINALISASI ORDER</p>
+          <h2>{title}</h2>
+          <p className="display-lg">
+            {draft.lines.length} <small>item</small>
+          </p>
+          <dl>
+            <dt>HEC</dt>
+            <dd>{normalizeHec(draft.hec) || 'Belum diisi'}</dd>
+            <dt>Peminta</dt>
+            <dd>{self || 'Belum diisi'}</dd>
+            <dt>Lokasi</dt>
+            <dd>{locations.find((l) => l.id === location)?.name || 'Belum dipilih'}</dd>
+          </dl>
+          <p className="fine">
+            Seluruh item disimpan bersama. Stok diperiksa kembali oleh server saat submit.
+          </p>
+          <Button
+            className="primary"
+            busy={busy}
+            disabled={!location || !draft.lines.length || loaded !== storageKey}
+          >
+            Submit Order
+          </Button>
+          <small>Order langsung final setelah konfirmasi. Tidak ada reservasi stok.</small>
+        </aside>
+      </form>
+      <QuantityDialog
+        material={selected}
+        onClose={() => setSelected(null)}
+        consume={type === 'consume'}
+        already={selected ? draft.lines.find((l) => l.material.id === selected.id)?.quantity || '0' : '0'}
+        onAdd={add}
+      />
+      <Toast message={message} onDismiss={() => setMessage('')} />
+    </>
+  );
+}

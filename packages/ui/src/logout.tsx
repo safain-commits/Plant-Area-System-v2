@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { clearR22Carts } from './r22-cart';
 export function LogoutButton() {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -18,6 +19,7 @@ export function LogoutButton() {
               body: '{}',
             });
             if (!r.ok) throw Error();
+            clearR22Carts();
             window.location.assign('/auth/login');
           } catch {
             setError('Logout gagal. Coba lagi.');
