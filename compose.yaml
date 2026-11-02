@@ -6,7 +6,6 @@ x-runtime: &runtime
   environment: &app-env
     PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN}
     AUTH_INTERNAL_URL: http://auth:3000
-    CONSUMABLES_INTERNAL_URL: http://consumables:3000
     SERVICE_TOKEN: ${SERVICE_TOKEN:?Set SERVICE_TOKEN}
     NODE_ENV: production
   healthcheck:

@@ -27,7 +27,7 @@ const actor: Identity = {
   mustChangePassword: false,
   grants: [],
 };
-let userId: string, locationId: string, client: APIRequestContext;
+let userId: string, client: APIRequestContext;
 const year = new Date(Date.now() + 7 * 3600000).getUTCFullYear();
 const types = ['consume', 'return', 'picklist'] as const;
 function fixture(): StockDashboard {
@@ -51,12 +51,10 @@ function fixture(): StockDashboard {
     recent: Array.from({ length: 8 }, (_, i) => ({
       id: randomUUID(),
       materialId: randomUUID(),
-      locationId: randomUUID(),
       mmid: `SYNTHETIC-MATERIAL-${i}`,
       description:
         'Synthetic long material description for visual verification of industrial spare parts and maintenance supplies with a deliberately extended name',
       unit: i % 2 ? 'KG' : 'EA',
-      locationName: 'Synthetic location',
       type: types[i % 3],
       number: `R22-CO-${year}-${String(i + 1).padStart(6, '0')}`,
       hec: '452-BU1',
@@ -94,17 +92,15 @@ test.beforeAll(async () => {
   userId = (await createUser(actor, { email, password: temporary, name: actor.name })).id;
   await updateUserAccess(actor, userId, { active: true, portalAdmin: true });
   await setGrant(actor, userId, { appId: 'bag-filter', role: 'admin', equipment: [...equipmentCodes] });
-  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin', locationIds: [] });
+  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin' });
   await changePassword({ ...actor, id: userId }, temporary, password);
   client = await request.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
   await post('/auth/api/sign-in/email', { email, password });
-  locationId = (await post('/consumables/api/locations', { name: `UI fixture ${randomUUID()}` })).id;
 });
 test.afterAll(async () => {
   try {
     await getConsumablesDb().transaction(async (tx) => {
       if (userId) await tx.delete(schema.audit).where(eq(schema.audit.actorId, userId));
-      if (locationId) await tx.delete(schema.locations).where(eq(schema.locations.id, locationId));
     });
     if (userId)
       await getAuthDb().transaction(async (tx) => {
@@ -242,7 +238,7 @@ test('premium dashboard, bounded activity, responsive sidebar, themes and Bag Fi
         });
         await page.getByRole('button', { name: 'Buka navigasi' }).click();
         const drawer = page.getByRole('dialog', { name: 'Navigasi', exact: true });
-        await expect(drawer.getByRole('link', { name: 'Pemakaian', exact: true })).toBeVisible();
+        await expect(drawer.getByRole('link', { name: 'Consume Order', exact: true })).toBeVisible();
         await expect(drawer.getByRole('button', { name: 'Keluar akun' })).toBeVisible();
         await page.keyboard.press('Escape');
       }
@@ -373,15 +369,15 @@ test('sidebar and action card follow consumable roles while portal controls rema
   await page.route('**/consumables/api/dashboard*', (r) => r.fulfill({ json: fixture() }));
   for (const role of ['viewer', 'operator', 'storekeeper', 'admin']) {
     await post(`/api/admin/users/${userId}/grants/consumables`, {
-      grant: { appId: 'consumables', role, locationIds: role === 'admin' ? [] : [locationId] },
+      grant: { appId: 'consumables', role },
     });
     await page.goto('/consumables');
     const nav = page.getByRole('navigation', { name: 'Navigasi utama' });
-    await expect(nav.getByRole('link', { name: 'Cek stok', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Penerimaan', exact: true })).toHaveCount(
+    await expect(nav.getByRole('link', { name: 'Cari material', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Penerimaan Picklist', exact: true })).toHaveCount(
       ['admin', 'storekeeper'].includes(role) ? 1 : 0,
     );
-    await expect(nav.getByRole('link', { name: 'Pemakaian', exact: true })).toHaveCount(
+    await expect(nav.getByRole('link', { name: 'Consume Order', exact: true })).toHaveCount(
       role === 'viewer' ? 0 : 1,
     );
     await expect(nav.getByRole('link', { name: 'Pengelolaan', exact: true })).toHaveCount(
@@ -392,8 +388,8 @@ test('sidebar and action card follow consumable roles while portal controls rema
       role === 'viewer'
         ? '/consumables/stock'
         : role === 'operator'
-          ? '/consumables/issue'
-          : '/consumables/receive',
+          ? '/consumables/consume'
+          : '/consumables/picklist',
     );
     await expect(
       page

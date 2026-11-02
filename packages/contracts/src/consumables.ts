@@ -2,15 +2,14 @@ import type { Identity } from './index';
 
 export const consumablesRoles = ['viewer', 'operator', 'storekeeper', 'admin'] as const;
 export type ConsumablesRole = (typeof consumablesRoles)[number];
-export type ConsumablesGrant = { appId: 'consumables'; role: ConsumablesRole; locationIds: string[] };
+export type ConsumablesGrant = { appId: 'consumables'; role: ConsumablesRole };
 export type StockAction = 'read' | 'issue' | 'return' | 'receive' | 'onbehalf' | 'manage' | 'audit';
-export function canConsume(actor: Identity, action: StockAction, locationId?: string) {
+export function canConsume(actor: Identity, action: StockAction) {
   if (!['read', 'issue', 'return', 'receive', 'onbehalf', 'manage', 'audit'].includes(action)) return false;
   if (actor.mustChangePassword) return false;
   const g = actor.grants.find((v) => v.appId === 'consumables');
   if (!g || !consumablesRoles.includes(g.role)) return false;
   if (g.role === 'admin') return true;
-  if (!g.locationIds.length || (locationId && !g.locationIds.includes(locationId))) return false;
   if (action === 'read') return true;
   if (action === 'issue' || action === 'return') return g.role === 'operator' || g.role === 'storekeeper';
   return (action === 'receive' || action === 'onbehalf') && g.role === 'storekeeper';
@@ -64,26 +63,20 @@ export type Material = {
   sourceBatch: string | null;
   sourceDate: string | null;
 };
-export type StockLocation = { id: string; name: string; active: boolean; version: number };
 export type InventoryItem = Material & {
   inventoryId: string;
-  locationId: string;
-  locationName: string;
   rack: string;
   quantity: string;
   initialized: boolean;
   inventoryActive: boolean;
   inventoryVersion: number;
-  locationActive: boolean;
 };
 export type Movement = {
   id: string;
   materialId: string;
-  locationId: string;
   mmid: string;
   description: string;
   unit: string;
-  locationName: string;
   type: 'opening' | 'receipt' | 'issue' | 'return' | 'adjustment';
   documentId?: string | null;
   lineNo?: number | null;
@@ -168,8 +161,6 @@ export type StockDocument = {
   id: string;
   number: string;
   type: StockDocumentType;
-  locationId: string;
-  locationName: string;
   hec: string;
   wo: string;
   note: string;
@@ -204,7 +195,6 @@ export type StockLineConflict = {
 };
 export type MaterialSearchResult = Material & {
   inventoryId: string | null;
-  locationId: string;
   rack: string;
   quantity: string;
   initialized: boolean;

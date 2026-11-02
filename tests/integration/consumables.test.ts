@@ -5,7 +5,6 @@ import mysql from 'mysql2/promise';
 import { eq, sql } from 'drizzle-orm';
 import {
   saveMaterial,
-  saveLocation,
   saveInventory,
   postMovement,
   materialDetail,
@@ -32,7 +31,7 @@ const actor: Identity = {
   position: '',
   portalAdmin: false,
   mustChangePassword: false,
-  grants: [{ appId: 'consumables', role: 'admin', locationIds: [] }],
+  grants: [{ appId: 'consumables', role: 'admin' }],
 };
 const key = () => randomUUID();
 const input = (suffix = key()) => ({
@@ -50,16 +49,15 @@ const conflict = (e: unknown) => e instanceof AppError && e.status === 409;
 async function fixture() {
   const source = input();
   const { id: materialId } = await saveMaterial(actor, source);
-  const { id: locationId } = await saveLocation(actor, { name: 'Test ' + key() });
-  const { id: inventoryId } = await saveInventory(actor, { materialId, locationId, rack: 'A1' });
-  return { materialId: materialId!, locationId: locationId!, inventoryId, source };
+  const { id: inventoryId } = await saveInventory(actor, { materialId, rack: 'A1' });
+  return { materialId: materialId!, inventoryId, source };
 }
-async function state(f: { materialId: string; locationId: string }) {
-  return (await materialDetail(actor, f.materialId)).stocks.find((i) => i.locationId === f.locationId)!;
+async function state(f: { materialId: string }) {
+  return (await materialDetail(actor, f.materialId)).stock!;
 }
 test('opening, decimal receipts/issues, pack snapshots, correction and immutable history', async () => {
   const f = await fixture(),
-    base = { materialId: f.materialId, locationId: f.locationId };
+    base = { materialId: f.materialId };
   assert.equal((await state(f)).initialized, false);
   await assert.rejects(
     postMovement(actor, 'issue', { ...base, quantity: '0.1', job: 'Job' }, key()),
@@ -128,7 +126,7 @@ test('opening, decimal receipts/issues, pack snapshots, correction and immutable
 });
 test('concurrent withdrawals and idempotent requests cannot overdraw or duplicate', async () => {
   const f = await fixture(),
-    base = { materialId: f.materialId, locationId: f.locationId };
+    base = { materialId: f.materialId };
   await postMovement(
     actor,
     'opening',
@@ -153,50 +151,46 @@ test('concurrent withdrawals and idempotent requests cannot overdraw or duplicat
   const replay = await postMovement(actor, 'receipt', { ...body, quantity: '0.125000' }, k);
   assert.equal(replay.replayed, true);
 });
-test('roles and location scope protect writes, reads, discovery data and dashboards', async () => {
+test('all granted roles share R22 while action rights and revoked grants fail closed', async () => {
   const a = await fixture(),
     b = await fixture();
   const viewer: Identity = {
     ...actor,
     portalAdmin: true,
-    grants: [{ appId: 'consumables', role: 'viewer', locationIds: [a.locationId] }],
+    grants: [{ appId: 'consumables', role: 'viewer' }],
   };
-  assert.equal(
-    (await listInventory(viewer, new URLSearchParams())).items.some((i) => i.locationId === b.locationId),
-    false,
-  );
-  assert.equal((await materialDetail(viewer, b.materialId)).stocks.length, 0);
+  assert.equal((await materialDetail(viewer, b.materialId)).stock!.inventoryId, b.inventoryId);
+  assert.equal((await materialDetail(viewer, a.materialId)).stock!.rack, 'A1');
   await assert.rejects(
     postMovement(
       viewer,
-      'issue',
-      { materialId: a.materialId, locationId: a.locationId, quantity: '1', job: 'Try' },
+      'opening',
+      { materialId: a.materialId, quantity: '0', reason: 'Try', expectedVersion: 1 },
       key(),
     ),
-    (e: unknown) => e instanceof AppError && e.status === 403,
+    (e) => e instanceof AppError && e.status === 403,
   );
-  const operator: Identity = {
-    ...viewer,
-    grants: [{ appId: 'consumables', role: 'operator', locationIds: [a.locationId] }],
-  };
+  const revoked: Identity = { ...viewer, grants: [] };
   await assert.rejects(
-    postMovement(
-      operator,
-      'issue',
-      { materialId: b.materialId, locationId: b.locationId, quantity: '1', job: 'Try' },
-      key(),
-    ),
-    (e: unknown) => e instanceof AppError && e.status === 403,
+    listInventory(revoked, new URLSearchParams()),
+    (e) => e instanceof AppError && e.status === 403,
+  );
+  await assert.rejects(
+    materialDetail(revoked, b.materialId),
+    (e) => e instanceof AppError && e.status === 403,
   );
   const d = await stockDashboard(viewer);
-  assert.equal(d.operational, 1);
-  assert.equal(d.uncounted, 1);
-  assert.equal(d.empty, 0);
+  assert.ok(d.operational >= 2);
+  assert.ok(d.uncounted >= 2);
   assert.equal(d.series.length, 4);
+  await assert.rejects(
+    saveInventory(actor, { materialId: a.materialId, locationId: key() }),
+    (e) => e instanceof AppError && e.status === 400,
+  );
 });
 test('audit failure rolls back balance, movement and idempotency; same key can retry', async () => {
   const f = await fixture(),
-    base = { materialId: f.materialId, locationId: f.locationId };
+    base = { materialId: f.materialId };
   await postMovement(
     actor,
     'opening',
@@ -224,23 +218,17 @@ test('audit failure rolls back balance, movement and idempotency; same key can r
   assert.equal(retry.replayed, false);
   assert.equal((await state(f)).quantity, '2.000000');
 });
-test('server pagination keeps all movement and inventory rows including equal material codes', async () => {
-  const f = await fixture(),
-    second = await saveLocation(actor, { name: 'Second ' + key() });
-  await saveInventory(actor, { materialId: f.materialId, locationId: second.id, rack: '' });
-  const p = new URLSearchParams({ materialId: f.materialId, limit: '1' }),
-    first = await listInventory(actor, p);
-  assert.ok(first.nextCursor);
-  p.set('cursor', first.nextCursor!);
-  const next = await listInventory(actor, p);
-  assert.notEqual(first.items[0].inventoryId, next.items[0].inventoryId);
-  assert.equal(next.nextCursor, null);
+test('single stock registration is unique and server pagination retains more than 300 movements', async () => {
+  const f = await fixture();
+  await assert.rejects(saveInventory(actor, { materialId: f.materialId }), conflict);
+  const p = await listInventory(actor, new URLSearchParams({ materialId: f.materialId }));
+  assert.equal(p.items.length, 1);
+  assert.equal(p.nextCursor, null);
   await postMovement(
     actor,
     'opening',
     {
       materialId: f.materialId,
-      locationId: f.locationId,
       quantity: '1',
       reason: 'Count',
       expectedVersion: 1,
@@ -253,7 +241,6 @@ test('server pagination keeps all movement and inventory rows including equal ma
       'receipt',
       {
         materialId: f.materialId,
-        locationId: f.locationId,
         mode: 'base',
         quantity: '0.1',
         reference: 'Page',
@@ -287,7 +274,7 @@ test('catalog dry-run/apply/replay preserve master-only import and conflict atom
   assert.equal((await importCatalog(file, true)).replayed, true);
   const m = (await listMaterials(actor, new URLSearchParams({ q: mmid }))).items[0];
   assert.equal(m.packSize, null);
-  assert.equal((await materialDetail(actor, m.id)).stocks.length, 0);
+  assert.equal((await materialDetail(actor, m.id)).stock, null);
   await assert.rejects(
     importCatalog(JSON.stringify({ batch, rows: [[...row.slice(0, 1), 'Changed', ...row.slice(2)]] }), true),
     conflict,
@@ -310,7 +297,7 @@ test('catalog dry-run/apply/replay preserve master-only import and conflict atom
 });
 test('quarter and date filters use WIB boundaries rather than UTC dates', async () => {
   const f = await fixture(),
-    base = { materialId: f.materialId, locationId: f.locationId };
+    base = { materialId: f.materialId };
   const opening = await postMovement(
     actor,
     'opening',
@@ -319,13 +306,13 @@ test('quarter and date filters use WIB boundaries rather than UTC dates', async 
   );
   await getConsumablesDb()
     .update(consumablesSchema.movements)
-    .set({ createdAt: new Date('2025-12-31T16:59:59.999Z') })
+    .set({ createdAt: new Date('2001-12-31T16:59:59.999Z') })
     .where(eq(consumablesSchema.movements.id, opening.movement.id));
   for (const when of [
-    '2025-12-31T17:00:00Z',
-    '2026-03-31T17:00:00Z',
-    '2026-06-30T17:00:00Z',
-    '2026-09-30T17:00:00Z',
+    '2001-12-31T17:00:00Z',
+    '2002-03-31T17:00:00Z',
+    '2002-06-30T17:00:00Z',
+    '2002-09-30T17:00:00Z',
   ]) {
     const move = await postMovement(
       actor,
@@ -340,9 +327,9 @@ test('quarter and date filters use WIB boundaries rather than UTC dates', async 
   }
   const scoped: Identity = {
     ...actor,
-    grants: [{ appId: 'consumables', role: 'viewer', locationIds: [f.locationId] }],
+    grants: [{ appId: 'consumables', role: 'viewer' }],
   };
-  const d = await stockDashboard(scoped, 2026);
+  const d = await stockDashboard(scoped, 2002);
   assert.deepEqual(
     d.series.map((q) => q.picklist),
     [0, 0, 0, 0],
@@ -351,10 +338,13 @@ test('quarter and date filters use WIB boundaries rather than UTC dates', async 
     d.series.map((q) => q.opening),
     [0, 0, 0, 0],
   );
-  const day = await listMovements(scoped, new URLSearchParams({ from: '2026-04-01', to: '2026-04-01' }));
+  const day = await listMovements(
+    scoped,
+    new URLSearchParams({ from: '2002-04-01', to: '2002-04-01', materialId: f.materialId }),
+  );
   assert.equal(d.legacyMovementCount, 4);
   assert.equal(day.items.length, 1);
-  assert.equal(day.items[0].createdAt, '2026-03-31T17:00:00.000Z');
+  assert.equal(day.items[0].createdAt, '2002-03-31T17:00:00.000Z');
 });
 after(async () => {
   await closeConsumablesDb();

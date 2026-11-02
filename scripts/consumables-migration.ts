@@ -64,8 +64,8 @@ export async function migrateConsumablesCatalog(c: mysql.Connection) {
       );
       for (const u of people) {
         const [result] = await c.query<mysql.ResultSetHeader>(
-          "INSERT IGNORE INTO app_grants(user_id,app_id,role,equipment,scope) VALUES (?,'consumables','admin','[]',?)",
-          [u.id, JSON.stringify({ locationIds: [] })],
+          "INSERT IGNORE INTO app_grants(user_id,app_id,role,equipment,scope) VALUES (?,'consumables','admin','[]',NULL)",
+          [u.id],
         );
         if (result.affectedRows)
           await c.query(
@@ -75,6 +75,16 @@ export async function migrateConsumablesCatalog(c: mysql.Connection) {
       }
       await c.query(
         "INSERT INTO data_migrations(id,completed_at) VALUES ('consumables-v1',UTC_TIMESTAMP(3))",
+      );
+    }
+    const [roomDone] = await c.query<mysql.RowDataPacket[]>(
+      "SELECT id FROM data_migrations WHERE id='consumables-r22-single-room' FOR UPDATE",
+    );
+    if (!roomDone.length) {
+      // Preserve roles and equipment grants. Location scope is obsolete for R22.
+      await c.query("UPDATE app_grants SET scope=NULL WHERE app_id='consumables'");
+      await c.query(
+        "INSERT INTO data_migrations(id,completed_at) VALUES ('consumables-r22-single-room',UTC_TIMESTAMP(3))",
       );
     }
     await c.commit();

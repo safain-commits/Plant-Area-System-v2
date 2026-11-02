@@ -297,7 +297,7 @@ try {
   let activePassword = '';
   if (!mustChangeInitially && (await exists(`${directory}/login.env`))) {
     const loginEnv = parseEnv(await readFile(`${directory}/login.env`, 'utf8'));
-    activePassword = loginEnv.DEV_PASSWORD || loginEnv.BOOTSTRAP_PASSWORD || '';
+    activePassword = loginEnv.DEV_PASSWORD || loginEnv.PASSWORD || loginEnv.BOOTSTRAP_PASSWORD || '';
   }
 
   const browser = await chromium
@@ -442,7 +442,7 @@ try {
     const adminAppsRes = await page.request.get('/api/admin/applications');
     assert.equal(adminAppsRes.status(), 200);
     const adminLocationsRes = await page.request.get('/api/admin/applications/consumables/locations');
-    assert.equal(adminLocationsRes.status(), 200);
+    assert.equal(adminLocationsRes.status(), 404);
 
     // SSO to Bag Filter & check all 6 equipment maps
     await page.goto('/bag-filter');
@@ -495,13 +495,6 @@ try {
 
     // SSO to Consumable Room & synthetic fixture round-trip (cleaned up afterwards)
     const suffix = randomUUID().slice(0, 8).toUpperCase();
-    const locRes = await page.request.post('/consumables/api/locations', {
-      headers: { origin },
-      data: { name: `Smoke Rack ${suffix}` },
-    });
-    assert.equal(locRes.status(), 201);
-    const syntheticLocationId = String((await locRes.json()).id);
-
     const matRes = await page.request.post('/consumables/api/materials', {
       headers: { origin },
       data: {
@@ -520,7 +513,7 @@ try {
 
     const invRes = await page.request.post('/consumables/api/inventory', {
       headers: { origin },
-      data: { materialId: syntheticMaterialId, locationId: syntheticLocationId, rack: 'R-01' },
+      data: { materialId: syntheticMaterialId, rack: 'R-01' },
     });
     assert.equal(invRes.status(), 201);
 
@@ -528,7 +521,6 @@ try {
       headers: { origin, 'Idempotency-Key': `smoke-open-${randomUUID()}` },
       data: {
         materialId: syntheticMaterialId,
-        locationId: syntheticLocationId,
         quantity: '15',
         reason: 'Saldo awal smoke test development',
         expectedVersion: 1,
@@ -538,7 +530,9 @@ try {
 
     await page.goto('/consumables');
     await page.getByRole('heading', { name: 'Consumable Room' }).waitFor({ state: 'visible' });
-    await page.getByText(`SMK-${suffix}`).first().waitFor({ state: 'visible' });
+    await page
+      .getByRole('region', { name: 'Ringkasan Consumable Room', exact: true })
+      .waitFor({ state: 'visible' });
     await page.screenshot({
       path: `${verificationDir}/07-consumables-dashboard.png`,
       fullPage: true,
@@ -550,14 +544,13 @@ try {
     await page.reload();
     await page.getByText(`SMK-${suffix}`).first().waitFor({ state: 'visible' });
 
-    for (const section of ['receive', 'issue', 'materials', 'locations', 'audit']) {
+    for (const section of ['consume', 'return', 'picklist', 'manage', 'audit']) {
       const r = await page.goto(`/consumables/${section}`);
       assert.equal(r?.status(), 200, `/consumables/${section} status`);
     }
 
     for (const apiPath of [
       '/consumables/api/dashboard',
-      '/consumables/api/locations',
       '/consumables/api/materials',
       '/consumables/api/inventory',
       '/consumables/api/movements',
@@ -573,10 +566,14 @@ try {
     for (const [mobilePath, readyText, shotName] of [
       ['/', '18.784', '08-mobile-portal.png'],
       ['/bag-filter/equipment/561-bf1', 'Detail Comp. 1', '09-mobile-bag-561.png'],
-      ['/consumables', `SMK-${suffix}`, '10-mobile-consumables.png'],
+      ['/consumables', 'Consumable Room', '10-mobile-consumables.png'],
     ] as const) {
       await page.goto(mobilePath);
-      await page.getByText(readyText).first().waitFor({ state: 'visible' });
+      if (mobilePath === '/consumables')
+        await page
+          .getByRole('heading', { name: 'Consumable Room', exact: true })
+          .waitFor({ state: 'visible' });
+      else await page.getByText(readyText).first().waitFor({ state: 'visible' });
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       assert.equal(overflow, false, `Tidak boleh ada horizontal overflow pada mobile ${mobilePath}`);
       await page.screenshot({ path: `${verificationDir}/${shotName}`, fullPage: true, caret: 'initial' });
@@ -613,7 +610,6 @@ try {
     "DELETE i FROM plant_consumables.inventory i INNER JOIN plant_consumables.materials m ON m.id = i.material_id WHERE m.mmid LIKE 'SMK-%'",
   );
   await db.query("DELETE FROM plant_consumables.materials WHERE mmid LIKE 'SMK-%'");
-  await db.query("DELETE FROM plant_consumables.locations WHERE name LIKE 'Smoke Rack %'");
   await db.query(
     "DELETE FROM plant_consumables.consumables_audit WHERE details LIKE '%SMK-%' OR details LIKE '%Smoke Rack%'",
   );

@@ -37,7 +37,7 @@ export default async function Page({ params }: { params: Promise<{ section: stri
       <Heading
         eyebrow="CONSUMABLE ROOM"
         title={titles[section]}
-        description="Seluruh saldo dan transaksi mengikuti lokasi yang diberikan kepada Anda."
+        description="Satu stok R22 untuk seluruh pengguna sesuai hak tindakan Anda."
       />
       {canConsume(identity, action) ? (
         section === 'consume' || section === 'return' ? (

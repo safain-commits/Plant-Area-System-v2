@@ -14,15 +14,14 @@ export function AddToOrder({ identity, item }: { identity: Identity; item: Inven
   const [type, setType] = useState<'consume' | 'return' | null>(null),
     [notice, setNotice] = useState(''),
     [link, setLink] = useState('');
-  const ready = item.initialized && item.inventoryActive && item.active && item.locationActive;
+  const ready = item.initialized && item.inventoryActive && item.active;
   const existing = type
-    ? readCart(cartKey(identity.id, type, item.locationId)).lines.find((l) => l.material.id === item.id)
-        ?.quantity || '0'
+    ? readCart(cartKey(identity.id, type)).lines.find((l) => l.material.id === item.id)?.quantity || '0'
     : '0';
   return (
     <>
       <div className="form-actions">
-        {canConsume(identity, 'issue', item.locationId) && (
+        {canConsume(identity, 'issue') && (
           <Button
             type="button"
             className="primary small"
@@ -32,7 +31,7 @@ export function AddToOrder({ identity, item }: { identity: Identity; item: Inven
             Tambah ke Consume Order
           </Button>
         )}
-        {canConsume(identity, 'return', item.locationId) && (
+        {canConsume(identity, 'return') && (
           <Button
             type="button"
             className="secondary small"
@@ -54,7 +53,7 @@ export function AddToOrder({ identity, item }: { identity: Identity; item: Inven
         consume={type === 'consume'}
         already={existing}
         onAdd={(m, q) => {
-          const key = cartKey(identity.id, type!, item.locationId),
+          const key = cartKey(identity.id, type!),
             draft = readCart(key),
             line = draft.lines.find((l) => l.material.id === m.id);
           if (!line && draft.lines.length >= 50) throw Error('Maksimal 50 material per order.');
@@ -68,7 +67,7 @@ export function AddToOrder({ identity, item }: { identity: Identity; item: Inven
               : [...draft.lines, { material: m, quantity: sum }],
           });
           setNotice(`${m.commonName || m.description} ditambahkan.`);
-          setLink(`/consumables/${type}?location=${item.locationId}`);
+          setLink(`/consumables/${type}`);
         }}
       />
     </>

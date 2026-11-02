@@ -32,8 +32,7 @@ export const emptyCart = (): CartDraft => ({
   requiredDate: '',
   lines: [],
 });
-export const cartKey = (userId: string, type: string, locationId: string) =>
-  `r22-cart:${userId}:${type}:${locationId}`;
+export const cartKey = (userId: string, type: string) => `r22-cart:${userId}:${type}`;
 const memory = new Map<string, CartDraft>();
 export function readCart(key: string): CartDraft {
   try {
@@ -77,10 +76,6 @@ export function clearR22Carts() {
   window.dispatchEvent(new Event('r22-cart-change'));
 }
 export function cartCount(userId: string, type: string) {
-  const prefix = `r22-cart:${userId}:${type}:`,
-    keys = new Set([...memory.keys()]);
-  try {
-    for (const key of Object.keys(sessionStorage)) keys.add(key);
-  } catch {}
-  return [...keys].filter((k) => k.startsWith(prefix)).reduce((n, k) => n + readCart(k).lines.length, 0);
+  // Old location-specific drafts are deliberately excluded.
+  return readCart(cartKey(userId, type)).lines.length;
 }

@@ -41,11 +41,7 @@ export default async function Profile() {
             </strong>
             <br />
             <span className="muted">
-              {g.appId === 'bag-filter'
-                ? g.equipment.join(', ')
-                : g.role === 'admin'
-                  ? 'Seluruh lokasi'
-                  : `${g.locationIds.length} lokasi sesuai cakupan`}
+              {g.appId === 'bag-filter' ? g.equipment.join(', ') : 'Stok R22 bersama'}
             </span>
           </p>
         ))}

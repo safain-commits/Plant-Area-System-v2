@@ -33,7 +33,7 @@ export function StockActivity({ items, compact = false }: { items: StockDocument
               <span className="stock-activity-description">
                 <strong>{d.number}</strong>
                 <small>
-                  {stockDocumentLabels[d.type]} · {d.hec || d.locationName}
+                  {stockDocumentLabels[d.type]} · {d.hec || 'R22'}
                 </small>
                 <small title={d.requesterName}>{d.requesterName}</small>
                 <small>

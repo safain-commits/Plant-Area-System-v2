@@ -29,7 +29,9 @@
     "format:check": "prettier --check apps packages scripts tests docs README.md package.json tsconfig.json playwright.config.ts compose.yaml pnpm-workspace.yaml .github/workflows/ci.yml",
     "db:generate:consumables": "drizzle-kit generate --config packages/consumables-core/drizzle.config.ts",
     "consumables:import": "tsx scripts/import-consumables.ts",
-    "consumables:reconcile": "tsx scripts/reconcile-consumables.ts"
+    "consumables:reconcile": "tsx scripts/reconcile-consumables.ts",
+    "consumables:import-naming": "tsx scripts/import-consumables-naming.ts",
+    "consumables:preflight": "tsx scripts/preflight-consumables-r22.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

@@ -1,15 +1,8 @@
-import {
-  test,
-  expect,
-  request as requests,
-  type APIRequestContext,
-  type Page,
-  type Locator,
-} from '@playwright/test';
+import { test, expect, request as requests, type APIRequestContext, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { getConsumablesDb, closeConsumablesDb } from '@plant/consumables-core';
-import * as stockSchema from '@plant/consumables-core/schema';
+import * as s from '@plant/consumables-core/schema';
 import {
   createUser,
   updateUserAccess,
@@ -22,47 +15,32 @@ import {
 } from '@plant/auth-core';
 import type { Identity } from '@plant/contracts';
 const suffix = randomUUID().slice(0, 8),
-  email = `stock-browser-${suffix}@example.test`,
-  password = 'Stock-browser-password-2026',
-  temporary = 'Stock-temporary-password-2026';
+  email = `r22-browser-${suffix}@example.test`,
+  password = 'R22-browser-password-2026',
+  temporary = 'R22-temporary-password-2026';
 const admin: Identity = {
   id: randomUUID(),
-  name: 'Stock Browser',
+  name: 'R22 Browser',
   email,
   position: '',
   portalAdmin: true,
   mustChangePassword: false,
   grants: [],
 };
-let client: APIRequestContext,
-  materialId: string,
-  locationId: string,
-  otherLocationId: string,
-  userId: string;
-const mmid = 'BROWSER-' + suffix,
-  locationName = 'E2E Main ' + suffix;
-const roleUsers: string[] = [];
+let client: APIRequestContext, userId: string, materialId: string;
+const mmid = 'R22-BROWSER-' + suffix,
+  roleUsers: string[] = [],
+  materials: string[] = [];
 async function post(c: APIRequestContext, path: string, data: unknown, key?: string) {
   return c.post(path, {
     data,
     headers: { origin: process.env.PUBLIC_ORIGIN!, ...(key ? { 'Idempotency-Key': key } : {}) },
   });
 }
-async function jsonPost(path: string, data: unknown, key?: string) {
+async function save(path: string, data: unknown, key?: string) {
   const r = await post(client, path, data, key);
   expect(r.ok(), await r.text()).toBeTruthy();
   return r.json();
-}
-async function choose(control: Locator, value: string) {
-  const label = await control.evaluate(
-    (el, v) =>
-      Array.from(el.parentElement!.querySelector('select')!.options)
-        .find((o) => o.value === v)
-        ?.textContent?.trim(),
-    value,
-  );
-  await control.click();
-  await control.page().getByRole('option', { name: label!, exact: true }).click();
 }
 async function login(page: Page) {
   await page.goto('/auth/login');
@@ -72,52 +50,47 @@ async function login(page: Page) {
   await page.waitForURL((u) => u.pathname === '/');
 }
 test.beforeAll(async () => {
-  userId = (await createUser(admin, { name: 'Stock Browser', email, password: temporary })).id;
+  userId = (await createUser(admin, { name: admin.name, email, password: temporary })).id;
   await updateUserAccess(admin, userId, { active: true, portalAdmin: true });
-  await setAppGrant(admin, userId, 'consumables', { appId: 'consumables', role: 'admin', locationIds: [] });
+  await setAppGrant(admin, userId, 'consumables', { appId: 'consumables', role: 'admin' });
   await setGrant(admin, userId, { appId: 'bag-filter', role: 'viewer', equipment: ['L61-BF1'] });
   await changePassword({ ...admin, id: userId }, temporary, password);
   await closeAuthDb();
   client = await requests.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
   expect((await post(client, '/auth/api/sign-in/email', { email, password })).ok()).toBeTruthy();
   materialId = (
-    await jsonPost('/consumables/api/materials', {
+    await save('/consumables/api/materials', {
       mmid,
-      description: 'Browser synthetic material',
-      commonName: 'Browser material',
-      unit: 'EA',
-      category: 'Synthetic',
-      mrpType: 'PD',
-      critical: true,
+      description: 'Browser synthetic SAP',
+      commonName: 'Browser baut',
+      aliases: 'bolt, fastener',
+      unit: 'PCS',
+      sapUnit: 'SET',
       packSize: '50',
+      category: 'Synthetic',
+      decimalAllowed: false,
     })
   ).id;
-  locationId = (await jsonPost('/consumables/api/locations', { name: locationName })).id;
-  otherLocationId = (await jsonPost('/consumables/api/locations', { name: 'E2E Other ' + suffix })).id;
-  for (const id of [locationId, otherLocationId])
-    await jsonPost('/consumables/api/inventory', { materialId, locationId: id, rack: 'Rack B1' });
-  await jsonPost(
-    '/consumables/api/opening-balances',
-    { materialId, locationId: otherLocationId, quantity: '5', reason: 'Physical count', expectedVersion: 1 },
-    randomUUID(),
-  );
+  materials.push(materialId);
+  await save('/consumables/api/inventory', { materialId, rack: 'Rack B1' });
+});
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 test.afterAll(async () => {
   const ids = [userId, ...roleUsers].filter(Boolean);
   try {
     await getConsumablesDb().transaction(async (tx) => {
       if (ids.length) {
-        await tx.delete(stockSchema.idempotency).where(inArray(stockSchema.idempotency.actorId, ids));
-        await tx.delete(stockSchema.audit).where(inArray(stockSchema.audit.actorId, ids));
+        await tx.delete(s.idempotency).where(inArray(s.idempotency.actorId, ids));
+        await tx.delete(s.audit).where(inArray(s.audit.actorId, ids));
       }
-      if (materialId) {
-        await tx.delete(stockSchema.movements).where(eq(stockSchema.movements.materialId, materialId));
-        await tx.delete(stockSchema.inventory).where(eq(stockSchema.inventory.materialId, materialId));
-        await tx.delete(stockSchema.materials).where(eq(stockSchema.materials.id, materialId));
+      if (materials.length) {
+        await tx.delete(s.movements).where(inArray(s.movements.materialId, materials));
+        await tx.delete(s.inventory).where(inArray(s.inventory.materialId, materials));
+        await tx.delete(s.materials).where(inArray(s.materials.id, materials));
       }
-      const locations = [locationId, otherLocationId].filter(Boolean);
-      if (locations.length)
-        await tx.delete(stockSchema.locations).where(inArray(stockSchema.locations.id, locations));
+      if (ids.length) await tx.delete(s.documents).where(inArray(s.documents.actorId, ids));
     });
     if (ids.length)
       await getAuthDb().transaction(async (tx) => {
@@ -132,108 +105,167 @@ test.afterAll(async () => {
     await Promise.all([closeAuthDb(), closeConsumablesDb()]);
   }
 });
-test('Consumables SSO, opening, pack receipt, self-service issue, history, themes and mobile', async ({
+test('single R22 stock: opening, persistent Consume/Return carts, print, correction and cross-app SSO', async ({
   page,
 }) => {
-  test.setTimeout(120000);
-  page.setDefaultTimeout(10000);
+  test.setTimeout(150000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await login(page);
-  await expect(page.getByRole('heading', { name: 'Consumable Room', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('region', { name: 'Ringkasan Consumable Room', exact: true })).toBeVisible();
-  await expect(page.getByRole('figure', { name: /^Pemasangan per kuartal / })).toBeVisible();
-  await page.screenshot({ path: '.test-runtime/gateway-portal-recovered.png', fullPage: true });
-  await page.goto('/consumables');
-  await expect(page.getByRole('region', { name: 'Ringkasan Consumable Room', exact: true })).toBeVisible();
-  await page.screenshot({ path: '.test-runtime/gateway-consumables-recovered.png', fullPage: true });
   await page.goto('/consumables/manage');
-  await page.getByRole('button', { name: 'Daftar stok & saldo awal', exact: true }).click();
+  await page.getByRole('button', { name: 'Stok, rak & saldo awal', exact: true }).click();
   await page.getByRole('searchbox', { name: 'Cari material atau transaksi' }).fill(mmid);
-  await page.locator('.stock-table-row').filter({ hasText: mmid }).filter({ hasText: locationName }).click();
-  await page.getByLabel('Jumlah fisik', { exact: true }).fill('0');
-  await page.getByLabel('Alasan / keterangan hitung fisik').fill('Browser physical zero');
+  await page.locator('.stock-table-row').filter({ hasText: mmid }).click();
+  await page.getByLabel('Jumlah fisik', { exact: true }).fill('10');
+  await page.getByLabel('Alasan / keterangan hitung fisik').fill('Browser count');
   await page.getByRole('button', { name: 'Simpan saldo awal', exact: true }).click();
   await page.getByRole('button', { name: 'Lanjutkan', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Saldo awal tersimpan');
-  await page.goto(`/consumables/receive?material=${materialId}&location=${locationId}`);
-  await choose(page.getByRole('combobox', { name: 'Mode penerimaan', exact: true }), 'pack');
-  await page.getByLabel('Jumlah pack', { exact: true }).fill('2');
-  await page.getByLabel('Referensi penerimaan', { exact: true }).fill('BROWSER-RECEIPT');
-  await page.getByRole('button', { name: 'Simpan penerimaan', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Penerimaan tersimpan');
-  await page.goto(`/consumables/issue?material=${materialId}&location=${locationId}`);
-  await page.getByLabel('Jumlah (EA)', { exact: true }).fill('3');
-  await page.getByLabel('Pekerjaan / equipment').fill('Browser maintenance');
+  // Location-scoped drafts are not mixed into the new cart.
+  await page.evaluate(
+    ({ userId }) =>
+      sessionStorage.setItem(
+        `r22-cart:${userId}:consume:legacy-location`,
+        JSON.stringify({ hec: '999-OLD', lines: [] }),
+      ),
+    { userId },
+  );
+  await page.goto('/consumables/consume');
+  await page.getByLabel('HEC / Functional Location').fill('tq.452-bu1');
+  await page.getByRole('combobox', { name: /Cari material/ }).fill(mmid);
+  const modal = page.getByRole('dialog', { name: 'Tambah jumlah material' });
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Jumlah (PCS)', { exact: true }).fill('3');
+  await page.screenshot({ path: '.test-runtime/r22-quantity-modal-1440.png', fullPage: true });
+  await modal.getByRole('button', { name: 'Tambah ke keranjang' }).click();
+  await page.getByLabel('WO Number (opsional)').fill('R22-BROWSER-WO');
+  await page.reload();
+  await expect(page.getByLabel('HEC / Functional Location')).toHaveValue('452-BU1');
+  await expect(page.locator('.r22-cart-table')).toContainText(mmid);
   await page.getByRole('button', { name: 'Tema', exact: true }).click();
   await page.getByRole('button', { name: 'Gelap', exact: true }).click();
-  await expect(page.getByLabel('Jumlah (EA)', { exact: true })).toHaveValue('3');
-  await expect(page.getByLabel('Pekerjaan / equipment')).toHaveValue('Browser maintenance');
-  await page.getByLabel('WO Number (opsional)').fill('BROWSER-WO');
-  await page.getByRole('button', { name: 'Simpan pemakaian', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Pemakaian tersimpan');
-  const d = await (await client.get('/consumables/api/materials/' + materialId)).json();
-  expect(d.stocks.find((s: any) => s.locationId === locationId).quantity).toBe('97.000000');
-  await page.goto(`/consumables/history?material=${materialId}&location=${locationId}`);
-  await page.locator('.stock-table-row').filter({ hasText: 'Pemakaian' }).click();
-  await expect(page.getByRole('dialog')).toContainText('BROWSER-WO');
-  await expect(page.getByRole('dialog')).toContainText('97 EA');
+  await expect(page.getByLabel('WO Number (opsional)')).toHaveValue('R22-BROWSER-WO');
+  await page.screenshot({ path: '.test-runtime/r22-consume-1440.png', fullPage: true });
+  await page.getByRole('button', { name: /Submit Order/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Consume Order tersimpan');
+  await page.getByRole('link', { name: 'Lihat / Cetak bukti' }).click();
+  await expect(page.locator('.r22-receipt')).toContainText('452-BU1');
+  await expect(page.locator('.r22-receipt')).not.toContainText('Lokasi');
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.sidebar')).toBeHidden();
+  await page.screenshot({ path: '.test-runtime/r22-receipt-print.png', fullPage: true });
+  await page.pdf({ path: '.test-runtime/r22-consume-print.pdf', format: 'A4' });
+  await page.emulateMedia({ media: 'screen' });
+  await page.goto(`/consumables/return?material=${materialId}`);
+  await expect(modal).toBeVisible();
+  await modal.getByLabel('Jumlah (PCS)', { exact: true }).fill('2');
+  await modal.getByRole('button', { name: 'Tambah ke keranjang' }).click();
+  await page.getByLabel('HEC / Functional Location').fill('452-BU1');
+  await page.getByRole('button', { name: /Submit Order/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Return Order tersimpan');
+  expect((await (await client.get('/consumables/api/materials/' + materialId)).json()).stock.quantity).toBe(
+    '9.000000',
+  );
+  await page.goto('/consumables/history');
+  await page.getByRole('searchbox', { name: 'Cari dokumen' }).fill('R22-BROWSER-WO');
+  await page.locator('.r22-documents-list .stock-table-row').first().click();
+  await expect(page.getByRole('dialog')).toContainText('R22-BROWSER-WO');
   await page.keyboard.press('Escape');
-  await page.goto('/consumables/stock');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await page.goto('/consumables/manage');
+  await page.getByRole('button', { name: 'Stok, rak & saldo awal', exact: true }).click();
   await page.getByRole('searchbox', { name: 'Cari material atau transaksi' }).fill(mmid);
-  await expect(page.locator('.stock-table-row').filter({ hasText: locationName })).toContainText('97');
+  await page.locator('.stock-table-row').filter({ hasText: mmid }).click();
+  await page.getByLabel('Jumlah fisik', { exact: true }).fill('8');
+  await page.getByLabel('Alasan / keterangan hitung fisik').fill('Recount');
+  await page.getByRole('button', { name: 'Simpan koreksi', exact: true }).click();
+  await page.getByRole('button', { name: 'Lanjutkan', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Koreksi tersimpan');
   for (const theme of ['light', 'dark']) {
-    await page.evaluate((t) => {
-      localStorage.setItem('plant-ui-theme', t);
-    }, theme);
-    await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await page.evaluate((t) => localStorage.setItem('plant-ui-theme', t), theme);
+    await page.goto('/consumables/stock');
     await page.getByRole('searchbox', { name: 'Cari material atau transaksi' }).fill(mmid);
-    await expect(page.locator('.stock-table-row').filter({ hasText: locationName })).toContainText('97');
-    await page.screenshot({ path: `.test-runtime/consumables-desktop-${theme}.png`, fullPage: true });
+    await expect(page.locator('.stock-table-row').filter({ hasText: mmid })).toContainText('8');
+    await page.screenshot({ path: `.test-runtime/r22-stock-${theme}-1440.png`, fullPage: true });
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of [
-    '/consumables',
-    '/consumables/stock',
-    '/consumables/receive',
-    '/consumables/issue',
-    '/consumables/history',
-    '/consumables/manage',
-    '/consumables/audit',
-  ]) {
-    await page.goto(path);
+  for (const path of ['', '/stock', '/consume', '/return', '/picklist', '/history', '/manage', '/audit']) {
+    await page.goto('/consumables' + path);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
-      path + ' overflow',
+      path,
     ).toBeTruthy();
   }
-  await expect(page.locator('.stock-audit-row').first()).toBeVisible();
-  await page.screenshot({ path: '.test-runtime/consumables-mobile-dark.png', fullPage: false });
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: '.test-runtime/r22-mobile-390.png', fullPage: true });
   await page.goto('/bag-filter/equipment/l61-bf1');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('L61');
   await page.goto('/');
   expect(page.url()).not.toContain('/auth/login');
   expect(errors).toEqual([]);
 });
-test('gateway and role/location checks reject direct access, revoked grants and disabled apps', async ({
+test('20-line SAP picklist, retry and K3 auto enrollment use the single room', async ({ page }) => {
+  test.setTimeout(150000);
+  const lines = [];
+  for (let i = 0; i < 20; i++) {
+    const id = (
+      await save('/consumables/api/materials', {
+        mmid: `PICK-${suffix}-${i}`,
+        description: `Synthetic picklist ${i}`,
+        commonName: `Baut ${i}`,
+        unit: 'PCS',
+        sapUnit: 'SET',
+        packSize: '2',
+        category: 'Synthetic',
+      })
+    ).id;
+    materials.push(id);
+    lines.push({ materialId: id, sapQuantity: '3', materialVersion: 1 });
+  }
+  await page.context().addCookies((await client.storageState()).cookies);
+  await page.goto('/consumables/picklist');
+  // Add all lines through the accessible catalog search, preserving real API responses.
+  await page.getByLabel('No. Reservasi', { exact: true }).fill('RES-' + suffix);
+  await page.getByLabel('WO No.', { exact: true }).fill('WO-' + suffix);
+  for (let i = 0; i < 20; i++) {
+    await page.getByRole('combobox', { name: /Cari material/ }).fill(`PICK-${suffix}-${i}`);
+    await expect(page.locator('[data-r22-quantity]')).toHaveCount(i + 1);
+    await page.locator('[data-r22-quantity]').nth(i).fill('3');
+  }
+  await page.reload();
+  await expect(page.locator('[data-r22-quantity]')).toHaveCount(20);
+  await page.screenshot({ path: '.test-runtime/r22-picklist-1440.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
+  await page.screenshot({ path: '.test-runtime/r22-picklist-390.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: /Terima Picklist/ }).click();
+  await page.getByRole('button', { name: 'Lanjutkan', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Penerimaan Picklist tersimpan');
+  const idempotency = randomUUID(),
+    body = { reservationNo: 'RES-' + suffix, wo: 'WO-' + suffix, lines };
+  const first = await save('/consumables/api/picklist-receipts', body, idempotency),
+    second = await save('/consumables/api/picklist-receipts', body, idempotency);
+  expect(first.document.id).toBe(second.document.id);
+  expect(second.replayed).toBeTruthy();
+  const d = await (await client.get('/consumables/api/materials/' + lines[0].materialId)).json();
+  expect(d.stock.quantity).toBe('12.000000');
+  expect(d.stock.rack).toBe('');
+  expect(d.stock.initialized).toBe(true);
+  expect(d.stocks).toBeUndefined();
+});
+test('gateway, four roles, role-only grant, rejected location fields, revocation and disabled apps', async ({
   request,
 }) => {
   test.setTimeout(120000);
-  const initial = await (await client.get('/consumables/api/materials/' + materialId)).json();
-  const current = initial.stocks.find((s: any) => s.locationId === locationId);
-  if (!current.initialized)
-    await jsonPost(
+  const d = await (await client.get('/consumables/api/materials/' + materialId)).json();
+  if (!d.stock.initialized)
+    await save(
       '/consumables/api/opening-balances',
-      {
-        materialId,
-        locationId,
-        quantity: '10',
-        reason: 'Role fixture count',
-        expectedVersion: current.inventoryVersion,
-      },
+      { materialId, quantity: '10', reason: 'Role count', expectedVersion: 1 },
       randomUUID(),
     );
   for (const path of [
@@ -250,49 +282,62 @@ test('gateway and role/location checks reject direct access, revoked grants and 
       })
     ).status(),
   ).toBe(401);
-  for (const role of ['viewer', 'operator', 'storekeeper'] as const) {
-    const userEmail = `stock-${role}-${randomUUID()}@example.test`,
-      id = (
-        await jsonPost('/api/admin/users', { name: 'Stock ' + role, email: userEmail, password: temporary })
-      ).id;
+  expect((await client.get('/consumables/api/locations')).status()).toBe(410);
+  expect((await client.get('/consumables/api/locations/' + randomUUID())).status()).toBe(410);
+  expect((await client.get('/api/admin/applications/consumables/locations')).status()).toBe(404);
+  for (const role of ['viewer', 'operator', 'storekeeper', 'admin'] as const) {
+    const userEmail = `r22-${role}-${randomUUID()}@example.test`,
+      id = (await save('/api/admin/users', { name: 'R22 ' + role, email: userEmail, password: temporary }))
+        .id;
     roleUsers.push(id);
-    await jsonPost(`/api/admin/users/${id}/grants/consumables`, {
-      grant: { appId: 'consumables', role, locationIds: [locationId] },
-    });
+    await save(`/api/admin/users/${id}/grants/consumables`, { grant: { appId: 'consumables', role } });
     await changePassword({ ...admin, id }, temporary, password);
     await closeAuthDb();
     const c = await requests.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
     try {
       expect((await post(c, '/auth/api/sign-in/email', { email: userEmail, password })).status()).toBe(200);
-      expect((await c.get('/consumables/api/inventory?locationId=' + otherLocationId)).status()).toBe(403);
-      expect((await c.get('/consumables/api/audit')).status()).toBe(403);
-      const detail = await (await c.get('/consumables/api/materials/' + materialId)).json();
-      expect(detail.stocks.map((s: any) => s.locationId)).toEqual([locationId]);
-      const receipt = await post(
-        c,
-        '/consumables/api/receipts',
-        { materialId, locationId, mode: 'base', quantity: '1', reference: 'Role check' },
-        randomUUID(),
+      expect((await c.get('/consumables/api/inventory?locationId=' + randomUUID())).status()).toBe(400);
+      expect((await c.get('/consumables/api/audit')).status()).toBe(role === 'admin' ? 200 : 403);
+      expect((await (await c.get('/consumables/api/materials/' + materialId)).json()).stock.inventoryId).toBe(
+        d.stock.inventoryId,
       );
-      expect(receipt.status()).toBe(role === 'storekeeper' ? 201 : 403);
-      const issue = await post(
-        c,
-        '/consumables/api/issues',
-        { materialId, locationId, quantity: '0.1', job: 'Role check' },
-        randomUUID(),
-      );
-      expect(issue.status()).toBe(role === 'viewer' ? 403 : 201);
-      if (role !== 'viewer') expect((await issue.json()).movement.actorId).toBe(id);
-      await jsonPost(`/api/admin/users/${id}/grants/consumables`, { grant: null });
+      const body = { hec: '452-BU1', lines: [{ materialId, quantity: '1' }] };
+      expect(
+        (
+          await post(
+            c,
+            '/consumables/api/consume-orders',
+            { ...body, locationId: randomUUID() },
+            randomUUID(),
+          )
+        ).status(),
+      ).toBe(role === 'viewer' ? 403 : 400);
+      const consume = await post(c, '/consumables/api/consume-orders', body, randomUUID());
+      expect(consume.status()).toBe(role === 'viewer' ? 403 : 201);
+      if (role !== 'viewer') expect((await consume.json()).document.actorId).toBe(id);
+      const ret = await post(c, '/consumables/api/return-orders', body, randomUUID());
+      expect(ret.status()).toBe(role === 'viewer' ? 403 : 201);
+      expect(
+        (
+          await post(
+            c,
+            '/consumables/api/picklist-receipts',
+            { reservationNo: 'ROLE', wo: 'ROLE', lines: [{ materialId, quantity: '1' }] },
+            randomUUID(),
+          )
+        ).status(),
+      ).toBe(['storekeeper', 'admin'].includes(role) ? 201 : 403);
+      expect((await post(c, '/consumables/api/receipts', {}, randomUUID())).status()).toBe(410);
+      await save(`/api/admin/users/${id}/grants/consumables`, { grant: null });
       expect((await c.get('/consumables/api/inventory')).status()).toBe(403);
     } finally {
       await c.dispose();
     }
   }
-  await jsonPost('/api/admin/applications/consumables', { status: 'disabled' });
+  await save('/api/admin/applications/consumables', { status: 'disabled' });
   try {
     expect((await client.get('/consumables/api/inventory')).status()).toBe(403);
   } finally {
-    await jsonPost('/api/admin/applications/consumables', { status: 'active' });
+    await save('/api/admin/applications/consumables', { status: 'active' });
   }
 });

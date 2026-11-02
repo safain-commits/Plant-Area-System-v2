@@ -1,5 +1,7 @@
 # Operasional pilot
 
+Untuk revisi Consumable Room v1.1, gunakan [upgrade R22](deployment/R22-UPGRADE.md): preflight stok tunggal, migrasi 0002/0003, CLI penamaan dan checkpoint OpenClaw.
+
 Untuk VPS pengguna dengan Nginx existing di host dan domain `tq-cmms.com`, ikuti [runbook VPS](deployment/VPS-TQ-CMMS.md) serta [handover OpenClaw](deployment/OPENCLAW-HANDOVER.md). Perintah Compose di bawah adalah baseline umum; pada VPS tersebut gunakan fungsi `dc` dengan `infra/deploy/compose.vps.yaml` agar binding, budget resource, dan logging sesuai topologi host.
 
 Pemindahan data aktual laptop memakai [panduan database lokal ke VPS](deployment/DATABASE-LOCAL-TO-VPS.md) dan [handover database OpenClaw](deployment/OPENCLAW-DATABASE-HANDOVER.md). Bekukan seluruh penulis sumber, pindahkan tiga database lewat dump privat, cocokkan fingerprint sebelum migrator, lalu cabut sesi pada target. Jangan menjalankan bootstrap/impor master untuk database hasil restore. Jika `.deploy/compose.mysql-pin.yaml` disiapkan saat pemindahan, sertakan pada seluruh perintah Compose VPS, termasuk backup/upgrade.
@@ -71,9 +73,9 @@ Override dari `scripts/prepare-test.ts` menetapkan subnet IPAM eksplisit pada ja
 
 Penyempurnaan memakai shell serta komponen bersama di empat aplikasi. Build dan perbarui `auth portal bag-filter consumables` bersama pada rilis pertama ini. Tidak ada migrasi schema/data untuk UI. Setelah readiness, uji Portal, ringkasan Consumables, pilihan tahun/kuartal, sidebar sesuai aplikasi/peran, serta halaman Audit Bag Filter. Endpoint, perhitungan stok, dan izin tetap memakai kontrak sebelumnya. Preferensi sidebar/tema browser tetap digunakan.
 
-Tes visual memakai respons dashboard sintetis hanya pada browser pengujian, tanpa memasukkan transaksi sintetis ke database. Akun/lokasi sementara serta fixture transaksi suite Consumables dibersihkan berdasarkan ID milik run. Sejak 24 Oktober 2026, preview lokal berisi master material perusahaan: data contoh Consumables telah diganti, `TEST_DATABASE=0`, dan penanda lokal `.test-runtime/REAL-DATA-PRESENT.json` dipasang. Prepare dan konfigurasi browser test menolak preview berpenanda ini. Jangan menghapus penanda, mengaktifkan mode pengujian, atau menjalankan reset pada preview tersebut. Pengujian berikutnya harus memakai checkout, project Compose, port, dan volume database terpisah. Jangan menyaring prefix MMID pada query untuk menyembunyikan fixture.
+Tes visual memakai respons dashboard sintetis hanya pada browser pengujian, tanpa memasukkan transaksi sintetis ke database. Akun sementara serta fixture transaksi suite Consumables dibersihkan berdasarkan ID milik run. Sejak 24 Oktober 2026, preview lokal berisi master material perusahaan: data contoh Consumables telah diganti, `TEST_DATABASE=0`, dan penanda lokal `.test-runtime/REAL-DATA-PRESENT.json` dipasang. Prepare dan konfigurasi browser test menolak preview berpenanda ini. Jangan menghapus penanda, mengaktifkan mode pengujian, atau menjalankan reset pada preview tersebut. Pengujian berikutnya harus memakai checkout, project Compose, port, dan volume database terpisah. Jangan menyaring prefix MMID pada query untuk menyembunyikan fixture.
 
-Master perusahaan tidak menyertakan saldo operasional. Admin membuat lokasi, mendaftarkan material ke stok lokasi, lalu mengonfirmasi saldo awal dari hitung fisik, termasuk hasil nol. Kolom stok SAP dan nilai finansial sumber tidak digunakan sebagai saldo. Workbook, adapter impor, backup sebelum penggantian, dan bukti verifikasi disimpan lokal pada direktori yang diabaikan Git/Docker; file privat tersebut tidak ikut clone atau deployment VPS. Transfer ke server tujuan harus melalui kanal privat dan jalankan CLI impor dengan dry-run terlebih dahulu.
+Master perusahaan tidak menyertakan saldo operasional. Admin mendaftarkan material ke stok R22, lalu mengonfirmasi saldo awal dari hitung fisik, termasuk hasil nol. Kolom stok SAP dan nilai finansial sumber tidak digunakan sebagai saldo. Workbook, adapter impor, backup sebelum penggantian, dan bukti verifikasi disimpan lokal pada direktori yang diabaikan Git/Docker; file privat tersebut tidak ikut clone atau deployment VPS. Transfer ke server tujuan harus melalui kanal privat dan jalankan CLI impor dengan dry-run terlebih dahulu.
 
 Preview juga berisi riwayat nyata Bag Filter 561/562 sejak impor manual 24 Oktober 2026. Tabel riwayat menjadi acuan; entri dengan tanggal/koordinat/jumlah belum terverifikasi ditahan dalam laporan privat. Umur yang tampil mengikuti pemasangan terakhir yang berhasil diverifikasi, sehingga belum membuktikan seluruh kondisi fisik tercakup. Brand dan WO yang tidak dicatat pada sumber tetap kosong. Jangan menjalankan ulang script penggantian data dari arsip sementara; checkpoint mencegah penghapusan ulang, tetapi pembaruan berikutnya harus merekonsiliasi entri tertahan dan data operasional baru. Backup/import database diperlukan untuk membawa riwayat ke VPS; clone repository saja tidak memindahkannya.
 
@@ -134,13 +136,13 @@ Catat image digest keempat aplikasi sebelum perubahan. Untuk memperbarui Bag Fil
 
 Rollback aplikasi: kembalikan image layanan ke digest sebelumnya, mulai ulang layanan, lalu jalankan smoke test. Restart Nginx jika konfigurasi gateway juga berubah. Jangan otomatis menghapus kolom/tabel atau memutar balik migrasi. Migrasi berikutnya harus memakai pola tambah dahulu, perpindahan penggunaan, lalu penghapusan pada rilis terpisah. Restore database hanya dipilih bila rollback image tidak cukup dan kehilangan data sejak backup telah dipertimbangkan.
 
-## Consumable Room v1: instalasi dan upgrade
+## Consumable Room: instalasi dan upgrade
 
-Rilis ini menambah container `consumables`, database `plant_consumables`, dan user runtime DML tersendiri. Isi `CONSUMABLES_DB_PASSWORD` dengan random URL-safe 24–128 karakter. Script host juga memerlukan `CONSUMABLES_DATABASE_URL` dan `CONSUMABLES_MIGRATION_DATABASE_URL`; URL internal Compose disusun dari secret. `CONSUMABLES_INTERNAL_URL` dipakai Auth untuk metadata lokasi.
+Rilis ini menambah container `consumables`, database `plant_consumables`, dan user runtime DML tersendiri. Isi `CONSUMABLES_DB_PASSWORD` dengan random URL-safe 24–128 karakter. Script host juga memerlukan `CONSUMABLES_DATABASE_URL` dan `CONSUMABLES_MIGRATION_DATABASE_URL`; URL internal Compose disusun dari secret. Auth tidak lagi memerlukan metadata lokasi stok.
 
 Migrasi memprovisi database/user secara eksplisit sehingga volume MySQL lama didukung. Init script saja tidak cukup untuk upgrade. Migrasi Auth hanya menambah scope nullable, mempertahankan equipment Bag Filter. Checkpoint aktivasi/grant tidak mengaktifkan kembali aplikasi disabled atau mengembalikan grant yang dicabut sesudah upgrade.
 
-Urutan upgrade, sesudah environment baru diisi:
+Untuk rilis R22 pada produksi existing, ikuti [checkpoint upgrade R22](deployment/R22-UPGRADE.md), termasuk preflight dan backup final saat penulis berhenti. Contoh di bawah hanya baseline instalasi container keempat, sesudah environment baru diisi:
 
 ```sh
 docker compose build auth portal bag-filter consumables migrate
@@ -154,7 +156,7 @@ docker compose restart nginx
 
 Jangan mereset volume atau memakai script reset test. Provisioning hanya membuat database/user baru dan memverifikasi kredensial, sehingga backup dibuat sebelum migrasi schema/data baseline. Hentikan urutan jika job provisioning/migrasi gagal. Pada upgrade ini, restart Nginx diperlukan untuk merender template baru yang mencakup rute Consumables dan resolusi DNS dinamis; restart aplikasi berikutnya tidak memerlukan restart gateway. Pemeriksaan MySQL awal tetap menunggu dua database baseline agar provisioning database ketiga tidak mengalami dependency buntu; readiness Consumables memeriksa schema barunya dan Auth.
 
-Bootstrap aktif yang masih admin portal memperoleh grant admin Consumables sekali. Pengguna lain diatur pada Kelola akses. Grant admin aplikasi dapat diberikan sebelum lokasi dibuat; tiga peran lainnya memerlukan lokasi aktif. Portal admin tanpa grant aplikasi tidak mempunyai akses stok.
+Bootstrap aktif yang masih admin portal memperoleh grant admin Consumables sekali. Pengguna lain diatur pada Kelola akses. Grant hanya memilih role; seluruh pengguna membaca stok dan riwayat R22 yang sama. Portal admin tanpa grant aplikasi tidak mempunyai akses stok.
 
 ### Impor master privat dan onboarding
 
@@ -176,9 +178,9 @@ docker compose run --rm --no-deps migrate exec tsx scripts/reconcile-consumables
 
 Dry-run memvalidasi format, duplikasi, checksum dan konflik master. Apply atomik, tidak menyalin saldo/nilai historis atau membuat inventory. Pengulangan batch/checksum sama no-op. Script tidak menimpa master yang sudah berbeda; tinjau konflik secara manual. Output ringkasan tidak mencetak isi katalog atau kredensial.
 
-Setelah impor, admin membuat lokasi aktual, mendaftarkan material yang benar-benar disimpan, mengisi rak/kemasan bila diketahui, lalu mengonfirmasi saldo awal fisik termasuk nol. “Belum dihitung” menutup penerimaan/pemakaian. Koreksi setelahnya memakai jumlah fisik dan alasan, bukan edit transaksi lama.
+Setelah impor, admin mendaftarkan material yang benar-benar disimpan ke stok R22, mengisi rak/konversi bila diketahui, lalu mengonfirmasi saldo awal fisik termasuk nol. “Belum dihitung” menutup penerimaan/pemakaian. Koreksi setelahnya memakai jumlah fisik dan alasan, bukan edit transaksi lama.
 
-Health internal: `/consumables/health/live`, `/consumables/health/ready`. Metadata internal hanya service-token dan tidak dipublikasikan. API langsung tetap memeriksa sesi, tindakan dan lokasi.
+Health internal: `/consumables/health/live`, `/consumables/health/ready`. Endpoint metadata lokasi lama dihapus. API langsung tetap memeriksa sesi dan tindakan.
 
 ### Backup, restore, dan rollback
 

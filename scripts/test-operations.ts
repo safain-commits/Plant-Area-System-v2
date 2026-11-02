@@ -23,7 +23,7 @@ const docker = (args: string[]) => run('docker', args, { maxBuffer: 2_000_000 })
 const delay = () => new Promise((r) => setTimeout(r, 1000));
 const client = await request.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
 const countsSql =
-  'SELECT (SELECT COUNT(*) FROM plant_auth.users),(SELECT COUNT(*) FROM plant_auth.sessions),(SELECT COUNT(*) FROM plant_bag_filter.replacement_batches),(SELECT COUNT(*) FROM plant_bag_filter.installations),(SELECT COUNT(*) FROM plant_bag_filter.bag_audit),(SELECT COUNT(*) FROM plant_bag_filter.coordinates),(SELECT COUNT(*) FROM plant_consumables.materials),(SELECT COUNT(*) FROM plant_consumables.inventory),(SELECT COUNT(*) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.consumables_audit),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.inventory),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.stock_movements),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),id,quantity,balance_after,actor_id))) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.locations),(SELECT COUNT(*) FROM plant_consumables.stock_idempotency),(SELECT COUNT(*) FROM plant_consumables.catalog_imports),(SELECT COUNT(*) FROM plant_auth.app_grants)';
+  'SELECT (SELECT COUNT(*) FROM plant_auth.users),(SELECT COUNT(*) FROM plant_auth.sessions),(SELECT COUNT(*) FROM plant_bag_filter.replacement_batches),(SELECT COUNT(*) FROM plant_bag_filter.installations),(SELECT COUNT(*) FROM plant_bag_filter.bag_audit),(SELECT COUNT(*) FROM plant_bag_filter.coordinates),(SELECT COUNT(*) FROM plant_consumables.materials),(SELECT COUNT(*) FROM plant_consumables.inventory),(SELECT COUNT(*) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.consumables_audit),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.inventory),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.stock_movements),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),id,quantity,balance_after,actor_id))) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.locations),(SELECT COUNT(*) FROM plant_consumables.stock_idempotency),(SELECT COUNT(*) FROM plant_consumables.catalog_imports),(SELECT COUNT(*) FROM plant_auth.app_grants),(SELECT COUNT(*) FROM plant_consumables.stock_documents),(SELECT COUNT(*) FROM plant_consumables.stock_document_sequences),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),id,number,type,hec,line_count,actor_id))) FROM plant_consumables.stock_documents),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),type,year,`last_value`))) FROM plant_consumables.stock_document_sequences)';
 const source = await mysql.createConnection(process.env.BAG_MIGRATION_DATABASE_URL!);
 let restored = false;
 try {
@@ -149,7 +149,14 @@ try {
     `MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -B -e '${countsSql}'`,
   ]);
   assert.deepEqual(result.stdout.trim().split('\t'), Object.values(before[0]).map(String));
-  console.log(JSON.stringify({ event: 'test.backup_restore', result: 'passed', tablesCompared: 14, file }));
+  console.log(
+    JSON.stringify({
+      event: 'test.backup_restore',
+      result: 'passed',
+      checksCompared: Object.keys(before[0]).length,
+      file,
+    }),
+  );
 } finally {
   if (restored) await docker(['stop', 'plant-v2-test-restore']);
   await source.end().catch(() => {});

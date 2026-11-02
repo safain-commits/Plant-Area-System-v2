@@ -22,7 +22,6 @@ import {
   sapToR22,
   validateStockQuantity,
   type Identity,
-  type StockLocation,
   type MaterialSearchResult,
   type StockDocument,
   type DocumentResult,
@@ -31,12 +30,8 @@ import {
 import { MaterialSearch } from './material-search';
 import { stockApi, StockApiError } from './r22-api';
 export function Picklist({ identity }: { identity: Identity }) {
-  const [locations, setLocations] = useState<StockLocation[]>([]),
-    [location, setLocation] = useState(''),
-    [draft, setDraft] = useState<CartDraft>(emptyCart),
-    [loaded, setLoaded] = useState(''),
-    [ready, setReady] = useState(false),
-    [reload, setReload] = useState(0);
+  const [draft, setDraft] = useState<CartDraft>(emptyCart),
+    [loaded, setLoaded] = useState('');
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
@@ -46,29 +41,8 @@ export function Picklist({ identity }: { identity: Identity }) {
     [focus, setFocus] = useState('');
   const confirm = useConfirmation(),
     prefill = useRef(''),
-    key = location ? cartKey(identity.id, 'picklist', location) : '';
+    key = cartKey(identity.id, 'picklist');
   const update = (patch: Partial<CartDraft>) => setDraft((v) => ({ ...v, ...patch }));
-  useEffect(() => {
-    const c = new AbortController();
-    stockApi('/locations', { signal: c.signal })
-      .then((d) => {
-        const active = d.items.filter((v: StockLocation) => v.active);
-        setLocations(active);
-        setLocation((v) =>
-          active.some((l: StockLocation) => l.id === v)
-            ? v
-            : active.find(
-                (l: StockLocation) => l.id === new URLSearchParams(window.location.search).get('location'),
-              )?.id || (active.length === 1 ? active[0].id : ''),
-        );
-        setReady(true);
-        setError('');
-      })
-      .catch((e) => {
-        if (e.name !== 'AbortError') setError(e.message);
-      });
-    return () => c.abort();
-  }, [reload]);
   useEffect(() => {
     if (!key) return;
     setDraft(readCart(key));
@@ -104,18 +78,17 @@ export function Picklist({ identity }: { identity: Identity }) {
     setFocus('');
   }, [draft.lines.length, focus]);
   useEffect(() => {
-    if (!location || loaded !== key || prefill.current === location) return;
+    if (loaded !== key || prefill.current === key) return;
     const id = new URLSearchParams(window.location.search).get('material');
     if (!id) return;
-    prefill.current = location;
+    prefill.current = key;
     stockApi('/materials/' + encodeURIComponent(id))
       .then((d) => {
-        const stock = d.stocks.find((v: MaterialSearchResult) => v.locationId === location);
+        const stock = d.stock;
         add(
           stock || {
             ...d.material,
             inventoryId: null,
-            locationId: location,
             rack: '',
             quantity: '0.000000',
             initialized: false,
@@ -124,7 +97,7 @@ export function Picklist({ identity }: { identity: Identity }) {
         );
       })
       .catch((e) => setError(e.message));
-  }, [location, loaded, key]);
+  }, [loaded, key]);
   useEffect(() => {
     const c = new AbortController();
     if (!draft.reservationNo.trim()) {
@@ -157,13 +130,12 @@ export function Picklist({ identity }: { identity: Identity }) {
   };
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy || !location || loaded !== key) return;
+    if (busy || loaded !== key) return;
     try {
       if (!draft.lines.length || draft.lines.length > 100) throw Error('Pilih 1–100 material unik.');
       if (!draft.reservationNo.trim() || !draft.wo.trim())
         throw Error('No. Reservasi dan WO No. wajib diisi.');
       const body = {
-        locationId: location,
         reservationNo: draft.reservationNo.trim(),
         wo: draft.wo.trim(),
         woDescription: draft.note.trim(),
@@ -188,7 +160,7 @@ export function Picklist({ identity }: { identity: Identity }) {
       };
       if (
         !(await confirm(
-          `Terima picklist ${body.reservationNo} · WO ${body.wo} · ${body.lines.length} item di ${locations.find((l) => l.id === location)?.name}?`,
+          `Terima picklist ${body.reservationNo} · WO ${body.wo} · ${body.lines.length} item ke stok R22?`,
         ))
       )
         return;
@@ -243,40 +215,10 @@ export function Picklist({ identity }: { identity: Identity }) {
         </div>
       </section>
     );
-  if (!ready)
+  if (loaded !== key)
     return (
       <section className="panel" role="status">
-        {error ? (
-          <>
-            <p role="alert">{error}</p>
-            <Button className="secondary" onClick={() => setReload((v) => v + 1)}>
-              Coba lagi
-            </Button>
-          </>
-        ) : (
-          'Memuat lokasi dan picklist…'
-        )}
-      </section>
-    );
-  if (!location)
-    return (
-      <section className="panel">
-        <h2>Pilih lokasi penerimaan</h2>
-        {locations.length ? (
-          <label>
-            Lokasi
-            <Select value="" onChange={(e) => setLocation(e.target.value)}>
-              <option value="">Pilih lokasi</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        ) : (
-          <p className="empty">Belum ada lokasi aktif. Hubungi admin.</p>
-        )}
+        Memuat picklist…
       </section>
     );
   return (
@@ -297,23 +239,6 @@ export function Picklist({ identity }: { identity: Identity }) {
           </div>
           <fieldset className="r22-fieldset" disabled={busy || loaded !== key}>
             <div className="form-grid">
-              {locations.length === 1 ? (
-                <div className="r22-static-field">
-                  <span>Lokasi</span>
-                  <strong>{locations[0].name}</strong>
-                </div>
-              ) : (
-                <label>
-                  Lokasi
-                  <Select value={location} onChange={(e) => setLocation(e.target.value)}>
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              )}
               <label>
                 No. Reservasi
                 <Input
@@ -388,7 +313,7 @@ export function Picklist({ identity }: { identity: Identity }) {
           )}
         </section>
         <section className="panel">
-          <MaterialSearch locationId={location} catalog onSelect={add} />
+          <MaterialSearch catalog onSelect={add} />
           <div className="section-title r22-cart-title">
             <h2>
               Material picklist <span className="badge neutral">{draft.lines.length} item</span>
@@ -428,7 +353,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                           : 'Konversi belum diatur'}
                     </small>
                     {!m.inventoryId ? (
-                      <span className="badge neutral">Baru di lokasi ini, akan didaftarkan otomatis</span>
+                      <span className="badge neutral">Baru di stok R22, akan didaftarkan otomatis</span>
                     ) : !m.initialized ? (
                       <span className="error-text">Belum dihitung, hubungi admin</span>
                     ) : (

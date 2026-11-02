@@ -26,7 +26,7 @@ test('fixed-point quantities preserve fractions, localization and overflow bound
     assert.throws(() => decimalUnits(v));
   assert.throws(() => decimalString(decimalUnits('999999999999.999999') + 1n));
 });
-test('consumable permissions are app-specific, scoped and fail closed', () => {
+test('consumable permissions are app-specific, shared within R22 and fail closed', () => {
   const actor = {
     id: 'x',
     name: 'x',
@@ -38,15 +38,14 @@ test('consumable permissions are app-specific, scoped and fail closed', () => {
   } as Identity;
   assert.equal(canConsume(actor, 'manage'), false);
   for (const role of ['viewer', 'operator', 'storekeeper', 'admin'] as const) {
-    actor.grants = [{ appId: 'consumables', role, locationIds: role === 'admin' ? [] : ['A'] }];
-    assert.equal(canConsume(actor, 'read', 'A'), true);
-    assert.equal(canConsume(actor, 'read', 'B'), role === 'admin');
-    assert.equal(canConsume(actor, 'issue', 'A'), role !== 'viewer');
-    assert.equal(canConsume(actor, 'receive', 'A'), role === 'storekeeper' || role === 'admin');
-    assert.equal(canConsume(actor, 'return', 'A'), role !== 'viewer');
-    assert.equal(canConsume(actor, 'onbehalf', 'A'), role === 'storekeeper' || role === 'admin');
-    assert.equal(canConsume(actor, 'manage', 'A'), role === 'admin');
-    assert.equal(canConsume(actor, 'invented' as never, 'A'), false);
+    actor.grants = [{ appId: 'consumables', role }];
+    assert.equal(canConsume(actor, 'read'), true);
+    assert.equal(canConsume(actor, 'issue'), role !== 'viewer');
+    assert.equal(canConsume(actor, 'receive'), role === 'storekeeper' || role === 'admin');
+    assert.equal(canConsume(actor, 'return'), role !== 'viewer');
+    assert.equal(canConsume(actor, 'onbehalf'), role === 'storekeeper' || role === 'admin');
+    assert.equal(canConsume(actor, 'manage'), role === 'admin');
+    assert.equal(canConsume(actor, 'invented' as never), false);
   }
   actor.mustChangePassword = true;
   assert.equal(canConsume(actor, 'read'), false);

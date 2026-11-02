@@ -7,9 +7,20 @@ import { seedEquipment, closeBagDb } from '@plant/bag-core';
 import { closeConsumablesDb } from '@plant/consumables-core';
 import { migrateConsumablesCatalog, provisionConsumables } from './consumables-migration';
 import { migrateEquipmentData } from './equipment-migration';
+import { preflightSingleRoom } from './consumables-room-migration';
 
 try {
   await provisionConsumables();
+  const preflight = await mysql.createConnection(process.env.CONSUMABLES_MIGRATION_DATABASE_URL!);
+  try {
+    const result = await preflightSingleRoom(preflight);
+    if (!result.ready)
+      throw Error(
+        'Migrasi R22 dihentikan: inventory/transaksi lama atau konflik R22 memerlukan peninjauan. Jalankan consumables:preflight.',
+      );
+  } finally {
+    await preflight.end();
+  }
   for (const [key, folder] of [
     ['AUTH_MIGRATION_DATABASE_URL', 'auth-core'],
     ['BAG_MIGRATION_DATABASE_URL', 'bag-core'],

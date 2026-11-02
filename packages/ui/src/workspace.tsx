@@ -114,10 +114,10 @@ export function Workspace({
   const sourceIds = [...(grant ? ['bag-filter'] : []), ...(stockGrant ? ['consumables'] : [])];
   const normalizeStock = (m: StockDocument): Activity => ({
     id: m.id,
-    equipmentCode: m.hec || m.locationName,
+    equipmentCode: m.hec || 'R22',
     wo: m.number,
     reason: stockDocumentLabels[m.type] + ' · ' + m.requesterName,
-    brand: m.locationName,
+    brand: 'R22',
     positionCount: m.lineCount,
     unit: 'item',
     actorName: m.actorName,

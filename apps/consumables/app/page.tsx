@@ -9,7 +9,7 @@ export default async function Page() {
       <Heading
         eyebrow="MATERIAL CONTROL"
         title="Consumable Room"
-        description="Stok, penerimaan, dan pemakaian material sesuai lokasi kerja Anda."
+        description="Stok, penerimaan, dan pemakaian material di ruang stok R22."
       />
       {canConsume(identity, 'read') ? (
         <StockSummary identity={identity} />

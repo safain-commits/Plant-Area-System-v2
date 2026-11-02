@@ -65,7 +65,6 @@ if (!/^CONSUMABLES_DB_PASSWORD=/m.test(stack)) {
 }
 const extra: Record<string, string> = {
   CONSUMABLES_DB_PASSWORD: secret,
-  CONSUMABLES_INTERNAL_URL: 'http://localhost:3003',
   CONSUMABLES_DATABASE_URL: `mysql://plant_consumables:${secret}@127.0.0.1:13306/plant_consumables`,
   CONSUMABLES_MIGRATION_DATABASE_URL: `mysql://root:${rootPassword}@127.0.0.1:13306/plant_consumables`,
 };

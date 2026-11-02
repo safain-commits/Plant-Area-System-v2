@@ -155,7 +155,6 @@ async function setup() {
     const host = {
       ...values,
       AUTH_INTERNAL_URL: 'http://localhost:3001',
-      CONSUMABLES_INTERNAL_URL: 'http://localhost:3003',
     };
     for (const [key, database, user, password] of [
       ['AUTH', 'plant_auth', 'plant_auth', values.AUTH_DB_PASSWORD],

@@ -140,8 +140,8 @@ Both themes use the same layout, the same lime, orange and age fills, and the sa
 7. **Hatch only on active lime, orange or highlight fills.** Never put it on placeholders, text, icons or age cells.
 8. **Age colors only come from the age tokens.** They never come from primary or secondary, and they are identical in both themes.
 9. **Gray roles.**
-    - **Light mode:** gray-950 for primary text, gray-700 for secondary text and gray-500 for captions. gray-400 is only for placeholders and axis ticks.
-    - **Dark mode:** captions use gray-400.
+   - **Light mode:** gray-950 for primary text, gray-700 for secondary text and gray-500 for captions. gray-400 is only for placeholders and axis ticks.
+   - **Dark mode:** captions use gray-400.
 10. **Elevation by tone.**
     - **Light-mode cards:** no border and no shadow.
     - **Shadows:** only on overlays, chart tooltips, the hero split panel, the hero card, a floating sidebar and hovered clickable cards.

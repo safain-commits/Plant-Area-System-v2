@@ -105,3 +105,7 @@ Dokumentasi diperiksa melalui Context7 (`/vercel/next.js`, `/better-auth/better-
 # Perluasan rilis: Consumable Room v1
 
 Mulai 23 Oktober 2026, Consumable Room menjadi aplikasi operasional keempat pada `/consumables`, memakai SSO dan UI yang sama. Persyaratan lengkap pada [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md). Katalog arsip diimpor sebagai master saja; saldo dimulai dari hitung fisik lokasi. Hak viewer/operator/storekeeper/admin mengikuti scope lokasi, terpisah dari scope equipment Bag Filter. Ketentuan rilis pertama Portal/Bag Filter di bawah tetap menjadi baseline historis.
+
+## Revisi R22 — 2 November 2026
+
+Perluasan Consumable Room menjadi v1.1: satu stok R22 tanpa fitur lokasi, rak opsional, HEC tujuan pekerjaan wajib pada Consume/Return, dokumen multi-item, retur, Picklist SAP dan bukti cetak. Grant hanya role; semua pengguna aplikasi melihat stok/riwayat yang sama. Ketentuan lokasi Consumables pada revisi terdahulu digantikan [PRD R22](CONSUMABLE-ROOM-PRD.md); scope equipment Bag Filter tetap berlaku.

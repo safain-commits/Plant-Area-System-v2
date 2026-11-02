@@ -14,7 +14,6 @@ import {
   type Identity,
   type Material,
   type InventoryItem,
-  type StockLocation,
   type Movement,
 } from '@plant/contracts';
 type AuditItem = { id: string; action: string; actorName: string; createdAt: string; details: string };
@@ -54,7 +53,6 @@ export function ConsumablesWorkspace({
   initialType?: string;
 }) {
   const [query, setQuery] = useState(''),
-    [location, setLocation] = useState(''),
     [availability, setAvailability] = useState(''),
     [category, setCategory] = useState(''),
     [type, setType] = useState(initialType),
@@ -62,8 +60,7 @@ export function ConsumablesWorkspace({
     [to, setTo] = useState(''),
     [catalog, setCatalog] = useState(false),
     [showInactive, setShowInactive] = useState(false);
-  const [locations, setLocations] = useState<StockLocation[]>([]),
-    [items, setItems] = useState<ListItem[]>([]),
+  const [items, setItems] = useState<ListItem[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [next, setNext] = useState<string | null>(null),
     [back, setBack] = useState<(string | null)[]>([]),
@@ -73,7 +70,7 @@ export function ConsumablesWorkspace({
     [notice, setNotice] = useState(''),
     [refresh, setRefresh] = useState(0),
     [checked, setChecked] = useState('');
-  const [detail, setDetail] = useState<{ material: Material; stocks: InventoryItem[] } | null>(null),
+  const [detail, setDetail] = useState<{ material: Material; stock: InventoryItem | null } | null>(null),
     [movement, setMovement] = useState<Movement | null>(null),
     [selected, setSelected] = useState<InventoryItem | null>(null),
     [editing, setEditing] = useState<Material | null>(null),
@@ -89,15 +86,9 @@ export function ConsumablesWorkspace({
       });
     return () => c.abort();
   }, [refresh]);
-  useEffect(() => {
-    get('/locations')
-      .then((d) => setLocations(d.items))
-      .catch((e) => setError(e.message));
-  }, [refresh]);
   const load = useCallback(
     async (signal: AbortSignal) => {
       const p = new URLSearchParams({ q: query });
-      if (location) p.set('locationId', location);
       if (cursor) p.set('cursor', cursor);
       if (availability) p.set('availability', availability);
       if (category) p.set('category', category);
@@ -115,20 +106,7 @@ export function ConsumablesWorkspace({
               : '/inventory';
       return get(path + '?' + p, signal);
     },
-    [
-      view,
-      query,
-      location,
-      cursor,
-      availability,
-      category,
-      type,
-      from,
-      to,
-      catalog,
-      management,
-      showInactive,
-    ],
+    [view, query, cursor, availability, category, type, from, to, catalog, management, showInactive],
   );
   useEffect(() => {
     const controller = new AbortController();
@@ -162,12 +140,11 @@ export function ConsumablesWorkspace({
   useEffect(() => {
     setCursor(null);
     setBack([]);
-  }, [query, location, availability, category, type, from, to, catalog, management, showInactive]);
+  }, [query, availability, category, type, from, to, catalog, management, showInactive]);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (['available', 'empty', 'uncounted', 'critical'].includes(p.get('availability') || ''))
       setAvailability(p.get('availability')!);
-    if (p.get('location')) setLocation(p.get('location')!);
     if (p.get('movement'))
       get('/movements/' + encodeURIComponent(p.get('movement')!))
         .then((d) => setMovement(d.movement))
@@ -177,7 +154,7 @@ export function ConsumablesWorkspace({
         .then((d) => {
           if (view === 'stock') setDetail(d);
           else if (view === 'history') setQuery(d.material.mmid);
-          else setSelected(d.stocks.find((i: InventoryItem) => i.locationId === p.get('location')) || null);
+          else setSelected(d.stock);
         })
         .catch((e) => setError(e.message));
   }, [view]);
@@ -203,26 +180,6 @@ export function ConsumablesWorkspace({
           placeholder="MMID, nama, kategori, rak, WO…"
         />
       </label>
-      {!catalog && (
-        <label>
-          Lokasi
-          <Select
-            value={location}
-            onChange={(e) => {
-              setLocation(e.target.value);
-              setSelected(null);
-            }}
-          >
-            <option value="">Semua lokasi Anda</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-                {!l.active ? ' · Nonaktif' : ''}
-              </option>
-            ))}
-          </Select>
-        </label>
-      )}
       {view === 'history' ? (
         <>
           <label>
@@ -330,8 +287,7 @@ export function ConsumablesWorkspace({
           <div className="stock-tabs" role="group" aria-label="Pengelolaan">
             {[
               ['materials', 'Master material'],
-              ['locations', 'Lokasi'],
-              ['inventory', 'Daftar stok & saldo awal'],
+              ['inventory', 'Stok, rak & saldo awal'],
             ].map(([v, l]) => (
               <Button
                 key={v}
@@ -347,9 +303,7 @@ export function ConsumablesWorkspace({
               </Button>
             ))}
           </div>
-          {management === 'locations' ? (
-            <LocationManagement locations={locations} saved={saved} />
-          ) : management === 'materials' ? (
+          {management === 'materials' ? (
             <>
               <section className="panel">
                 <MaterialEditor
@@ -375,7 +329,7 @@ export function ConsumablesWorkspace({
           ) : (
             <>
               <section className="panel">
-                <Enrollment locations={locations} saved={saved} />
+                <Enrollment saved={saved} />
               </section>
               <section className="panel">
                 {filters}
@@ -393,9 +347,7 @@ export function ConsumablesWorkspace({
                   <h2>
                     {selected.initialized ? 'Koreksi saldo' : 'Konfirmasi saldo awal'} · {selected.mmid}
                   </h2>
-                  <p className="muted">
-                    {selected.description} · {selected.locationName}
-                  </p>
+                  <p className="muted">{selected.description}</p>
                   <StockTransaction
                     key={`${selected.inventoryId}-${selected.inventoryVersion}`}
                     item={selected}
@@ -442,7 +394,7 @@ export function ConsumablesWorkspace({
                 aria-pressed={!catalog}
                 onClick={() => setCatalog(false)}
               >
-                Stok lokasi
+                Stok R22
               </Button>
               <Button
                 className={catalog ? 'primary small' : 'secondary small'}
@@ -545,33 +497,27 @@ export function ConsumablesWorkspace({
                 </div>
               ))}
             </dl>
-            <h3>Stok pada lokasi Anda</h3>
-            {!detail.stocks.length ? (
-              <p className="empty">Belum terdaftar pada lokasi Anda.</p>
+            <h3>Stok R22</h3>
+            {!detail.stock ? (
+              <p className="empty">Belum terdaftar di stok R22.</p>
             ) : (
-              detail.stocks.map((i) => (
+              [detail.stock].map((i) => (
                 <article className="stock-detail-location" key={i.inventoryId}>
-                  <strong>
-                    {i.locationName} ·{' '}
-                    {i.initialized ? quantity(i.quantity) + ' ' + i.unit : 'Belum dihitung'}
-                  </strong>
+                  <strong>{i.initialized ? quantity(i.quantity) + ' ' + i.unit : 'Belum dihitung'}</strong>
                   <small>Rak: {i.rack || 'Belum diatur'}</small>
                   <AddToOrder identity={identity} item={i} />
                   <div className="inline">
-                    {canConsume(identity, 'receive', i.locationId) && i.initialized && (
-                      <a
-                        className="button secondary small"
-                        href={`/consumables/picklist?material=${i.id}&location=${i.locationId}`}
-                      >
+                    {canConsume(identity, 'receive') && i.initialized && (
+                      <a className="button secondary small" href={`/consumables/picklist?material=${i.id}`}>
                         Penerimaan Picklist
                       </a>
                     )}
-                    <a href={`/consumables/history?material=${i.id}&location=${i.locationId}`}>Riwayat</a>
+                    <a href={`/consumables/history?material=${i.id}`}>Riwayat</a>
                   </div>
                 </article>
               ))
             )}
-            {admin && <a href="/consumables/manage">Kelola material dan lokasi ↗</a>}
+            {admin && <a href="/consumables/manage">Kelola material dan stok ↗</a>}
           </>
         )}
       </Overlay>
@@ -584,7 +530,6 @@ export function ConsumablesWorkspace({
             </h2>
             <dl className="stock-detail-grid">
               {[
-                ['Lokasi', movement.locationName],
                 ['Perubahan stok', quantity(movement.quantity) + ' ' + movement.unit],
                 ['Saldo sesudah pencatatan', quantity(movement.balanceAfter) + ' ' + movement.unit],
                 [
@@ -630,7 +575,7 @@ function StockRows({
     <div className="stock-table" aria-busy={busy}>
       <div className="stock-table-head">
         <span>Material</span>
-        <span>Lokasi / rak</span>
+        <span>Rak</span>
         <span>Saldo</span>
       </div>
       {items.map((m) => (
@@ -645,13 +590,10 @@ function StockRows({
             {m.mmid} · {m.description}
             <small>
               {m.critical ? ' · Critical' : ''}
-              {!m.active || !m.inventoryActive || !m.locationActive ? ' · Nonaktif' : ''}
+              {!m.active || !m.inventoryActive ? ' · Nonaktif' : ''}
             </small>
           </span>
-          <span>
-            {m.locationName}
-            <small>{m.rack || 'Rak belum diatur'}</small>
-          </span>
+          <span>{m.rack || 'Belum diatur'}</span>
           <span>
             <strong>{m.initialized ? quantity(m.quantity) : 'Belum dihitung'}</strong>
             <small>{m.initialized ? m.unit : 'Konfirmasi saldo awal'}</small>
@@ -713,7 +655,7 @@ function MovementRows({
   return (
     <div className="stock-table" aria-busy={busy}>
       <div className="stock-table-head">
-        <span>Material / lokasi</span>
+        <span>Material</span>
         <span>Transaksi</span>
         <span>Jumlah</span>
       </div>
@@ -723,9 +665,7 @@ function MovementRows({
             <strong>
               {m.mmid} · {m.description}
             </strong>
-            <small>
-              {m.locationName} · {m.reference || m.job || m.reason}
-            </small>
+            <small>{m.reference || m.job || m.reason}</small>
           </span>
           <span>
             {labels[m.type]}
@@ -771,16 +711,11 @@ function StockTransaction({
         if (busy || success) return;
         const body = {
           materialId: item.id,
-          locationId: item.locationId,
           quantity: localDecimal(amount),
           reason: new FormData(e.currentTarget).get('reason'),
           expectedVersion: item.inventoryVersion,
         };
-        if (
-          !(await confirm(
-            `${labels[kind]} ${item.mmid} di ${item.locationName}: jumlah fisik ${amount} ${item.unit}?`,
-          ))
-        )
+        if (!(await confirm(`${labels[kind]} ${item.mmid} di R22: jumlah fisik ${amount} ${item.unit}?`)))
           return;
         const fingerprint = JSON.stringify(body),
           key = pending?.fingerprint === fingerprint ? pending.key : crypto.randomUUID();
@@ -806,7 +741,7 @@ function StockTransaction({
       }}
     >
       <p className="muted">
-        {item.commonName || item.description} · {item.locationName} · Saldo:{' '}
+        {item.commonName || item.description} · Saldo:{' '}
         {item.initialized ? quantity(item.quantity) + ' ' + item.unit : 'Belum dihitung'}
       </p>
       {error && (
@@ -1065,70 +1000,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
     </form>
   );
 }
-function LocationManagement({ locations, saved }: { locations: StockLocation[]; saved: () => void }) {
-  return (
-    <section className="panel">
-      <h2>Lokasi penyimpanan</h2>
-      <LocationEditor saved={saved} />
-      <div className="stock-location-list">
-        {locations.map((l) => (
-          <LocationEditor key={`${l.id}-${l.version}`} location={l} saved={saved} />
-        ))}
-      </div>
-    </section>
-  );
-}
-function LocationEditor({ location, saved }: { location?: StockLocation; saved: () => void }) {
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
-  return (
-    <form
-      className="form-stack stock-location-editor"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        setError('');
-        const f = new FormData(e.currentTarget),
-          form = e.currentTarget;
-        try {
-          await send(
-            '/locations' + (location ? '/' + location.id : ''),
-            {
-              name: f.get('name'),
-              active: f.has('active'),
-              ...(location ? { version: location.version } : {}),
-            },
-            location ? 'PATCH' : 'POST',
-          );
-          if (!location) form.reset();
-          saved();
-        } catch (e) {
-          setError((e as Error).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {error && (
-        <p className="notice error" role="alert">
-          {error}
-        </p>
-      )}
-      <label>
-        {location ? 'Nama lokasi' : 'Nama lokasi baru'}
-        <Input name="name" defaultValue={location?.name} required maxLength={100} />
-      </label>
-      <label className="inline">
-        <input type="checkbox" name="active" defaultChecked={location?.active ?? true} />
-        Lokasi aktif
-      </label>
-      <Button className="secondary small" busy={busy}>
-        {location ? 'Simpan lokasi' : 'Tambah lokasi'}
-      </Button>
-    </form>
-  );
-}
-function Enrollment({ locations, saved }: { locations: StockLocation[]; saved: () => void }) {
+function Enrollment({ saved }: { saved: () => void }) {
   const [m, setM] = useState<Material | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
@@ -1147,7 +1019,6 @@ function Enrollment({ locations, saved }: { locations: StockLocation[]; saved: (
         try {
           await send('/inventory', {
             materialId: m.id,
-            locationId: f.get('locationId'),
             rack: f.get('rack'),
             active: true,
           });
@@ -1159,7 +1030,7 @@ function Enrollment({ locations, saved }: { locations: StockLocation[]; saved: (
         }
       }}
     >
-      <h2>Daftarkan material ke lokasi</h2>
+      <h2>Daftarkan material ke stok R22</h2>
       <p className="fine">
         Sesudah didaftarkan, pilih material di bawah untuk mengonfirmasi saldo awal termasuk jika nol.
       </p>
@@ -1171,25 +1042,12 @@ function Enrollment({ locations, saved }: { locations: StockLocation[]; saved: (
       <MaterialPicker selected={m} onSelect={setM} />
       <div className="form-grid">
         <label>
-          Lokasi
-          <Select name="locationId" required>
-            <option value="">Pilih lokasi</option>
-            {locations
-              .filter((l) => l.active)
-              .map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-          </Select>
-        </label>
-        <label>
-          Lokasi rak (opsional)
+          Rak (opsional)
           <Input name="rack" maxLength={100} />
         </label>
       </div>
-      <Button className="primary" busy={busy} disabled={!locations.some((l) => l.active)}>
-        Daftarkan stok lokasi
+      <Button className="primary" busy={busy}>
+        Daftarkan material
       </Button>
     </form>
   );
@@ -1209,7 +1067,6 @@ function InventoryEditor({ item, saved }: { item: InventoryItem; saved: () => vo
             '/inventory/' + item.inventoryId,
             {
               materialId: item.id,
-              locationId: item.locationId,
               rack: f.get('rack'),
               active: f.has('active'),
               version: item.inventoryVersion,
@@ -1231,7 +1088,7 @@ function InventoryEditor({ item, saved }: { item: InventoryItem; saved: () => vo
         </p>
       )}
       <label>
-        Lokasi rak
+        Rak (opsional)
         <Input name="rack" maxLength={100} defaultValue={item.rack} />
       </label>
       <label className="inline">

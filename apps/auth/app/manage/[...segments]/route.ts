@@ -10,7 +10,6 @@ import {
   authAudit,
   listApplications,
   setApplicationStatus,
-  listScopeLocations,
   setAppGrant,
 } from '@plant/auth-core';
 import { AppError } from '@plant/contracts';
@@ -24,11 +23,6 @@ export async function GET(request: Request, context: Context) {
     const actor = await identityForCookie(request.headers.get('cookie') || '', path === 'me');
     if (path === 'me')
       return Response.json({ identity: actor }, { headers: { 'Cache-Control': 'no-store' } });
-    if (path === 'admin/applications/consumables/locations')
-      return Response.json(
-        { items: await listScopeLocations(actor) },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
     if (path === 'admin/users')
       return Response.json({ users: await listUsers(actor) }, { headers: { 'Cache-Control': 'no-store' } });
     if (path === 'admin/applications')

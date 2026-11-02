@@ -4,11 +4,9 @@ import { Input, Icon } from '@plant/ui';
 import { formatQuantity, type MaterialSearchResult } from '@plant/contracts';
 import { stockApi } from './r22-api';
 export function MaterialSearch({
-  locationId,
   catalog = false,
   onSelect,
 }: {
-  locationId: string;
   catalog?: boolean;
   onSelect: (m: MaterialSearchResult) => void;
 }) {
@@ -38,7 +36,7 @@ export function MaterialSearch({
   }, []);
   useEffect(() => {
     const c = new AbortController();
-    if (!query.trim() || !locationId) {
+    if (!query.trim()) {
       setItems([]);
       setBusy(false);
       return;
@@ -46,7 +44,7 @@ export function MaterialSearch({
     const timer = setTimeout(() => {
       setBusy(true);
       setError('');
-      stockApi(`/${catalog ? 'catalog-search' : 'search'}?` + new URLSearchParams({ q: query, locationId }), {
+      stockApi(`/${catalog ? 'catalog-search' : 'search'}?` + new URLSearchParams({ q: query }), {
         signal: c.signal,
       })
         .then((d) => {
@@ -75,7 +73,7 @@ export function MaterialSearch({
       clearTimeout(timer);
       c.abort();
     };
-  }, [query, locationId, catalog]);
+  }, [query, catalog]);
   return (
     <div className="r22-search" ref={container}>
       <label htmlFor={id}>
@@ -87,9 +85,8 @@ export function MaterialSearch({
           id={id}
           ref={input}
           type="search"
-          disabled={!locationId}
           value={query}
-          placeholder={locationId ? 'Contoh: baut M16 atau MMID' : 'Pilih lokasi terlebih dahulu'}
+          placeholder="Contoh: baut M16 atau MMID"
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={open}
@@ -135,7 +132,7 @@ export function MaterialSearch({
           className="r22-search-options"
         >
           {!busy && !items.length ? (
-            <p className="empty">Material tidak ditemukan pada {catalog ? 'master' : 'lokasi ini'}.</p>
+            <p className="empty">Material tidak ditemukan pada {catalog ? 'master' : 'stok R22'}.</p>
           ) : (
             items.map((m, i) => (
               <div
@@ -160,7 +157,7 @@ export function MaterialSearch({
                     ? m.initialized
                       ? `Stok: ${formatQuantity(m.quantity)} ${m.unit}`
                       : 'Belum dihitung'
-                    : 'Baru di lokasi ini'}
+                    : 'Baru di stok R22'}
                   {m.rack ? ` · Rak ${m.rack}` : ''}
                 </span>
               </div>

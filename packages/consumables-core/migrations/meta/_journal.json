@@ -22,6 +22,13 @@
       "when": 1793614811117,
       "tag": "0002_high_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1793618187114,
+      "tag": "0003_r22_single_room",
+      "breakpoints": true
     }
   ]
 }

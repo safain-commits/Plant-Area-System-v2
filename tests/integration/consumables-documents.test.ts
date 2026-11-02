@@ -5,7 +5,6 @@ import mysql from 'mysql2/promise';
 import { eq, sql } from 'drizzle-orm';
 import {
   saveMaterial,
-  saveLocation,
   saveInventory,
   postMovement,
   createDocument,
@@ -35,11 +34,11 @@ const actor: Identity = {
   position: '',
   portalAdmin: false,
   mustChangePassword: false,
-  grants: [{ appId: 'consumables', role: 'admin', locationIds: [] }],
+  grants: [{ appId: 'consumables', role: 'admin' }],
 };
 const key = () => randomUUID();
 async function fixture(n = 2) {
-  const locationId = (await saveLocation(actor, { name: 'R22 ' + key() })).id;
+  const fixtureWo = 'WO-' + key();
   const list: Array<{
     id: string;
     source: {
@@ -67,24 +66,22 @@ async function fixture(n = 2) {
       category: 'Synthetic',
     };
     const id = (await saveMaterial(actor, source)).id;
-    await saveInventory(actor, { materialId: id, locationId });
+    await saveInventory(actor, { materialId: id });
     await postMovement(
       actor,
       'opening',
-      { materialId: id, locationId, quantity: '10', reason: 'Fixture', expectedVersion: 1 },
+      { materialId: id, quantity: '10', reason: 'Fixture', expectedVersion: 1 },
       key(),
     );
     list.push({ id, source });
   }
   const input = {
-    locationId,
     hec: ' tq.452-bu1 ',
-    wo: 'WO-fixture',
+    wo: fixtureWo,
     lines: list.map((m) => ({ materialId: m.id, quantity: '2' })),
   };
-  const quantity = async (id = list[0].id) =>
-    (await materialDetail(actor, id)).stocks.find((i) => i.locationId === locationId)!.quantity;
-  return { locationId, list, input, quantity };
+  const quantity = async (id = list[0].id) => (await materialDetail(actor, id)).stock!.quantity;
+  return { list, input, quantity };
 }
 const status = (n: number) => (e: unknown) => e instanceof AppError && e.status === n;
 test('R22 multi-item consume is atomic, reports every shortage, and replays normalized payload', async () => {
@@ -103,10 +100,8 @@ test('R22 multi-item consume is atomic, reports every shortage, and replays norm
       e.lines.every((v) => v.available === '10.000000' && v.requested === '11.000000'),
   );
   assert.equal(await f.quantity(), '10.000000');
-  assert.equal(
-    (await listDocuments(actor, new URLSearchParams({ locationId: f.locationId }))).items.length,
-    0,
-  );
+  assert.equal((await listDocuments(actor, new URLSearchParams({ q: f.input.wo }))).items.length, 0);
+  const before = await stockDashboard(actor);
   const result = await createDocument(actor, 'consume', f.input, k);
   assert.equal(result.lines.length, 2);
   assert.equal(result.document.hec, '452-BU1');
@@ -126,11 +121,11 @@ test('R22 multi-item consume is atomic, reports every shortage, and replays norm
   assert.equal((await hecSuggestions(actor, 'tq.452')).items[0], '452-BU1');
   const dashboard = await stockDashboard({
     ...actor,
-    grants: [{ appId: 'consumables', role: 'viewer', locationIds: [f.locationId] }],
+    grants: [{ appId: 'consumables', role: 'viewer' }],
   });
   assert.equal(
     dashboard.series.reduce((v, q) => v + q.consume, 0),
-    1,
+    before.series.reduce((v, q) => v + q.consume, 0) + 1,
   );
   assert.equal((await discovery(actor, result.document.number)).items[0].id, result.document.id);
 });
@@ -162,8 +157,7 @@ test('R22 picklist conversion, partial reservation warning, K3 and historical sn
   const f = await fixture(1),
     materialId = (await saveMaterial(actor, { ...f.list[0].source, mmid: 'NEW-' + key() })).id;
   const input = {
-    locationId: f.locationId,
-    reservationNo: 'RES-' + key().slice(0,24),
+    reservationNo: 'RES-' + key().slice(0, 24),
     wo: 'WO',
     functionalLocation: 'TQ.452-BU1 - SAP description',
     requiredDate: '2026-11-02',
@@ -177,7 +171,7 @@ test('R22 picklist conversion, partial reservation warning, K3 and historical sn
   assert.equal(result.lines[0].sapUnit, 'SET');
   assert.equal(result.lines[0].sapQuantity, '3.000000');
   assert.equal(result.lines[0].packSize, '2.000000');
-  const stock = (await materialDetail(actor, materialId)).stocks[0];
+  const stock = (await materialDetail(actor, materialId)).stock!;
   assert.equal(stock.initialized, true);
   assert.equal(stock.rack, '');
   const ledger = await getConsumablesDb()
@@ -210,7 +204,7 @@ test('R22 picklist conversion, partial reservation warning, K3 and historical sn
   assert.equal(historical.lines[0].packSize, '2.000000');
   assert.equal(historical.lines[0].commonName, 'Baut M16');
   const uncounted = (await saveMaterial(actor, { ...f.list[0].source, mmid: 'UNCOUNTED-' + key() })).id;
-  await saveInventory(actor, { materialId: uncounted, locationId: f.locationId });
+  await saveInventory(actor, { materialId: uncounted });
   await assert.rejects(
     createDocument(actor, 'picklist', { ...input, lines: [{ materialId: uncounted, quantity: '2' }] }, key()),
     (e) => e instanceof DocumentConflict && e.lines[0].error.includes('Belum dihitung'),
@@ -220,15 +214,15 @@ test('R22 picklist conversion, partial reservation warning, K3 and historical sn
     status(404),
   );
 });
-test('R22 permissions, malformed quantities, scope and ranked search fail closed', async () => {
+test('R22 permissions, malformed quantities, shared stock and ranked search fail closed', async () => {
   const f = await fixture();
   const viewer = {
     ...actor,
-    grants: [{ appId: 'consumables' as const, role: 'viewer' as const, locationIds: [f.locationId] }],
+    grants: [{ appId: 'consumables' as const, role: 'viewer' as const }],
   };
   const operator = {
     ...viewer,
-    grants: [{ appId: 'consumables' as const, role: 'operator' as const, locationIds: [f.locationId] }],
+    grants: [{ appId: 'consumables' as const, role: 'operator' as const }],
   };
   await assert.rejects(createDocument(viewer, 'consume', f.input, key()), status(403));
   await assert.rejects(
@@ -246,13 +240,10 @@ test('R22 permissions, malformed quantities, scope and ranked search fail closed
   assert.equal(behalf.document.requesterName, 'Client');
   const outside = {
     ...operator,
-    grants: [{ appId: 'consumables' as const, role: 'operator' as const, locationIds: [key()] }],
+    grants: [],
   };
-  await assert.rejects(documentDetail(outside, behalf.document.id), status(404));
-  await assert.rejects(
-    searchMaterials(outside, new URLSearchParams({ q: 'baut', locationId: f.locationId })),
-    status(403),
-  );
+  await assert.rejects(documentDetail(outside, behalf.document.id), status(403));
+  await assert.rejects(searchMaterials(outside, new URLSearchParams({ q: 'baut' })), status(403));
   await assert.rejects(
     createDocument(actor, 'consume', { ...f.input, lines: [f.input.lines[0], f.input.lines[0]] }, key()),
     status(400),
@@ -269,21 +260,13 @@ test('R22 permissions, malformed quantities, scope and ranked search fail closed
     );
   for (const hec of ['', '452 BU1', '452-BU11'])
     await assert.rejects(createDocument(actor, 'consume', { ...f.input, hec }, key()), status(400));
-  const found = await searchMaterials(
-    operator,
-    new URLSearchParams({ q: 'fastener', locationId: f.locationId }),
-  );
-  assert.equal(found.items.length, 2);
+  const found = await searchMaterials(operator, new URLSearchParams({ q: 'fastener' }));
+  assert.ok(found.items.length >= 2);
+  assert.ok(found.items.length <= 8);
   assert.equal(found.items[0].quantity.includes('.'), true);
-  const exact = await searchMaterials(
-    operator,
-    new URLSearchParams({ q: f.list[0].source.mmid, locationId: f.locationId }),
-  );
+  const exact = await searchMaterials(operator, new URLSearchParams({ q: f.list[0].source.mmid }));
   assert.equal(exact.items[0].id, f.list[0].id);
-  assert.equal(
-    (await searchMaterials(operator, new URLSearchParams({ q: '%', locationId: f.locationId }))).items.length,
-    0,
-  );
+  assert.equal((await searchMaterials(operator, new URLSearchParams({ q: '%' }))).items.length, 0);
   await assert.rejects(searchMaterials(operator, new URLSearchParams({ q: 'baut' }), true), status(403));
 });
 test('R22 audit failure rolls back document, all balances, auto enrollment, idempotency and sequence', async () => {
@@ -296,10 +279,7 @@ test('R22 audit failure rolls back document, all balances, auto enrollment, idem
     );
     await assert.rejects(createDocument(actor, 'consume', f.input, k));
     assert.equal(await f.quantity(), '10.000000');
-    assert.equal(
-      (await listDocuments(actor, new URLSearchParams({ locationId: f.locationId }))).items.length,
-      0,
-    );
+    assert.equal((await listDocuments(actor, new URLSearchParams({ q: f.input.wo }))).items.length, 0);
   } finally {
     await c.query('DROP TRIGGER IF EXISTS r22_fail');
     await c.end();

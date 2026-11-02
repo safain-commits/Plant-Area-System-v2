@@ -108,8 +108,17 @@ Build terpisah: `pnpm --filter @plant/portal build`, `pnpm --filter @plant/auth 
 
 Kebutuhan sebelum go-live: hostname dan sertifikat organisasi, rahasia deployment, salinan backup di luar host, uji orientasi oleh operator, serta restore drill pada server tujuan.
 
-## Consumable Room v1
+## Consumable Room v1.1 — R22
 
-Aplikasi keempat tersedia pada `/consumables`: katalog master, stok per lokasi/rak, penerimaan pack/satuan dasar, pemakaian mandiri, saldo awal fisik, koreksi dan audit. Akses diatur terpisah dari Bag Filter melalui Kelola akses dengan role viewer/operator/storekeeper/admin dan scope lokasi.
+Satu stok R22 pada `/consumables`, tanpa pengelolaan lokasi. Rak tetap opsional. Consume/Return memakai HEC wajib dan keranjang multi-item persisten; Penerimaan Picklist mendukung konversi SAP → satuan terkecil R22 serta bukti cetak bernomor. Role Viewer, Client, R22 Cashier dan Admin mengatur tindakan; semua grant melihat stok/riwayat yang sama.
 
-Mulai dari [PRD Consumable Room](docs/CONSUMABLE-ROOM-PRD.md), [kontrak API](docs/API.md), dan [panduan upgrade/impor](docs/OPERATIONS.md). Tambahkan secret database baru sesuai `.env.example`; migrasi mendukung volume lama tanpa reset. Katalog arsip tetap privat dan tidak dimasukkan ke Git/image. Impor hanya master, bukan stok lama; lokasi dan saldo awal harus diatur berdasarkan kondisi aktual.
+Mulai dari [PRD R22](docs/CONSUMABLE-ROOM-PRD.md), [kontrak API](docs/API.md), serta [upgrade R22 dan handover OpenClaw](docs/deployment/R22-UPGRADE.md). Migrasi aditif `0002`/`0003` mempertahankan master dan history. Preflight menolak data yang perlu digabungkan; tidak mereset database. Produksi harus diperbarui melalui SHA teruji dan checkpoint backup/maintenance.
+
+```sh
+pnpm consumables:preflight
+pnpm consumables:import-naming /private/naming.csv --dry-run
+pnpm consumables:import-naming /private/naming.csv --apply
+pnpm consumables:reconcile
+```
+
+CSV penamaan, katalog, PPTX dan dump perusahaan tetap privat di luar Git/image. Impor master tidak membawa saldo SAP. Saldo R22 dikonfirmasi melalui hitung fisik; detail format CSV dan aturan replay ada di runbook R22.

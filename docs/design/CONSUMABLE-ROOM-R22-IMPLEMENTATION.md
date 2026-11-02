@@ -1,9 +1,17 @@
 # Rencana implementasi Consumable Room v1.1 — R22
 
 Tanggal: 2 November 2026. Baseline: `30df358`.
-Status: **Disetujui 2 November 2026. Fase 1–4 selesai; Fase 5 dalam pengerjaan**.
+Status: **Disetujui 2 November 2026. Fase 1–5 selesai dan teruji lokal/terisolasi; deployment VPS mengikuti checkpoint rilis**.
 
 Acuan kebutuhan: [brief revisi R22](../CONSUMABLE-ROOM-R22-REVISION-PROMPT.md), PRD Consumable Room, kontrak API, dan design system aktif. Keputusan K1–K4 pada brief tetap berlaku. R22 memakai aplikasi `/consumables` yang sudah ada.
+
+## Revisi disetujui: satu stok tanpa Lokasi
+
+Keputusan terbaru menggantikan persyaratan scope lokasi di rencana awal ini: grant Consumables hanya appId/role; semua pengguna membaca stok dan dokumen R22 yang sama. Rak opsional; HEC pekerjaan tetap wajib. UI/API tidak menerima locationId; material detail mempunyai satu stock nullable. Draft disimpan per user/jenis, draft lokasi lama diabaikan. Kelola akses tidak membaca metadata lokasi.
+
+Migrasi baru `0003_r22_single_room.sql` membuat ruang internal R22 tanpa mengubah migrasi 0000–0002. Preflight menolak inventory/ledger/dokumen noncanonical atau konflik ruang, tanpa menggabungkan atau menghapus data. Master-only sesuai konfirmasi produksi. Scope legacy dibersihkan satu kali dengan role/grant lain dipertahankan. Panduan lengkap: [upgrade R22](../deployment/R22-UPGRADE.md).
+
+Bagian audit berikut mencatat keadaan sebelum implementasi. Ketentuan lokasi pada urutan awal di bawah digantikan revisi ini dan [PRD v1.1](../CONSUMABLE-ROOM-PRD.md).
 
 ## 1. Hasil pemeriksaan
 
@@ -109,3 +117,9 @@ Penerimaan Fase 1–5 mencakup:
 Asumsi A1–A5 tetap dipakai selama implementasi. Laporan akhir membawa daftar konfirmasi format HEC/SEC, kewajiban WO picklist, nomor dokumen, `COUNT_UNITS`, dan visibilitas dokumen sesama pengguna di lokasi yang sama. Tidak memerlukan keputusan ulang atas K1–K4.
 
 Rujukan teknis diperiksa melalui Context7: [Drizzle MySQL migrations](https://orm.drizzle.team/docs/migrations), [Next.js redirects/basePath](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects). Implementasi memakai versi yang sudah dipin; tidak menaikkan dependency untuk fase inti.
+
+## Penutupan Fase 5 dan revisi stok tunggal
+
+CLI naming dry-run/apply/replay tersedia, termasuk validasi UTF-8/CSV, field kosong tidak mengubah nilai, unit terkunci dan peninjauan konversi legacy. Stok tunggal memakai 0003 dan preflight read-only; grant hanya role. Seluruh UI/API/riwayat/cetak memakai satu saldo dan rak opsional. Endpoint lama 410, metadata grant dihapus, dan draft per lokasi diabaikan.
+
+Hasil aktual: typecheck root + empat aplikasi, 16 unit, 33 integrasi MySQL, build empat aplikasi, 17 browser HTTPS, 3 pemeriksaan ulang UI akhir, restore tiga database dengan 27 fingerprint tabel, serta smoke development lokal lulus. Detail dan bukti privat tercantum di [VALIDATION](../VALIDATION.md). VPS belum diperbarui oleh pekerjaan ini; ikuti [R22-UPGRADE](../deployment/R22-UPGRADE.md). Barcode/QR tetap di luar Fase 1–5.

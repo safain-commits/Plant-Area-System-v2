@@ -28,7 +28,7 @@ test.beforeAll(async () => {
   const temporary = randomUUID();
   userId = (await createUser(actor, { email, password: temporary, name: actor.name })).id;
   await setGrant(actor, userId, { appId: 'bag-filter', role: 'admin', equipment: [...equipmentCodes] });
-  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin', locationIds: [] });
+  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin' });
   await changePassword({ ...actor, id: userId }, temporary, password);
   client = await request.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
   const result = await client.post('/auth/api/sign-in/email', {
@@ -129,7 +129,7 @@ for (const theme of ['light', 'dark'])
     if (await rows.count()) await readable(rows.first());
     await page.goto('/consumables/manage');
     const tabs = page.getByRole('group', { name: 'Pengelolaan', exact: true }).getByRole('button');
-    await expect(tabs).toHaveCount(3);
+    await expect(tabs).toHaveCount(2);
     for (const tab of await tabs.all()) await readable(tab);
     await page.mouse.move(0, 0);
     await page.getByRole('button', { name: 'Menu akun', exact: true }).click();

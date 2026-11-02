@@ -61,42 +61,10 @@ function decodeGrant(g: {
       return { appId: 'bag-filter', role: g.role as BagRole, equipment };
     }
     if (g.appId === 'consumables' && consumablesRoles.includes(g.role as (typeof consumablesRoles)[number])) {
-      const scope = JSON.parse(g.scope || 'null');
-      if (
-        !scope ||
-        !Array.isArray(scope.locationIds) ||
-        scope.locationIds.some((id: unknown) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) ||
-        new Set(scope.locationIds).size !== scope.locationIds.length ||
-        (g.role !== 'admin' && !scope.locationIds.length)
-      )
-        return null;
-      return {
-        appId: 'consumables',
-        role: g.role as (typeof consumablesRoles)[number],
-        locationIds: scope.locationIds,
-      };
+      return { appId: 'consumables', role: g.role as (typeof consumablesRoles)[number] };
     }
   } catch {}
   return null;
-}
-export async function listScopeLocations(actor: Identity) {
-  requireAdmin(actor);
-  const base = process.env.CONSUMABLES_INTERNAL_URL,
-    token = process.env.SERVICE_TOKEN;
-  if (!base || !token) throw new AppError(503, 'Layanan lokasi belum dikonfigurasi.');
-  try {
-    const response = await fetch(`${base}/consumables/internal/locations`, {
-      headers: { 'x-plant-service-token': token },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) throw Error();
-    const data = await response.json();
-    if (!Array.isArray(data.items)) throw Error();
-    return data.items as { id: string; name: string; active: boolean }[];
-  } catch {
-    throw new AppError(503, 'Lokasi belum dapat diverifikasi; akses tidak diubah.');
-  }
 }
 export async function setAppGrant(actor: Identity, id: string, appId: string, input: unknown) {
   requireAdmin(actor);
@@ -112,34 +80,23 @@ export async function setAppGrant(actor: Identity, id: string, appId: string, in
     if (
       g.appId !== appId ||
       !consumablesRoles.includes(g.role) ||
-      !Array.isArray(g.locationIds) ||
-      g.locationIds.some((v) => typeof v !== 'string') ||
-      new Set(g.locationIds).size !== g.locationIds.length ||
-      (g.role !== 'admin' && !g.locationIds.length) ||
-      (g.role === 'admin' && g.locationIds.length)
+      Object.keys(g).some((k) => !['appId', 'role'].includes(k))
     )
-      throw new AppError(400, 'Role atau cakupan lokasi tidak valid.');
-    if (g.role !== 'admin') {
-      const known = await listScopeLocations(actor);
-      if (g.locationIds.some((v) => !known.some((l) => l.id === v && l.active)))
-        throw new AppError(400, 'Lokasi tidak aktif atau tidak ditemukan.');
-    }
-    grant = { appId: 'consumables', role: g.role, locationIds: [...g.locationIds].sort() };
+      throw new AppError(400, 'Role Consumable Room tidak valid. Scope lokasi tidak digunakan.');
+    grant = { appId: 'consumables', role: g.role };
   }
   await getAuthDb().transaction(async (tx) => {
     const [target] = await tx.select().from(user).where(eq(user.id, id)).for('update');
     if (!target) throw new AppError(404, 'Pengguna tidak ditemukan.');
     await tx.delete(grants).where(and(eq(grants.userId, id), eq(grants.appId, appId)));
     if (grant)
-      await tx
-        .insert(grants)
-        .values({
-          userId: id,
-          appId,
-          role: grant.role,
-          equipment: '[]',
-          scope: JSON.stringify({ locationIds: grant.locationIds }),
-        });
+      await tx.insert(grants).values({
+        userId: id,
+        appId,
+        role: grant.role,
+        equipment: '[]',
+        scope: null,
+      });
     await tx.insert(audit).values(auditEntry(actor, 'grant.updated', id, { appId, grant }));
   });
 }

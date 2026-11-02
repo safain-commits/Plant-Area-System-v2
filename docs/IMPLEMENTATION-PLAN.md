@@ -45,3 +45,7 @@ Rujukan kebutuhan: [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md).
 Penyempurnaan visual lanjutan mengacu pada [UI Polish](design/CONSUMABLE-ROOM-UI-POLISH.md): navigasi sesuai aplikasi aktif, hero chart/KPI, varian Portal compact, feed aktivitas terbatas, dan pengujian role/tema/responsif. Implementasi memakai data API yang sudah ada tanpa migrasi tambahan. Bukti pemeriksaan aktual dicatat di VALIDATION.md; pemisahan preview pilot dari lingkungan uji tetap pekerjaan lingkungan sebelum go-live.
 
 Urutan implementasi: (1) kontrak grant/scope dan migrasi aditif; (2) database ketiga dan guard gateway; (3) master, lokasi, importer privat, onboarding saldo awal; (4) transaksi atomik/idempotensi dan history server; (5) UI bersama, Portal, pencarian, notifikasi; (6) unit/integrasi/browser, upgrade volume lama, backup/restore, dan pencatatan validasi aktual. Tidak mereset database yang sudah ada atau mengimpor saldo arsip.
+
+## Penyesuaian R22 satu stok
+
+Revisi 2 November 2026 mengganti scope dan pengelolaan lokasi Consumables dengan satu R22 internal. Tahapan R22, preflight dan validasi mengacu [rencana R22](design/CONSUMABLE-ROOM-R22-IMPLEMENTATION.md) dan [runbook rilis](deployment/R22-UPGRADE.md). Data lama yang perlu konsolidasi menghentikan migrasi; tidak ada penggabungan saldo otomatis.

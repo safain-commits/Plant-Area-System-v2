@@ -1,3 +1,4 @@
+import { R22_ROOM_ID } from './room';
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -56,7 +57,7 @@ const requester = z
   .object({ name: z.string().trim().min(1).max(100), nik: text(30) })
   .strict()
   .optional();
-const header = { locationId: z.uuid(), hec, wo: text(100), note: text(500), requester };
+const header = { hec, wo: text(100), note: text(500), requester };
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -80,7 +81,6 @@ const schemas = {
   return: z.object({ ...header, sourceRef: text(100), lines: z.array(qtyLine).min(1).max(50) }).strict(),
   picklist: z
     .object({
-      locationId: z.uuid(),
       reservationNo: z.string().trim().min(1).max(30),
       wo: z.string().trim().min(1).max(100),
       woDescription: text(500),
@@ -97,7 +97,7 @@ export class DocumentConflict extends AppError {
     super(409, 'Ada baris yang perlu ditinjau. Saldo belum diubah.', 'STOCK_LINE_CONFLICT');
   }
 }
-const docCols = sql`d.id,d.number,d.type,d.location_id AS locationId,d.location_name AS locationName,d.hec,d.wo,d.note,d.channel,d.requester_name AS requesterName,d.requester_nik AS requesterNik,d.source_ref AS sourceRef,d.reservation_no AS reservationNo,d.equipment_no AS equipmentNo,d.functional_location AS functionalLocation,d.cost_center AS costCenter,DATE_FORMAT(d.required_date,'%Y-%m-%d') AS requiredDate,d.line_count AS lineCount,d.actor_id AS actorId,d.actor_name AS actorName,d.created_at AS createdAt`;
+const docCols = sql`d.id,d.number,d.type,d.hec,d.wo,d.note,d.channel,d.requester_name AS requesterName,d.requester_nik AS requesterNik,d.source_ref AS sourceRef,d.reservation_no AS reservationNo,d.equipment_no AS equipmentNo,d.functional_location AS functionalLocation,d.cost_center AS costCenter,DATE_FORMAT(d.required_date,'%Y-%m-%d') AS requiredDate,d.line_count AS lineCount,d.actor_id AS actorId,d.actor_name AS actorName,d.created_at AS createdAt`;
 type Tx = Parameters<Parameters<ReturnType<typeof db>['transaction']>[0]>[0];
 async function readResult(tx: Tx | ReturnType<typeof db>, id: string): Promise<DocumentResult> {
   const [document] = await rows<StockDocument>(
@@ -117,10 +117,14 @@ export async function createDocument(
   key: string | null,
 ): Promise<DocumentResult> {
   if (!Object.hasOwn(schemas, type)) throw new AppError(400, 'Jenis dokumen tidak valid.');
+  requireStock(actor, type === 'consume' ? 'issue' : type === 'return' ? 'return' : 'receive');
   // Check impersonation before schema parsing, including explicitly supplied null/undefined.
   if (body && typeof body === 'object' && Object.hasOwn(body, 'requester') && !canConsume(actor, 'onbehalf'))
     throw new AppError(403, 'Hanya R22 Cashier atau admin yang dapat mengisi peminta lain.');
-  const input = parse(schemas[type] as z.ZodType<unknown>, body) as {
+  const input = {
+    ...parse(schemas[type] as z.ZodType<Record<string, unknown>>, body),
+    locationId: R22_ROOM_ID,
+  } as {
     locationId: string;
     hec?: string;
     wo: string;
@@ -135,11 +139,6 @@ export async function createDocument(
     requiredDate?: string;
     lines: Array<{ materialId: string; quantity?: string; sapQuantity?: string; materialVersion?: number }>;
   };
-  requireStock(
-    actor,
-    type === 'consume' ? 'issue' : type === 'return' ? 'return' : 'receive',
-    input.locationId,
-  );
   if (!key || !/^[A-Za-z0-9._:-]{8,128}$/.test(key))
     throw new AppError(400, 'Idempotency-Key wajib, 8–128 karakter.');
   if (new Set(input.lines.map((l) => l.materialId)).size !== input.lines.length)
@@ -168,7 +167,7 @@ export async function createDocument(
           .from(locations)
           .where(eq(locations.id, input.locationId))
           .for('update');
-        if (!location) throw new AppError(404, 'Lokasi tidak ditemukan.');
+        if (!location) throw new AppError(404, 'Konfigurasi R22 belum tersedia. Jalankan migrasi.');
         const lockedMaterials = new Map<string, typeof materials.$inferSelect>();
         for (const id of input.lines.map((l) => l.materialId).sort()) {
           const [m] = await tx.select().from(materials).where(eq(materials.id, id)).for('update');
@@ -195,8 +194,8 @@ export async function createDocument(
           let q = line.quantity || line.sapQuantity || '0',
             error = '';
           if (!location.active || !m.active || (i && !i.active))
-            error = 'Material, lokasi, atau daftar stok tidak aktif.';
-          else if (!i && type !== 'picklist') error = 'Material belum terdaftar di lokasi ini.';
+            error = 'Material atau daftar stok tidak aktif.';
+          else if (!i && type !== 'picklist') error = 'Material belum terdaftar dalam stok R22.';
           else if (i && !i.initialized) error = 'Belum dihitung. Admin perlu mengonfirmasi saldo awal.';
           if (!error) {
             try {
@@ -419,10 +418,6 @@ export async function listDocuments(actor: Identity, p: URLSearchParams) {
     ]),
     ...dateConditions(p, sql`d.created_at`),
   ];
-  if (p.get('locationId')) {
-    requireStock(actor, 'read', p.get('locationId')!);
-    conditions.push(sql`d.location_id=${p.get('locationId')}`);
-  }
   if (p.get('type')) {
     if (!Object.hasOwn(schemas, p.get('type')!)) throw new AppError(400, 'Jenis dokumen tidak valid.');
     conditions.push(sql`d.type=${p.get('type')}`);
@@ -438,9 +433,8 @@ export async function listDocuments(actor: Identity, p: URLSearchParams) {
   );
 }
 export async function searchMaterials(actor: Identity, p: URLSearchParams, catalog = false) {
-  const location = p.get('locationId') || '';
-  requireStock(actor, catalog ? 'receive' : 'read', location || undefined);
-  if (!catalog && !location) throw new AppError(400, 'Pilih lokasi terlebih dahulu.');
+  const location = R22_ROOM_ID;
+  requireStock(actor, catalog ? 'receive' : 'read');
   const q = (p.get('q') || '').trim();
   if (!q) return { items: [] };
   const escaped = q.replace(/[\\%_]/g, '\\$&');
@@ -450,12 +444,12 @@ export async function searchMaterials(actor: Identity, p: URLSearchParams, catal
   ];
   if (location) {
     const [l] = await db().select().from(locations).where(eq(locations.id, location));
-    if (!l?.active) throw new AppError(409, 'Lokasi tidak aktif atau tidak ditemukan.');
+    if (!l?.active) throw new AppError(409, 'Konfigurasi R22 belum tersedia.');
   }
   if (!catalog) conditions.push(sql`i.active=1`);
   const found = await rows<MaterialSearchResult>(
     db(),
-    sql`SELECT ${matCols},i.id AS inventoryId,${location} AS locationId,COALESCE(i.rack,'') AS rack,COALESCE(i.quantity,0) AS quantity,COALESCE(i.initialized,0) AS initialized,COALESCE(i.active,0) AS inventoryActive FROM materials m LEFT JOIN inventory i ON i.material_id=m.id AND i.location_id=${location} WHERE ${sql.join(conditions, sql` AND `)} ORDER BY CASE WHEN m.mmid=${q} THEN 0 WHEN m.mmid LIKE ${escaped + '%'} THEN 1 WHEN m.common_name LIKE ${'%' + escaped + '%'} OR m.aliases LIKE ${'%' + escaped + '%'} THEN 2 ELSE 3 END,m.mmid,m.id LIMIT 8`,
+    sql`SELECT ${matCols},i.id AS inventoryId,COALESCE(i.rack,'') AS rack,COALESCE(i.quantity,0) AS quantity,COALESCE(i.initialized,0) AS initialized,COALESCE(i.active,0) AS inventoryActive FROM materials m LEFT JOIN inventory i ON i.material_id=m.id AND i.location_id=${location} WHERE ${sql.join(conditions, sql` AND `)} ORDER BY CASE WHEN m.mmid=${q} THEN 0 WHEN m.mmid LIKE ${escaped + '%'} THEN 1 WHEN m.common_name LIKE ${'%' + escaped + '%'} OR m.aliases LIKE ${'%' + escaped + '%'} THEN 2 ELSE 3 END,m.mmid,m.id LIMIT 8`,
   );
   return { items: found.map(normalize) };
 }

@@ -1,3 +1,4 @@
+import { R22_ROOM_ID } from './room';
 import { randomUUID } from 'node:crypto';
 import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
@@ -25,19 +26,12 @@ export async function rows<T>(db: Executor, statement: SQL): Promise<T[]> {
 }
 export const db = () => getConsumablesDb();
 export const utcSql = (date: Date) => date.toISOString().replace('T', ' ').slice(0, 23);
-export function requireStock(actor: Identity, action: StockAction, locationId?: string) {
-  if (!canConsume(actor, action, locationId))
-    throw new AppError(403, 'Akses Consumable Room atau lokasi belum diberikan.');
+export function requireStock(actor: Identity, action: StockAction) {
+  if (!canConsume(actor, action)) throw new AppError(403, 'Akses Consumable Room belum diberikan.');
 }
 export function scope(actor: Identity, column: SQL) {
   requireStock(actor, 'read');
-  const g = actor.grants.find((v) => v.appId === 'consumables')!;
-  return g.role === 'admin'
-    ? sql`1=1`
-    : sql`${column} IN (${sql.join(
-        g.locationIds.map((v) => sql`${v}`),
-        sql`,`,
-      )})`;
+  return sql`${column}=${R22_ROOM_ID}`;
 }
 export const entry = (
   actor: Pick<Identity, 'id' | 'name'>,
@@ -136,9 +130,9 @@ export async function page<T extends { id: string }>(
   return { items: items.map(({ cursorSort, cursorId, ...item }) => item as unknown as T), nextCursor };
 }
 export const matCols = sql`m.id,m.mmid,m.description,m.common_name AS commonName,m.unit,m.sap_unit AS sapUnit,m.aliases,m.decimal_allowed AS decimalAllowed,m.conversion_reviewed AS conversionReviewed,EXISTS(SELECT 1 FROM stock_movements used WHERE used.material_id=m.id LIMIT 1) AS unitLocked,m.category,m.mrp_type AS mrpType,m.critical,m.pack_size AS packSize,m.active,m.version,m.source_batch AS sourceBatch,m.source_date AS sourceDate`;
-export const invCols = sql`${matCols},i.id AS inventoryId,i.location_id AS locationId,l.name AS locationName,i.rack,i.quantity,i.initialized,i.active AS inventoryActive,i.version AS inventoryVersion,l.active AS locationActive`;
+export const invCols = sql`${matCols},i.id AS inventoryId,i.rack,i.quantity,i.initialized,i.active AS inventoryActive,i.version AS inventoryVersion`;
 export const joinInv = sql`inventory i JOIN materials m ON m.id=i.material_id JOIN locations l ON l.id=i.location_id`;
-export const moveCols = sql`v.id,v.material_id AS materialId,v.location_id AS locationId,v.document_id AS documentId,v.line_no AS lineNo,v.common_name AS commonName,v.sap_unit AS sapUnit,v.sap_quantity AS sapQuantity,v.mmid,v.description,v.unit,v.location_name AS locationName,v.type,v.quantity,v.balance_after AS balanceAfter,v.packs,v.pack_size AS packSize,v.reference,v.wo,v.job,v.reason,v.actor_id AS actorId,v.actor_name AS actorName,v.created_at AS createdAt`;
+export const moveCols = sql`v.id,v.material_id AS materialId,v.document_id AS documentId,v.line_no AS lineNo,v.common_name AS commonName,v.sap_unit AS sapUnit,v.sap_quantity AS sapQuantity,v.mmid,v.description,v.unit,v.type,v.quantity,v.balance_after AS balanceAfter,v.packs,v.pack_size AS packSize,v.reference,v.wo,v.job,v.reason,v.actor_id AS actorId,v.actor_name AS actorName,v.created_at AS createdAt`;
 export const normalize = <T extends Record<string, unknown>>(item: T) => {
   for (const k of [
     'active',

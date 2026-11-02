@@ -1,7 +1,6 @@
 import { AppError, canConsume } from '@plant/contracts';
 import { apiIdentity, failure, verifyOrigin, readJson } from '@plant/server';
 import {
-  listLocations,
   listMaterials,
   listCategories,
   listInventory,
@@ -13,7 +12,6 @@ import {
   discovery,
   reconcile,
   saveMaterial,
-  saveLocation,
   saveInventory,
   postMovement,
   createDocument,
@@ -26,7 +24,14 @@ import {
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path: string[] }> };
 const json = (v: unknown, status = 200) =>
-  Response.json(v, { status, headers: { 'Cache-Control': 'no-store' } });
+  Response.json(
+    JSON.parse(
+      JSON.stringify(v, (key, value) =>
+        ['locationId', 'locationName', 'locationIds', 'locationActive'].includes(key) ? undefined : value,
+      ),
+    ),
+    { status, headers: { 'Cache-Control': 'no-store' } },
+  );
 export async function GET(request: Request, context: Context) {
   try {
     const a = await apiIdentity(request);
@@ -34,7 +39,10 @@ export async function GET(request: Request, context: Context) {
     const path = (await context.params).path,
       p = new URL(request.url).searchParams,
       s = path.join('/');
-    if (s === 'locations') return json(await listLocations(a));
+    if (path[0] === 'locations')
+      return json({ error: 'Pengelolaan lokasi tidak digunakan. R22 memakai satu stok.' }, 410);
+    if ([...p.keys()].some((k) => /location/i.test(k)))
+      throw new AppError(400, 'Filter lokasi tidak digunakan pada R22.');
     if (s === 'search') return json(await searchMaterials(a, p));
     if (s === 'catalog-search') return json(await searchMaterials(a, p, true));
     if (s === 'hec-suggestions') return json(await hecSuggestions(a, p.get('q') || ''));
@@ -65,6 +73,8 @@ async function mutate(request: Request, context: Context) {
     if (!canConsume(a, 'read')) throw new AppError(403, 'Akses Consumable Room belum diberikan.');
     if (request.method === 'POST' && path.length === 1 && ['issues', 'receipts'].includes(path[0]))
       return json({ error: 'Gunakan /consume-orders atau /picklist-receipts.' }, 410);
+    if (path[0] === 'locations')
+      return json({ error: 'Pengelolaan lokasi tidak digunakan. R22 memakai satu stok.' }, 410);
     const body = await readJson(request);
     const documentType = (
       { 'consume-orders': 'consume', 'return-orders': 'return', 'picklist-receipts': 'picklist' } as const
@@ -91,7 +101,6 @@ async function mutate(request: Request, context: Context) {
     ) {
       const id = path[1];
       if (path[0] === 'materials') return json(await saveMaterial(a, body, id), id ? 200 : 201);
-      if (path[0] === 'locations') return json(await saveLocation(a, body, id), id ? 200 : 201);
       if (path[0] === 'inventory') return json(await saveInventory(a, body, id), id ? 200 : 201);
     }
     throw new AppError(404, 'Endpoint tidak ditemukan.');

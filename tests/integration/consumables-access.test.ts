@@ -22,55 +22,28 @@ const actor: Identity = {
   mustChangePassword: false,
   grants: [],
 };
-test('targeted grants validate live locations and preserve Bag Filter access on revoke/failure', async () => {
+test('role-only grants preserve Bag Filter, reject location fields and revoke independently', async () => {
   const { id } = await createUser(actor, {
     name: 'Access fixture',
-    email: `${randomUUID()}@example.test`,
+    email: randomUUID() + '@example.test',
     password: 'temporary-stock-password',
   });
   await setGrant(actor, id, { appId: 'bag-filter', role: 'viewer', equipment: ['561-BF1'] });
-  const locationId = randomUUID(),
-    native = globalThis.fetch;
-  process.env.CONSUMABLES_INTERNAL_URL = 'http://scope-fixture';
-  try {
-    globalThis.fetch = async () =>
-      Response.json({ items: [{ id: locationId, name: 'Fixture', active: true }] });
-    await setAppGrant(actor, id, 'consumables', {
-      appId: 'consumables',
-      role: 'storekeeper',
-      locationIds: [locationId],
-    });
-    const read = () => getAuthDb().select().from(authSchema.grants).where(eq(authSchema.grants.userId, id));
-    assert.equal((await read()).length, 2);
-    await assert.rejects(
-      setAppGrant(actor, id, 'consumables', {
-        appId: 'consumables',
-        role: 'operator',
-        locationIds: [randomUUID()],
-      }),
-      (e: unknown) => e instanceof AppError && e.status === 400,
-    );
-    globalThis.fetch = async () => {
-      throw Error('Unavailable');
-    };
-    await assert.rejects(
-      setAppGrant(actor, id, 'consumables', {
-        appId: 'consumables',
-        role: 'viewer',
-        locationIds: [locationId],
-      }),
-      (e: unknown) => e instanceof AppError && e.status === 503,
-    );
-    assert.equal((await read()).find((g) => g.appId === 'consumables')?.role, 'storekeeper');
-    await setAppGrant(actor, id, 'consumables', null);
-    assert.deepEqual(
-      (await read()).map((g) => g.appId),
-      ['bag-filter'],
-    );
-  } finally {
-    globalThis.fetch = native;
-    delete process.env.CONSUMABLES_INTERNAL_URL;
+  const read = () => getAuthDb().select().from(authSchema.grants).where(eq(authSchema.grants.userId, id));
+  for (const role of ['viewer', 'operator', 'storekeeper', 'admin']) {
+    await setAppGrant(actor, id, 'consumables', { appId: 'consumables', role });
+    assert.equal((await read()).find((g) => g.appId === 'consumables')!.scope, null);
   }
+  await assert.rejects(
+    setAppGrant(actor, id, 'consumables', { appId: 'consumables', role: 'viewer', locationIds: [] }),
+    (e) => e instanceof AppError && e.status === 400,
+  );
+  assert.equal((await read()).find((g) => g.appId === 'consumables')!.role, 'admin');
+  await setAppGrant(actor, id, 'consumables', null);
+  assert.deepEqual(
+    (await read()).map((g) => g.appId),
+    ['bag-filter'],
+  );
 });
 test('additive migration activates planned app, grants only active bootstrap once and preserves disable/revoke', async () => {
   const connection = await mysql.createConnection(process.env.AUTH_MIGRATION_DATABASE_URL!),

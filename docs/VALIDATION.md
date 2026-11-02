@@ -1,5 +1,28 @@
 # Hasil validasi implementasi v2
 
+## Consumable Room v1.1 — R22 satu stok, 2 November 2026
+
+Fase 1–5 dan penyederhanaan tanpa fitur Lokasi diuji pada Windows dengan Node.js **26.12.1**, dependency terkunci, serta Docker Linux **MySQL 8.4**. Uji integrasi/HTTPS/restore memakai container dan network bernama unik, tanpa port host. Database arsip nyata `plant-v2-test` tetap beku dan tidak dipakai pengujian ini. VPS tidak diubah.
+
+| Pemeriksaan aktual                | Hasil                                                                                                                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format seluruh workspace          | Prettier check lulus; beberapa file baseline dinormalisasi formatnya                                                                                                                                          |
+| Typecheck                         | Root dan empat aplikasi lulus                                                                                                                                                                                 |
+| Unit                              | **16/16** lulus: presisi, HEC, alias, konversi, role, parser CSV, regresi equipment/umur/idempotensi                                                                                                          |
+| Integrasi MySQL                   | **33/33** lulus: transaksi multi-item, seluruh kekurangan baris, concurrency, replay, rollback audit, K3, snapshot SAP, pagination >300, naming, grant, Auth dan Bag Filter                                   |
+| Migrasi                           | v1 → 0002 mempertahankan ledger/ID/pack/idempotensi; 0003 menolak fixture noncanonical tanpa perubahan; instalasi kosong, master-only, konflik tujuan dan rerun lulus                                         |
+| Build                             | Standalone Docker keempat aplikasi lulus, termasuk route dokumen dan penghapusan metadata lokasi                                                                                                              |
+| Browser HTTPS produksi terisolasi | **17/17** lulus: alur stok tunggal, 20-line Picklist, cetak A4, empat role, field lokasi 400, endpoint lokasi 410/metadata 404, pencabutan grant, SSO, tema, hover, klik luar, keyboard dan regresi enam peta |
+| Pemeriksaan ulang UI akhir        | **3/3** alur R22 lulus sesudah perbaikan duplikasi rak dan susunan switch cashier; screenshot diambil dengan reduced motion agar tidak menangkap animasi tema                                                 |
+| Backup/restore terisolasi         | Dump ketiga database dipulihkan ke MySQL lain; fingerprint isi **27 tabel** identik, termasuk dokumen, sekuens dan idempotensi                                                                                |
+| Development lokal                 | `dev:up` lulus; preflight CLI ready dengan nol inventory/ledger/dokumen, ruang R22 tepat satu; smoke browser `https://localhost:9443` lulus, akun/password existing dipertahankan                             |
+
+Bukti lokal privat: `.deploy/ci-check-6dcc64682c/result.json`, `.deploy/r22-qa-912a1301/` (17 tes dan restore), `.deploy/r22-qa-b3e122e5/browser-recheck.log` (pemeriksaan UI akhir), `.deploy/r22-final/build-*.log`, dan `.deploy/dev/verification/`. Screenshot Consume, modal jumlah, Picklist desktop/mobile, stok light/dark serta bukti print ada pada subfolder `browser/` bukti pemeriksaan ulang. Data fixture sintetis dan dump tidak dikomit. Screenshot utama diperiksa secara visual; viewport 1440 px dan 390 px tidak mempunyai overflow horizontal pada alur yang diuji.
+
+Script smoke disesuaikan dengan nama menu/grant R22, kredensial development `PASSWORD` maupun `DEV_PASSWORD`, dan selector heading mobile yang tidak memilih label sidebar tersembunyi. Pengujian browser awal yang masih mengharapkan tiga tab Pengelolaan diperbarui menjadi dua; hasil pada tabel adalah run sesudah koreksi, bukan hasil gagal awal.
+
+Perintah typecheck/unit/Prettier host dijalankan lewat binary Node yang dipin (ekuivalen script pnpm); build memakai pnpm terkunci di Docker. Tidak dilakukan uji semua file perusahaan atau pemulihan VPS pada fase ini. CI GitHub dan penerimaan pemilik pada produksi menunggu rilis/push dan checkpoint [upgrade R22](deployment/R22-UPGRADE.md); hasil lokal tidak menyatakan produksi telah diperbarui.
+
 ## Runtime development terisolasi MacBook Apple Silicon — 2 November 2026
 
 Workspace v2 disiapkan di `/Users/SAF/Developer/plant-area-system-v2` pada macOS `arm64` (direktori `/Users/SAF/Developer/plant-area-system` yang berisi repositori v1 SQLite beserta perubahan lokal dipertahankan utuh sesuai konfirmasi pemilik). Runtime memakai Node.js `26.12.1` (`darwin-arm64` melalui `fnm` tanpa mengubah Node global sistem), `pnpm 12.14.0` dengan frozen lockfile, serta Docker Desktop Linux Engine (`aarch64`, context lokal `desktop-linux`).

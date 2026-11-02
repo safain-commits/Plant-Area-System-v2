@@ -1,3 +1,4 @@
+import { R22_ROOM_ID } from './room';
 import { createHash, randomUUID } from 'node:crypto';
 import { eq, and, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
@@ -11,7 +12,6 @@ import {
   type Identity,
   type StockAction,
   type Material,
-  type StockLocation,
   type InventoryItem,
   type Movement,
   type StockDashboard,
@@ -67,17 +67,9 @@ const materialInput = z
     version: z.number().int().positive().optional(),
   })
   .strict();
-const locationInput = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    active: z.boolean().default(true),
-    version: z.number().int().positive().optional(),
-  })
-  .strict();
 const inventoryInput = z
   .object({
     materialId: z.uuid(),
-    locationId: z.uuid(),
     rack: z.string().trim().max(100).default(''),
     active: z.boolean().default(true),
     version: z.number().int().positive().optional(),
@@ -143,49 +135,15 @@ export async function saveMaterial(actor: Identity, body: unknown, id?: string) 
     throw e;
   }
 }
-export async function saveLocation(actor: Identity, body: unknown, id?: string) {
-  requireStock(actor, 'manage');
-  const input = parse(locationInput, body);
-  try {
-    return await db().transaction(async (tx) => {
-      if (!id) {
-        if (!input.active) throw new AppError(400, 'Lokasi baru harus aktif.');
-        id = randomUUID();
-        await tx.insert(locations).values({ ...input, id, version: 1, createdAt: new Date() });
-      } else {
-        const [old] = await tx.select().from(locations).where(eq(locations.id, id)).for('update');
-        if (!old) throw new AppError(404, 'Lokasi tidak ditemukan.');
-        if (input.version !== old.version) throw new AppError(409, 'Lokasi berubah. Muat ulang.');
-        if (!input.active) {
-          const [stock] = await tx
-            .select({ id: inventory.id })
-            .from(inventory)
-            .where(and(eq(inventory.locationId, id), sql`${inventory.quantity}>0`))
-            .limit(1);
-          if (stock) throw new AppError(409, 'Lokasi masih memiliki saldo.');
-        }
-        await tx
-          .update(locations)
-          .set({ ...input, version: old.version + 1 })
-          .where(eq(locations.id, id));
-      }
-      await tx.insert(audit).values(entry(actor, 'location.saved', id, input));
-      return { id };
-    });
-  } catch (e) {
-    if (code(e) === 'ER_DUP_ENTRY') throw new AppError(409, 'Nama lokasi sudah terdaftar.');
-    throw e;
-  }
-}
 export async function saveInventory(actor: Identity, body: unknown, id?: string) {
   requireStock(actor, 'manage');
-  const input = parse(inventoryInput, body);
+  const input = { ...parse(inventoryInput, body), locationId: R22_ROOM_ID };
   try {
     return await db().transaction(async (tx) => {
       const [l] = await tx.select().from(locations).where(eq(locations.id, input.locationId)).for('update');
       const [m] = await tx.select().from(materials).where(eq(materials.id, input.materialId)).for('update');
-      if (!m || !l) throw new AppError(404, 'Material atau lokasi tidak ditemukan.');
-      if (!m.active || !l.active) throw new AppError(409, 'Material/lokasi tidak aktif.');
+      if (!m || !l) throw new AppError(404, 'Material atau konfigurasi R22 tidak ditemukan.');
+      if (!m.active || !l.active) throw new AppError(409, 'Material atau konfigurasi R22 tidak aktif.');
       if (!id) {
         if (!input.active) throw new AppError(400, 'Daftar stok baru harus aktif.');
         id = randomUUID();
@@ -197,7 +155,7 @@ export async function saveInventory(actor: Identity, body: unknown, id?: string)
           throw new AppError(400, 'Identitas daftar stok tidak dapat diubah.');
         if (input.version !== old.version) throw new AppError(409, 'Stok berubah. Muat ulang.');
         if (!input.active && decimalUnits(old.quantity) > 0n)
-          throw new AppError(409, 'Material masih memiliki saldo pada lokasi ini.');
+          throw new AppError(409, 'Material masih memiliki saldo.');
         await tx
           .update(inventory)
           .set({ rack: input.rack, active: input.active, version: old.version + 1 })
@@ -207,11 +165,11 @@ export async function saveInventory(actor: Identity, body: unknown, id?: string)
       return { id };
     });
   } catch (e) {
-    if (code(e) === 'ER_DUP_ENTRY') throw new AppError(409, 'Material sudah terdaftar pada lokasi ini.');
+    if (code(e) === 'ER_DUP_ENTRY') throw new AppError(409, 'Material sudah terdaftar dalam stok R22.');
     throw e;
   }
 }
-const common = { materialId: z.uuid(), locationId: z.uuid() };
+const common = { materialId: z.uuid() };
 const schemas = {
   opening: z
     .object({
@@ -261,15 +219,11 @@ const schemas = {
 type MoveKind = keyof typeof schemas;
 export async function postMovement(actor: Identity, kind: MoveKind, body: unknown, key: string | null) {
   if (!Object.hasOwn(schemas, kind)) throw new AppError(400, 'Jenis transaksi tidak valid.');
-  const input = parse(schemas[kind] as z.ZodType<Record<string, unknown>>, body) as Record<
-    string,
-    unknown
-  > & { materialId: string; locationId: string };
-  requireStock(
-    actor,
-    kind === 'issue' ? 'issue' : kind === 'receipt' ? 'receive' : 'manage',
-    input.locationId,
-  );
+  const input = {
+    ...parse(schemas[kind] as z.ZodType<Record<string, unknown>>, body),
+    locationId: R22_ROOM_ID,
+  } as Record<string, unknown> & { materialId: string; locationId: string };
+  requireStock(actor, kind === 'issue' ? 'issue' : kind === 'receipt' ? 'receive' : 'manage');
   if (!key || !/^[A-Za-z0-9._:-]{8,128}$/.test(key))
     throw new AppError(400, 'Idempotency-Key wajib, 8–128 karakter.');
   const canonical = JSON.stringify(
@@ -311,8 +265,9 @@ export async function postMovement(actor: Identity, kind: MoveKind, body: unknow
           const [movement] = await tx.select().from(movements).where(eq(movements.id, previous.movementId));
           return { movement, replayed: true };
         }
-        if (!m || !l || !i) throw new AppError(404, 'Material belum terdaftar pada lokasi ini.');
-        if (!m.active || !l.active || !i.active) throw new AppError(409, 'Material atau lokasi tidak aktif.');
+        if (!m || !l || !i) throw new AppError(404, 'Material belum terdaftar dalam stok R22.');
+        if (!m.active || !l.active || !i.active)
+          throw new AppError(409, 'Material atau konfigurasi stok tidak aktif.');
         if (kind !== 'opening' && !i.initialized)
           throw new AppError(409, 'Konfirmasikan saldo awal terlebih dahulu.');
         if (kind === 'opening' && i.initialized) throw new AppError(409, 'Saldo awal sudah dicatat.');
@@ -390,18 +345,6 @@ export async function postMovement(actor: Identity, kind: MoveKind, body: unknow
   }
   throw new AppError(503, 'Transaksi sibuk. Coba lagi dengan key yang sama.');
 }
-export async function listLocations(actor: Identity) {
-  const items = await rows<StockLocation>(
-    db(),
-    sql`SELECT id,name,active,version FROM locations WHERE ${scope(actor, sql`id`)} ORDER BY name`,
-  );
-  return { items: items.map(normalize) };
-}
-export async function internalLocations() {
-  return (
-    await rows<StockLocation>(db(), sql`SELECT id,name,active,version FROM locations ORDER BY name`)
-  ).map(normalize);
-}
 export async function listMaterials(actor: Identity, p: URLSearchParams) {
   requireStock(actor, 'read');
   const conditions = [
@@ -442,10 +385,7 @@ export async function listInventory(actor: Identity, p: URLSearchParams) {
       sql`i.rack`,
     ]),
   ];
-  if (p.get('locationId')) {
-    requireStock(actor, 'read', p.get('locationId')!);
-    conditions.push(sql`i.location_id=${p.get('locationId')}`);
-  }
+
   if (p.get('materialId')) conditions.push(sql`i.material_id=${p.get('materialId')}`);
   if (p.get('category')) conditions.push(sql`m.category=${p.get('category')}`);
   if (p.get('active') !== 'all') conditions.push(sql`i.active=1 AND m.active=1 AND l.active=1`);
@@ -477,14 +417,17 @@ export async function materialDetail(actor: Identity, id: string) {
   if (!material) throw new AppError(404, 'Material tidak ditemukan.');
   const stocks = await rows<InventoryItem>(
     db(),
-    sql`SELECT ${invCols} FROM ${joinInv} WHERE m.id=${id} AND ${scope(actor, sql`i.location_id`)} ORDER BY l.name`,
+    sql`SELECT ${invCols} FROM ${joinInv} WHERE m.id=${id} AND ${scope(actor, sql`i.location_id`)}`,
   );
   const [used] = await db()
     .select({ id: movements.id })
     .from(movements)
     .where(eq(movements.materialId, id))
     .limit(1);
-  return { material: { ...material, unitLocked: !!used }, stocks: stocks.map(normalize) };
+  return {
+    material: { ...material, unitLocked: !!used },
+    stock: stocks.length ? normalize(stocks[0]) : null,
+  };
 }
 export async function listMovements(actor: Identity, p: URLSearchParams) {
   const conditions = [
@@ -499,10 +442,7 @@ export async function listMovements(actor: Identity, p: URLSearchParams) {
       sql`v.actor_name`,
     ]),
   ];
-  if (p.get('locationId')) {
-    requireStock(actor, 'read', p.get('locationId')!);
-    conditions.push(sql`v.location_id=${p.get('locationId')}`);
-  }
+
   if (p.get('materialId')) conditions.push(sql`v.material_id=${p.get('materialId')}`);
   if (p.get('documentId')) conditions.push(sql`v.document_id=${p.get('documentId')}`);
   if (p.get('type')) {

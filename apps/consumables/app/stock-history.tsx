@@ -7,7 +7,6 @@ import {
   stockDocumentLabels,
   type Identity,
   type StockDocument,
-  type StockLocation,
   type DocumentResult,
 } from '@plant/contracts';
 import { stockApi } from './r22-api';
@@ -16,12 +15,10 @@ export function StockHistory({ identity }: { identity: Identity }) {
   const [mode, setMode] = useState('documents'),
     [query, setQuery] = useState(''),
     [type, setType] = useState(''),
-    [location, setLocation] = useState(''),
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
     [ledgerType, setLedgerType] = useState('');
-  const [locations, setLocations] = useState<StockLocation[]>([]),
-    [items, setItems] = useState<StockDocument[]>([]),
+  const [items, setItems] = useState<StockDocument[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [back, setBack] = useState<(string | null)[]>([]),
     [next, setNext] = useState<string | null>(null),
@@ -33,7 +30,6 @@ export function StockHistory({ identity }: { identity: Identity }) {
     const controller = new AbortController();
     const p = new URLSearchParams(window.location.search);
     if (p.get('movement') || p.get('material') || p.get('tab') === 'ledger') setMode('ledger');
-    if (p.get('location')) setLocation(p.get('location')!);
     if (p.get('document'))
       stockApi('/documents/' + encodeURIComponent(p.get('document')!), { signal: controller.signal })
         .then((d) => {
@@ -42,17 +38,12 @@ export function StockHistory({ identity }: { identity: Identity }) {
         .catch((e) => {
           if (!controller.signal.aborted) setError(e.message);
         });
-    stockApi('/locations', { signal: controller.signal })
-      .then((d) => setLocations(d.items))
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(e.message);
-      });
     return () => controller.abort();
   }, []);
   useEffect(() => {
     setCursor(null);
     setBack([]);
-  }, [query, type, location, from, to]);
+  }, [query, type, from, to]);
   useEffect(() => {
     if (mode !== 'documents') return;
     const c = new AbortController(),
@@ -61,7 +52,6 @@ export function StockHistory({ identity }: { identity: Identity }) {
         setError('');
         const p = new URLSearchParams({ q: query });
         if (type) p.set('type', type);
-        if (location) p.set('locationId', location);
         if (from) p.set('from', from);
         if (to) p.set('to', to);
         if (cursor) p.set('cursor', cursor);
@@ -83,7 +73,7 @@ export function StockHistory({ identity }: { identity: Identity }) {
       clearTimeout(timer);
       c.abort();
     };
-  }, [mode, query, type, location, from, to, cursor, reload]);
+  }, [mode, query, type, from, to, cursor, reload]);
   async function open(id: string) {
     try {
       setDetail(await stockApi('/documents/' + id));
@@ -156,17 +146,6 @@ export function StockHistory({ identity }: { identity: Identity }) {
               </Select>
             </label>
             <label>
-              Lokasi
-              <Select value={location} onChange={(e) => setLocation(e.target.value)}>
-                <option value="">Semua lokasi Anda</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label>
               Dari tanggal (WIB)
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </label>
@@ -198,7 +177,7 @@ export function StockHistory({ identity }: { identity: Identity }) {
                   </small>
                 </span>
                 <span>
-                  {d.hec || d.locationName}
+                  {d.hec || 'R22'}
                   <small>
                     WO {d.wo || '—'}
                     {d.reservationNo ? ' · Reservasi ' + d.reservationNo : ''}
@@ -255,7 +234,6 @@ export function StockHistory({ identity }: { identity: Identity }) {
             <h2>{detail.document.number}</h2>
             <dl className="stock-detail-grid">
               {[
-                ['Lokasi', detail.document.locationName],
                 ['HEC', detail.document.hec || '—'],
                 ['WO', detail.document.wo || '—'],
                 ['Keterangan', detail.document.note || '—'],

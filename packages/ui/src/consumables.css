@@ -28,6 +28,7 @@
 }
 .r22-onbehalf {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: flex-start;
   gap: 12px;

@@ -136,7 +136,7 @@ export function StockSummary({
         ? { label: 'Consume Order', href: '/consumables/consume', icon: 'issue' as const }
         : { label: 'Cari material', href: '/consumables/stock', icon: 'box' as const };
   const metrics = [
-    ['Material–lokasi', data.operational],
+    ['Material dikelola', data.operational],
     ['Tersedia', data.available],
     ['Stok nol', data.empty],
   ] as const;
@@ -252,7 +252,7 @@ export function StockSummary({
                     <strong>
                       <AnimatedNumber value={value} />
                     </strong>
-                    <small>Dalam cakupan Anda · saat ini</small>
+                    <small>Stok R22 · saat ini</small>
                   </div>
                 ))}
               </div>
@@ -276,7 +276,7 @@ export function StockSummary({
                   aria-valuemax={data.operational || 1}
                   aria-valuetext={
                     data.operational
-                      ? `${n(counted)} dari ${n(data.operational)} material–lokasi`
+                      ? `${n(counted)} dari ${n(data.operational)} material dikelola`
                       : 'Belum ada material operasional'
                   }
                 >
@@ -284,8 +284,8 @@ export function StockSummary({
                 </div>
                 <p className="fine">
                   {data.operational
-                    ? `${percent.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% material–lokasi telah dikonfirmasi.`
-                    : 'Daftarkan material ke lokasi untuk mulai menghitung stok.'}
+                    ? `${percent.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% material dikelola telah dikonfirmasi.`
+                    : 'Daftarkan material ke stok R22 untuk mulai menghitung stok.'}
                 </p>
                 <a className="stock-inline-link" href="/consumables/stock?availability=uncounted">
                   Lihat yang belum dihitung <Icon name="arrow" />
@@ -328,7 +328,7 @@ export function StockSummary({
                 <br />
                 pekerjaan lancar.
               </h2>
-              <p>Telusuri stok dan catat pergerakan material sesuai lokasi kerja Anda.</p>
+              <p>Telusuri stok dan catat pergerakan material di ruang stok R22.</p>
               <a href={action.href}>
                 {action.label} <Icon name="arrow" />
               </a>
