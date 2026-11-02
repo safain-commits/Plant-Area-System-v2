@@ -1,5 +1,24 @@
 # Hasil validasi implementasi v2
 
+## Runtime development terisolasi MacBook Apple Silicon — 2 November 2026
+
+Workspace v2 disiapkan di `/Users/SAF/Developer/plant-area-system-v2` pada macOS `arm64` (direktori `/Users/SAF/Developer/plant-area-system` yang berisi repositori v1 SQLite beserta perubahan lokal dipertahankan utuh sesuai konfirmasi pemilik). Runtime memakai Node.js `26.12.1` (`darwin-arm64` melalui `fnm` tanpa mengubah Node global sistem), `pnpm 12.14.0` dengan frozen lockfile, serta Docker Desktop Linux Engine (`aarch64`, context lokal `desktop-linux`).
+
+Temuan spesifik macOS yang diperbaiki:
+
+- Pada mount VirtioFS Docker Desktop macOS, pengujian `[ -x /docker-entrypoint-initdb.d/01-plant.sh ]` di `docker-entrypoint.sh` image `mysql:8.4` mengembalikan benar meskipun file host bermode `0644`, tetapi kernel Linux menolak `execve()` dengan `/bin/bash: bad interpreter: Permission denied`. Mode eksekusi `0755` ditambahkan pada `infra/mysql/init.sh` dan `infra/mysql/backup.sh` di indeks Git serta dipastikan oleh `scripts/dev.ts` saat `dev:setup`.
+- Ditambahkan `scripts/smoke-dev.ts` (`pnpm dev:smoke`) yang menguji khusus runtime `plant-v2-dev` (`https://localhost:9443` dan MySQL `127.0.0.1:14306` dengan `TEST_DATABASE=0`) tanpa menyentuh `plant-v2-test` atau produksi, termasuk pemeriksaan upgrade WebSocket HMR Next.js 16.4.2 (`/_next/hmr`, `/auth/_next/hmr`, `/bag-filter/_next/hmr`, `/consumables/_next/hmr`).
+
+Pemeriksaan aktual yang lulus pada MacBook ini:
+
+- `node scripts/generate-brand.mjs --check`, `pnpm typecheck` (root + keempat aplikasi), `pnpm test` (12 unit test), dan `pnpm build` (standalone production build keempat aplikasi) lulus pada Node.js `26.12.1`.
+- `pnpm dev:setup` dan `pnpm dev:up` membangun `plant-tools:dev`, menjalankan migrasi serta bootstrap pada volume baru `plant-v2-dev_mysql-data`, dan menyalakan keenam container (`mysql`, `auth`, `portal`, `bag-filter`, `consumables`, `nginx`) dengan binding hanya pada `127.0.0.1` (`9443`, `9080`, `14306`).
+- `pnpm dev:smoke` melalui Chromium memverifikasi redirect HTTP 308, keempat favicon publik, penutupan endpoint internal (`404`), penolakan header identitas palsu (`401`) dan origin asing (`403`), wajib ganti password awal `developer@example.test`, penyimpanan kredensial baru ke `.deploy/dev/login.env` (`0600`), cookie sesi `Secure`/`HttpOnly`/`Lax`/`Path=/`, pemuatan CSS/JS keempat zona, pergantian tema Terang/Gelap, pembaruan profil, halaman Kelola akses, keenam peta Bag Filter (`18.784` koordinat) beserta sheet Brand/Pabrikan, siklus hidup lokasi/material/saldo awal sintetis Consumable Room (dibersihkan kembali), viewport mobile `390x844` tanpa horizontal overflow, dan pencabutan akses API sesudah logout.
+- Uji hot reload langsung pada `apps/auth/app/forms.tsx` dan `packages/ui/src/tokens.css` terbukti memperbarui DOM dan computed style di browser terbuka tanpa rebuild container, lalu dikembalikan ke kondisi semula.
+- Restart keenam container mempertahankan seluruh state database (`1` admin, `must_change_password=0`, `2` grant aplikasi, `5` katalog aplikasi, `6` equipment, `18.784` koordinat); pengulangan `pnpm dev:setup` dan `pnpm dev:up` mempertahankan hash SHA-256 seluruh file `.env` dan sertifikat tanpa merotasi rahasia atau menduplikasi data.
+
+Sertifikat localhost di `.deploy/dev/certs/tls.crt` masih self-signed dan belum dipasang ke macOS Keychain. Handover lengkap dan lokasi kredensial privat tersimpan di `.deploy/dev/DEV-HANDOVER.md`.
+
 ## Perbaikan tes waktu sesi pada CI — 25 Oktober 2026
 
 [Run 40201041233](https://github.com/safain-commits/Plant-Area-System-v2/actions/runs/40201041233) gagal pada assertion `expiresAt - createdAt === 28.800.000`: hasil aktual 28.799.999 ms. Source Better Auth 1.7.12 membaca waktu secara terpisah saat mengisi kedua field, sehingga perbedaan satu milidetik sah. Assertion yang gagal juga menghentikan langkah reset password dan menyebabkan kegagalan lanjutan pada subtest limiter.

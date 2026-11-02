@@ -53,13 +53,14 @@ Dengan Node/pnpm yang dipin dan Docker Engine lokal aktif, jalankan dari root wo
 pnpm dev:setup
 pnpm dev:up
 pnpm dev:status
+pnpm dev:smoke
 ```
 
-Buka **https://localhost:9443**. Sertifikat localhost bersifat self-signed dan belum dipercaya browser/OS; browser dapat menampilkan peringatan sertifikat. Login awal memakai email `developer@example.test` dan `BOOTSTRAP_PASSWORD` dalam `.deploy/dev/stack.env`, lalu wajib mengganti password. Jika verifikasi awal sudah dilakukan pada PC ini, kredensial development terakhir tersedia secara privat dalam `.deploy/dev/login.env`; lihat juga `.deploy/dev/DEV-HANDOVER.md`. Gunakan password terbaru Anda setelah menggantinya lagi.
+Buka **https://localhost:9443**. Sertifikat localhost bersifat self-signed dan belum dipercaya browser/OS; browser dapat menampilkan peringatan sertifikat. Login awal memakai email `developer@example.test` dan `BOOTSTRAP_PASSWORD` dalam `.deploy/dev/stack.env`, lalu wajib mengganti password. Setelah `pnpm dev:smoke` atau verifikasi awal dijalankan pada perangkat tersebut, kredensial development terakhir tersedia secara privat dalam `.deploy/dev/login.env`; lihat juga `.deploy/dev/DEV-HANDOVER.md`. Gunakan password terbaru Anda setelah menggantinya lagi.
 
 Runtime `plant-v2-dev` memakai volume baru, kredensial sendiri dan binding loopback: HTTPS9443, HTTP9080 serta MySQL14306. Tidak memakai akun/data VPS atau database arsip `plant-v2-test`. Data awal kosong, selain admin, katalog aplikasi dan konfigurasi enam equipment. Seluruh rahasia/sertifikat/generated override berada di `.deploy/dev/`, diabaikan Git/Docker.
 
-Source `apps/*/app` dan `packages/*/src` mendukung hot reload. Perubahan dependency atau migrasi memerlukan `pnpm dev:up` untuk membangun ulang tools dan menjalankan migrator. `pnpm dev:down` menghentikan runtime tanpa menghapus volume; `pnpm dev:logs` menampilkan log terakhir. Setup ulang mempertahankan kredensial dan sertifikat. Script menolak Docker context remote; tidak memasang trust certificate ke OS. Runtime telah diuji pada PC Windows ini; setup Mac tetap perlu diverifikasi di perangkatnya.
+Source `apps/*/app` dan `packages/*/src` mendukung hot reload. Perubahan dependency atau migrasi memerlukan `pnpm dev:up` untuk membangun ulang tools dan menjalankan migrator. `pnpm dev:down` menghentikan runtime tanpa menghapus volume; `pnpm dev:logs` menampilkan log terakhir; `pnpm dev:smoke` memverifikasi SSO, keenam peta Bag Filter, Consumable Room, WebSocket HMR (`/…/_next/hmr`), tema, dan mobile khusus terhadap `plant-v2-dev`. Setup ulang mempertahankan kredensial dan sertifikat. Script menolak Docker context remote; tidak memasang trust certificate ke OS. Runtime telah diuji baik pada PC Windows (`x86_64`) maupun MacBook Apple Silicon (`arm64`).
 
 Suite integration/E2E/operasi lama masih khusus lingkungan uji disposable di bawah; jangan menjalankannya terhadap database development atau arsip nyata.
 

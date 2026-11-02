@@ -2,7 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -228,6 +228,8 @@ networks:
   dev-host: {}
 `;
   await writeFile(`${directory}/compose.yaml`, override, { mode: 0o600 });
+  await chmod('infra/mysql/init.sh', 0o755);
+  await chmod('infra/mysql/backup.sh', 0o755);
   const key = await exists(`${directory}/certs/tls.key`),
     cert = await exists(`${directory}/certs/tls.crt`);
   if (key !== cert) throw Error('Pasangan certificate development tidak lengkap; tidak ditimpa.');
@@ -262,11 +264,12 @@ networks:
   const loginFile = (await exists(`${directory}/login.env`))
     ? `${directory}/login.env`
     : `${directory}/stack.env`;
-  await writeFile(
-    `${directory}/DEV-HANDOVER.md`,
-    `# Development lokal\n\nURL: ${origin}\nProject: ${project}\nDatabase: volume ${project}_mysql-data, host port loopback 14306.\nEmail: developer@example.test\nKredensial: ${loginFile} (privat). File login.env menyimpan password development setelah uji awal; stack.env berisi password bootstrap sebelum diganti. Jika Anda mengganti password lagi, gunakan password terakhir Anda.\n\nPerintah: pnpm dev:up / dev:down / dev:status / dev:logs.\nHot reload: source apps/*/app dan packages/*/src. Perubahan dependency atau migrasi memerlukan dev:up agar image tools dibangun lagi.\nSertifikat localhost self-signed; belum dipasang ke trust OS/browser.\nData development terpisah dari VPS dan arsip sumber. Suite test existing tetap memakai deployment uji khusus, bukan database ini.\n`,
-    { mode: 0o600 },
-  );
+  if (!(await exists(`${directory}/DEV-HANDOVER.md`)))
+    await writeFile(
+      `${directory}/DEV-HANDOVER.md`,
+      `# Development lokal\n\nURL: ${origin}\nProject: ${project}\nDatabase: volume ${project}_mysql-data, host port loopback 14306.\nEmail: developer@example.test\nKredensial: ${loginFile} (privat). File login.env menyimpan password development setelah uji awal; stack.env berisi password bootstrap sebelum diganti. Jika Anda mengganti password lagi, gunakan password terakhir Anda.\n\nPerintah: pnpm dev:up / dev:down / dev:status / dev:logs / dev:smoke.\nHot reload: source apps/*/app dan packages/*/src. Perubahan dependency atau migrasi memerlukan dev:up agar image tools dibangun lagi.\nSertifikat localhost self-signed; belum dipasang ke trust OS/browser.\nData development terpisah dari VPS dan arsip sumber. Suite test existing tetap memakai deployment uji khusus, bukan database ini.\n`,
+      { mode: 0o600 },
+    );
   console.log(
     JSON.stringify({
       event: 'development.prepared',

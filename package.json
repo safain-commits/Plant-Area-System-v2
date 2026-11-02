@@ -14,6 +14,7 @@
     "dev:down": "tsx scripts/dev.ts down",
     "dev:status": "tsx scripts/dev.ts status",
     "dev:logs": "tsx scripts/dev.ts logs",
+    "dev:smoke": "tsx scripts/smoke-dev.ts",
     "build": "pnpm --filter \"./apps/*\" --workspace-concurrency=1 build",
     "typecheck": "tsc --noEmit && pnpm --filter \"./apps/*\" typecheck",
     "test": "tsx --test tests/unit/*.test.ts",

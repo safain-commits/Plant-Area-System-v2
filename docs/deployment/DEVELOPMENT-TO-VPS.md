@@ -14,14 +14,14 @@ Tooling development lokal tersedia melalui `scripts/dev.ts` dan perintah `pnpm d
 
 ## 1. Pisahkan lingkungan lebih dahulu
 
-| Lingkungan                                                  | Tujuan                              | Aturan                                                                |
-| ----------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
-| VPS `/opt/tq-cmms`, project `tq-cmms`                       | Produksi                            | Data operasional dan akun aktual; akses melalui domain produksi       |
-| Source di workspace PC `plant-area-system` saat ini         | Pengembangan kode                   | Tetap digunakan; tidak perlu clone kedua di PC                        |
-| Container/volume lama project `plant-v2-test` di PC         | Arsip sumber migrasi                | Data nyata dipertahankan; aplikasi tetap berhenti dan MySQL baca saja |
-| Runtime development `plant-v2-dev` di PC                    | Pengujian fitur lokal               | Container, volume, database, port dan rahasia sendiri                 |
-| Workspace MacBook, misalnya `~/Developer/plant-area-system` | Pengembangan kode dan runtime lokal | Clone GitHub; dependency, konfigurasi dan database Mac sendiri        |
-| GitHub Actions                                              | Validasi otomatis                   | Runner dan database uji terpisah; fixture sintetis                    |
+| Lingkungan                                                     | Tujuan                              | Aturan                                                                                                              |
+| -------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| VPS `/opt/tq-cmms`, project `tq-cmms`                          | Produksi                            | Data operasional dan akun aktual; akses melalui domain produksi                                                     |
+| Source di workspace PC `plant-area-system` saat ini            | Pengembangan kode                   | Tetap digunakan; tidak perlu clone kedua di PC                                                                      |
+| Container/volume lama project `plant-v2-test` di PC            | Arsip sumber migrasi                | Data nyata dipertahankan; aplikasi tetap berhenti dan MySQL baca saja                                               |
+| Runtime development `plant-v2-dev` di PC                       | Pengujian fitur lokal               | Container, volume, database, port dan rahasia sendiri                                                               |
+| Workspace MacBook, misalnya `~/Developer/plant-area-system-v2` | Pengembangan kode dan runtime lokal | Clone GitHub; dependency, konfigurasi dan database Mac sendiri (`~/Developer/plant-area-system` v1 lama tetap utuh) |
+| GitHub Actions                                                 | Validasi otomatis                   | Runner dan database uji terpisah; fixture sintetis                                                                  |
 
 Sesuai pilihan pemilik, **folder PC saat ini tetap workspace aktif**. Yang dibekukan adalah container/database sumber migrasi, bukan source code Git. Mengedit source, menjalankan typecheck/unit/build, dan commit tetap dapat dilakukan di folder yang sama.
 
@@ -40,7 +40,7 @@ Jalankan `pnpm dev:setup`, lalu `pnpm dev:up` dari root workspace dengan Docker 
 
 URL browser: **https://localhost:9443**. Certificate self-signed belum dipercaya OS/browser, sehingga peringatan certificate dapat muncul. Email awal `developer@example.test`; password sementara tersimpan privat sebagai `BOOTSTRAP_PASSWORD` pada `.deploy/dev/stack.env` dan wajib diganti. Pada PC yang telah diverifikasi, password development setelah uji awal ada di `.deploy/dev/login.env`. Lihat `.deploy/dev/DEV-HANDOVER.md`; jangan commit file rahasia atau memakai password produksi. Jika password diganti lagi, gunakan password terbaru.
 
-`pnpm dev:status` memeriksa container, `pnpm dev:logs` menampilkan log, dan `pnpm dev:down` menghentikan runtime tanpa menghapus volume. Development dimulai tanpa master perusahaan, pemasangan bag atau transaksi stok. Runtime Mac belum diuji; gunakan prompt MacBook untuk verifikasi native pada perangkat tersebut.
+`pnpm dev:status` memeriksa container, `pnpm dev:logs` menampilkan log, `pnpm dev:smoke` menjalankan verifikasi smoke browser/API khusus terhadap `plant-v2-dev` (`https://localhost:9443`), dan `pnpm dev:down` menghentikan runtime tanpa menghapus volume. Development dimulai tanpa master perusahaan, pemasangan bag atau transaksi stok. Runtime telah diverifikasi secara native baik pada PC Windows maupun MacBook Apple Silicon (`arm64`).
 
 PC dan Mac dapat memakai nama project/port development yang sama apabila masing-masing memakai Docker Engine lokalnya sendiri. Volume di PC tidak menjadi volume Mac dan data development tidak otomatis tersinkron.
 
