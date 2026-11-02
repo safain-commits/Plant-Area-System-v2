@@ -456,14 +456,14 @@ export function Workspace({
           <kbd className="sidebar-label">Ctrl B</kbd>
         </button>
       </div>
-      <button
+      {/* <button
         type="button"
         className="sidebar-handle"
         aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
         onClick={toggleSidebar}
       >
         <Icon name="chevron" style={!collapsed ? { transform: 'rotate(180deg)' } : undefined} />
-      </button>
+      </button> */}
     </aside>
   );
   return (

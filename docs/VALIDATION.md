@@ -1,5 +1,32 @@
 # Hasil validasi implementasi v2
 
+## Penyempurnaan garis submenu sidebar — 2 November 2026
+
+Struktur submenu Consumables dan Bag Filter diganti menjadi `NavigationTree` dengan `ul/li` bersarang. Garis kontainer dan pseudo-element tautan yang bertumpuk diganti segmen per item: batang/cabang 1 px, sudut 6 px, indentasi seragam dan titik cabang di tengah baris. Item terakhir mengakhiri batang pada cabangnya; subgrup Equipment tidak menimbulkan celah pada batang induk. Penanda aktif, hover dan focus mengikuti token tema. Tinggi baris tetap 36 px desktop dan 44 px mobile.
+
+Pemeriksaan aktual yang lulus:
+
+- **68 pemeriksaan geometri cabang** pada delapan kombinasi Consumables/Bag Filter × light/dark × desktop 1440/mobile 390: titik cabang sejajar tengah baris, segmen antarsaudara tanpa celah, dan ujung batang terakhir tidak memanjang melewati cabang. Screenshot termasuk submenu equipment bertingkat dan item terakhir saat scroll diperiksa secara visual.
+- **19/19 tes browser HTTPS** pada build produksi terisolasi, mencakup menu mobile, disclosure, navigasi, keyboard, role, hover, tema dan alur operasional yang sudah ada.
+- Build standalone empat aplikasi, typecheck root dan pemeriksaan format lulus. Tidak ada perubahan schema/API atau pengujian pada VPS/arsip database nyata.
+
+Bukti privat: `.deploy/sidebar-tree/geometry.json`, screenshot dan `build-*.log`; suite browser pada `.deploy/tree-qa-444ea66d/`. Container QA sementara telah ditutup. Detail aturan komponen tercantum di [UI-THEME](UI-THEME.md).
+
+## Perbaikan drawer navigasi mobile — 2 November 2026
+
+Bug direproduksi pada development lokal: aturan legacy `flex-wrap: wrap` tetap aktif setelah arah navigasi mobile berubah menjadi kolom. Grup aplikasi dengan submenu panjang pindah ke kolom di sebelah kanan, lalu terpotong oleh `overflow-x: hidden`. Pada viewport 390 px, area navigasi hanya 246 px tetapi isi melebar menjadi 617 px di Bag Filter dan 476 px di Consumables. Portal tidak menunjukkan masalah karena menunya lebih pendek. Pemeriksaan DOM `toBeVisible` terdahulu belum mendeteksi clipping ini.
+
+Navigasi utama sekarang memakai satu kolom tanpa wrapping; setiap grup mempertahankan tinggi kontennya dan submenu panjang digulir vertikal. Kontrol akun dan sesi tetap dapat dijangkau. Pesan aktivitas kosong Consumables juga diperbarui menjadi “Belum ada dokumen di stok R22.”
+
+Pemeriksaan aktual:
+
+- **19/19 tes browser HTTPS** lulus pada production build terisolasi, termasuk dua regresi baru yang memeriksa lebar scroll, posisi grup di dalam drawer, dan intersection viewport setiap tautan setelah scroll. Tes mencakup Portal, Bag Filter dan Consumables pada 390×844, 390×640 dan 767×900 dalam tema terang/gelap, preferensi sidebar ciut, buka/tutup submenu, perpindahan aplikasi, fokus Escape, serta keterjangkauan profil/admin/logout.
+- Regresi desktop, tema, hover, dropdown, SSO, pencatatan R22 dan enam peta Bag Filter tetap lulus dalam suite yang sama.
+- Build standalone keempat aplikasi, typecheck root dan pemeriksaan format seluruh workspace lulus. Perubahan ini tidak memerlukan migrasi database.
+- Probe browser lokal sesudah perbaikan menunjukkan `scrollWidth === clientWidth === 246` pada ketiga konteks; halaman panjang mempunyai scroll vertikal. Screenshot produksi terang/gelap dan screenshot development diperiksa secara visual.
+
+Bukti privat: `.deploy/nav-qa-83307754/result.json`, `browser.log` dan `browser/mobile-nav-*.png`; build dan perbandingan layout sebelum/sesudah berada di `.deploy/mobile-navigation/`. Container QA sementara sudah ditutup. Development tetap berjalan pada `https://localhost:9443`; arsip data nyata dan VPS tidak disentuh.
+
 ## Consumable Room v1.1 — R22 satu stok, 2 November 2026
 
 Fase 1–5 dan penyederhanaan tanpa fitur Lokasi diuji pada Windows dengan Node.js **26.12.1**, dependency terkunci, serta Docker Linux **MySQL 8.4**. Uji integrasi/HTTPS/restore memakai container dan network bernama unik, tanpa port host. Database arsip nyata `plant-v2-test` tetap beku dan tidak dipakai pengujian ini. VPS tidak diubah.

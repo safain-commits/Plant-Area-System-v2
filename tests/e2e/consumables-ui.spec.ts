@@ -163,6 +163,115 @@ async function sidebarContrast(page: Page) {
   for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
 }
 
+for (const value of ['light', 'dark']) {
+  test(`mobile drawer keeps all app menus reachable in ${value}`, async ({ page }) => {
+    test.setTimeout(120000);
+    await signIn(page);
+    await page.addInitScript((theme) => {
+      localStorage.setItem('plant-ui-theme', theme);
+      localStorage.setItem('plant-sidebar', 'collapsed');
+    }, value);
+    for (const [width, height] of [
+      [390, 844],
+      [390, 640],
+      [767, 900],
+    ]) {
+      await page.setViewportSize({ width, height });
+      for (const path of ['/', '/bag-filter', '/consumables']) {
+        await page.goto(path);
+        await page.getByRole('button', { name: 'Buka navigasi', exact: true }).click();
+        const drawer = page.getByRole('dialog', { name: 'Navigasi', exact: true });
+        const nav = drawer.getByRole('navigation', { name: 'Navigasi utama', exact: true });
+        // DOM visibility alone misses app groups wrapped into clipped columns.
+        await expect.poll(() => nav.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+        const rowsFit = await nav.locator('.application-row').evaluateAll((rows) =>
+          rows.every((row) => {
+            const r = row.getBoundingClientRect(),
+              parent = row.closest('nav')!.getBoundingClientRect();
+            return r.left >= parent.left - 1 && r.right <= parent.right + 1;
+          }),
+        );
+        expect(rowsFit, `${path}: application menus stay within the drawer width`).toBeTruthy();
+        for (const label of ['Portal', 'Bag Filter', 'Consumable Room']) {
+          const link = nav.getByRole('link', {
+            name: label === 'Bag Filter' ? /^Bag Filter\s*\d*$/ : label,
+            exact: true,
+          });
+          await link.scrollIntoViewIfNeeded();
+          await expect(link).toBeInViewport({ ratio: 0.99 });
+        }
+        if (path !== '/') {
+          const expected =
+            path === '/bag-filter'
+              ? ['Ringkasan', ...equipmentCodes, 'Audit']
+              : [
+                  'Ringkasan',
+                  'Cari material',
+                  'Consume Order',
+                  'Return Order',
+                  'Penerimaan Picklist',
+                  'Riwayat',
+                  'Pengelolaan',
+                  'Audit',
+                ];
+          const children = nav.locator(`.nav-application[data-app="${path.slice(1)}"] .nav-children`);
+          for (const label of expected) {
+            const link = children.getByRole('link', { name: label, exact: true });
+            await link.scrollIntoViewIfNeeded();
+            await expect(link).toBeInViewport({ ratio: 0.99 });
+          }
+          expect(await nav.evaluate((el) => el.scrollHeight > el.clientHeight)).toBeTruthy();
+          const toggle = nav.getByRole('button', {
+            name: `Tutup menu ${path === '/bag-filter' ? 'Bag Filter' : 'Consumable Room'}`,
+            exact: true,
+          });
+          await toggle.click();
+          await expect(children).toHaveCount(0);
+          await nav
+            .getByRole('button', {
+              name: `Buka menu ${path === '/bag-filter' ? 'Bag Filter' : 'Consumable Room'}`,
+              exact: true,
+            })
+            .click();
+          await expect(children).toBeVisible();
+        }
+        const profile = drawer.getByRole('link', { name: 'Profil saya', exact: true });
+        await expect(profile).toBeInViewport({ ratio: 0.99 });
+        await expect(drawer.getByRole('link', { name: 'Kelola akses', exact: true })).toBeInViewport({
+          ratio: 0.99,
+        });
+        await expect(drawer.getByRole('button', { name: /^Keluar akun/ })).toBeInViewport({ ratio: 0.99 });
+        await nav.evaluate((el) => {
+          el.scrollTop = 0;
+        });
+        if (width === 390 && height === 844)
+          await page.screenshot({
+            path: `.test-runtime/mobile-nav-${path === '/' ? 'portal' : path.slice(1)}-${value}-390.png`,
+          });
+        await page.keyboard.press('Escape');
+        await expect(drawer).toBeHidden();
+        await expect(page.getByRole('button', { name: 'Buka navigasi', exact: true })).toBeFocused();
+      }
+    }
+    // A real document navigation must reopen the destination app's own menu.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Buka navigasi', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Navigasi', exact: true })
+      .getByRole('link', { name: 'Consumable Room', exact: true })
+      .click();
+    await page.waitForURL('**/consumables');
+    await page.getByRole('button', { name: 'Buka navigasi', exact: true }).click();
+    const drawer = page.getByRole('dialog', { name: 'Navigasi', exact: true });
+    const consume = drawer.getByRole('link', { name: 'Consume Order', exact: true });
+    await consume.scrollIntoViewIfNeeded();
+    await consume.click();
+    await page.waitForURL('**/consumables/consume');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Consume Order');
+  });
+}
+
 test('premium dashboard, bounded activity, responsive sidebar, themes and Bag Filter reference', async ({
   page,
 }) => {

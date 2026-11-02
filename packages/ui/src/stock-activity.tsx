@@ -18,7 +18,7 @@ export function StockActivity({ items, compact = false }: { items: StockDocument
         {!items.length ? (
           <div className="empty">
             <Icon name="clock" />
-            <p>Belum ada dokumen pada lokasi Anda.</p>
+            <p>Belum ada dokumen di stok R22.</p>
           </div>
         ) : (
           items.slice(0, compact ? 3 : 8).map((d) => (

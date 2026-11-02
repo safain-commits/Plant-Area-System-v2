@@ -1,11 +1,28 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { canConsume, type Identity } from '@plant/contracts';
 import { Icon, type IconName } from './icon';
 import { Overlay } from './overlay';
 
 type Item = { label: string; href: string; count?: number };
 type App = 'bag-filter' | 'consumables';
+function NavigationTree({
+  id,
+  label,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <ul id={id} aria-label={label} className={`nav-tree ${className}`}>
+      {children}
+    </ul>
+  );
+}
 export function SidebarNavigation({
   identity,
   activeHref,
@@ -46,14 +63,20 @@ export function SidebarNavigation({
       : []),
   ];
   const link = (item: Item) => (
-    <a key={item.href} href={item.href} aria-current={activeHref === item.href ? 'page' : undefined}>
-      {item.label}
-      {!!item.count && (
-        <span className="r22-nav-count" aria-label={`${item.count} item dalam keranjang`}>
-          {item.count}
-        </span>
-      )}
-    </a>
+    <li key={item.href} className="nav-tree-item">
+      <a
+        className="nav-tree-row"
+        href={item.href}
+        aria-current={activeHref === item.href ? 'page' : undefined}
+      >
+        {item.label}
+        {!!item.count && (
+          <span className="r22-nav-count" aria-label={`${item.count} item dalam keranjang`}>
+            {item.count}
+          </span>
+        )}
+      </a>
+    </li>
   );
   return (
     <>
@@ -118,17 +141,21 @@ export function SidebarNavigation({
                 )}
               </div>
               {expanded && (
-                <div className="nav-children application-children" id={`navigation-${app.id}`}>
+                <NavigationTree
+                  className="nav-children application-children"
+                  id={`navigation-${app.id}`}
+                  label={`Submenu ${app.label}`}
+                >
                   {app.id === 'consumables' ? (
                     app.items.map(link)
                   ) : (
                     <>
                       {link(app.items[0])}
                       {!!equipmentLinks.length && (
-                        <>
+                        <li className="nav-tree-item">
                           <button
                             type="button"
-                            className="equipment-subgroup"
+                            className="nav-tree-row equipment-subgroup"
                             aria-expanded={equipmentOpen}
                             aria-controls="navigation-equipment"
                             onClick={() => setEquipmentOpen((v) => !v)}
@@ -136,16 +163,20 @@ export function SidebarNavigation({
                             Equipment <Icon name="chevron" />
                           </button>
                           {equipmentOpen && (
-                            <div className="equipment-links" id="navigation-equipment">
+                            <NavigationTree
+                              className="equipment-links"
+                              id="navigation-equipment"
+                              label="Equipment Bag Filter"
+                            >
                               {equipmentLinks.map(link)}
-                            </div>
+                            </NavigationTree>
                           )}
-                        </>
+                        </li>
                       )}
                       {bagGrant?.role === 'admin' && link({ label: 'Audit', href: '/bag-filter/audit' })}
                     </>
                   )}
-                </div>
+                </NavigationTree>
               )}
             </div>
           );

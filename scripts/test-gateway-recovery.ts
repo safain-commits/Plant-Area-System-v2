@@ -83,7 +83,7 @@ try {
     password = randomUUID() + randomUUID();
   userId = (await createUser(actor, { ...actor, password: temporary })).id;
   await setGrant(actor, userId, { appId: 'bag-filter', role: 'admin', equipment: ['L61-BF1'] });
-  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin', locationIds: [] });
+  await setAppGrant(actor, userId, 'consumables', { appId: 'consumables', role: 'admin' });
   await changePassword({ ...actor, id: userId }, temporary, password);
   const login = await client.post('/auth/api/sign-in/email', {
     headers: { origin: process.env.PUBLIC_ORIGIN! },

@@ -155,36 +155,6 @@
 .nav-group[aria-expanded='true'] .group-chevron {
   transform: rotate(-90deg);
 }
-.nav-children {
-  margin: 4px 0 8px 22px;
-  padding-left: 32px;
-  border-left: 1px solid var(--sidebar-treeLine);
-}
-.nav-children a {
-  display: block !important;
-  height: 36px;
-  padding: 8px 0 !important;
-  font-size: 13px !important;
-  line-height: 20px;
-  border-radius: 0 !important;
-  color: var(--sidebar-text) !important;
-  position: relative;
-}
-.nav-children a::before {
-  content: '';
-  position: absolute;
-  left: -32px;
-  top: 0;
-  width: 16px;
-  height: 18px;
-  border-left: 1px solid var(--sidebar-treeLine);
-  border-bottom: 1px solid var(--sidebar-treeLine);
-  border-radius: 0 0 0 6px;
-}
-.nav-children a:hover {
-  color: var(--textPrimary) !important;
-  background: transparent !important;
-}
 .sidebar-divider {
   height: 1px;
   margin: 16px 0;
@@ -602,7 +572,7 @@
     position: relative;
     top: auto;
     width: 100%;
-    height: calc(100dvh - 56px);
+    height: calc(100dvh - 70px);
     padding: 16px;
     border: 0;
     overflow: auto;
@@ -642,10 +612,6 @@
   .overlay-drawer .sidebar .nav-children {
     display: block;
   }
-  .overlay-drawer .nav-children a {
-    padding: 8px 0 !important;
-    font-size: 13px !important;
-  }
 }
 
 .sidebar nav {
@@ -670,11 +636,6 @@
 .is-collapsed .sidebar nav .nav-icon {
   margin-right: 0;
 }
-.nav-children a[aria-current='page'] {
-  color: var(--sidebar-itemActiveText) !important;
-  background: var(--sidebar-itemActiveBg) !important;
-  font-weight: 500;
-}
 .sidebar nav a[aria-current='page'] {
   view-transition-name: active-nav;
 }
@@ -686,8 +647,13 @@
 }
 .sidebar .sidebar-navigation {
   flex: 1 1 0;
+  /* Legacy mobile nav rules wrap columns, hiding long app groups offscreen. */
+  flex-flow: column nowrap;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.sidebar-navigation > * {
+  flex-shrink: 0;
 }
 .sidebar .sidebar-account {
   flex: 0 0 auto;
@@ -771,60 +737,105 @@
 .sidebar nav .application-link .sidebar-label {
   font-size: 14px;
 }
+/* Each list item owns one trunk segment and a centered branch. The last
+   segment ends at its branch, including when it contains another tree. */
+.nav-tree {
+  --nav-tree-indent: 22px;
+  --nav-tree-arm: 14px;
+  --nav-tree-corner: 6px;
+  --nav-tree-row-height: 36px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
 .application-children {
-  margin-top: 8px;
-  margin-bottom: 12px;
-  padding-left: 22px;
+  margin: 8px 0 12px 22px;
 }
-.application-children a {
-  padding: 8px 8px !important;
-  border-radius: 8px !important;
-  height: auto;
-  min-height: 36px;
+.nav-tree-item {
+  position: relative;
+  padding-inline-start: var(--nav-tree-indent);
 }
-.application-children a::before {
-  left: -22px;
-  width: 14px;
-}
-.application-children a[aria-current='page']::after {
+.nav-tree-item::before,
+.nav-tree-item::after {
   content: '';
   position: absolute;
-  left: 0;
-  top: 12px;
-  bottom: 12px;
-  width: 2px;
-  background: var(--sidebar-indicator);
-  border-radius: 2px;
+  inset-inline-start: 0;
+  pointer-events: none;
 }
-.equipment-subgroup {
+.nav-tree-item::before {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--sidebar-treeLine);
+}
+.nav-tree-item::after {
+  box-sizing: border-box;
+  top: calc(var(--nav-tree-row-height) / 2 - var(--nav-tree-corner));
+  width: var(--nav-tree-arm);
+  height: var(--nav-tree-corner);
+  border-inline-start: 1px solid var(--sidebar-treeLine);
+  border-bottom: 1px solid var(--sidebar-treeLine);
+  border-end-start-radius: var(--nav-tree-corner);
+}
+.nav-tree-item:last-child::before {
+  bottom: auto;
+  height: calc(var(--nav-tree-row-height) / 2 - var(--nav-tree-corner));
+}
+.sidebar .nav-tree .nav-tree-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   width: 100%;
-  min-height: 36px;
-  background: transparent;
-  color: var(--sidebar-text);
+  min-width: 0;
+  min-height: var(--nav-tree-row-height);
+  padding: calc((var(--nav-tree-row-height) - 20px) / 2) 10px;
   border: 0;
   border-radius: 8px;
-  padding: 8px;
+  background: transparent;
+  color: var(--sidebar-text);
   font-size: 13px;
-  text-align: left;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: start;
+  white-space: nowrap;
+}
+.sidebar .nav-tree .nav-tree-row:hover {
+  background: var(--sidebar-itemHoverBg);
+  color: var(--sidebar-itemHoverText);
+}
+.sidebar .nav-tree .nav-tree-row[aria-current='page'] {
+  color: var(--sidebar-itemActiveText);
+  background: var(--sidebar-itemActiveBg);
+  font-weight: 500;
+}
+.nav-tree-row[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(50% - 8px);
+  width: 2px;
+  height: 16px;
+  background: var(--sidebar-indicator);
+  border-radius: 2px;
+}
+.nav-tree-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 .equipment-subgroup svg {
   width: 14px;
+  height: 14px;
+  flex-shrink: 0;
   transform: rotate(90deg);
 }
 .equipment-subgroup[aria-expanded='true'] svg {
   transform: rotate(-90deg);
 }
 .equipment-links {
-  margin: 0 0 4px 8px;
-  padding-left: 12px;
-  border-left: 1px solid var(--sidebar-treeLine);
-}
-.equipment-links a::before {
-  left: -12px;
-  width: 8px;
+  margin-inline-start: 10px;
+  padding-block-end: 4px;
 }
 .session-compact {
   border: 1px solid var(--sidebar-promoCardBorder);
@@ -877,10 +888,8 @@
   .overlay-drawer .application-row {
     width: auto;
   }
-  .overlay-drawer .application-children a,
-  .overlay-drawer .equipment-subgroup {
-    min-height: 44px;
-    padding: 12px 8px !important;
+  .overlay-drawer .nav-tree {
+    --nav-tree-row-height: 44px;
   }
   .overlay-drawer .application-toggle {
     width: 44px;

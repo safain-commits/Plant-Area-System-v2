@@ -2,6 +2,8 @@
 
 Rilis ini memperbarui empat aplikasi karena kontrak grant, notifikasi dan dokumen bersama berubah. Deploy melalui SHA teruji mengikuti [Development → VPS](DEVELOPMENT-TO-VPS.md). Jangan merestore database laptop ke produksi yang sudah live. Tidak ada tindakan VPS yang dilakukan oleh perubahan source ini.
 
+Untuk update dari GitHub, gunakan [handover OpenClaw R22](OPENCLAW-R22-UPDATE.md), dengan full SHA dari pemilik dan CI commit tersebut yang lulus. Panduan itu mencakup rehearsal migrasi memakai salinan database VPS sebelum perubahan produksi.
+
 ## Checkpoint OpenClaw
 
 1. Catat SHA produksi, image digest, pin MySQL, status layanan dan kapasitas disk. Tinjau diff SQL `0002` serta `0003`; jangan mengubah migrasi terdahulu.
@@ -20,7 +22,7 @@ Rilis ini memperbarui empat aplikasi karena kontrak grant, notifikasi dan dokume
    dc run --rm --no-deps migrate db:migrate
    ```
 
-5. Verifikasi jurnal, jumlah/hash master tidak berubah, ruang R22 tepat satu, role/status/grant Bag Filter dipertahankan. Scope Consumables tidak lagi diperlukan. Jalankan `consumables:reconcile`; hasil kosong untuk master-only. Rerun migrator tidak membuat ruang/grant/dokumen tambahan.
+5. Verifikasi jurnal, jumlah master serta hash **kolom lama** tidak berubah, ruang R22 tepat satu, role/status/grant Bag Filter dipertahankan. Kolom SAP/alias/aturan pecahan/peninjauan konversi yang baru memang bertambah; hash `SELECT *` sebelum/sesudah perubahan schema tidak diharapkan identik. Scope Consumables tidak lagi diperlukan. Jalankan `consumables:reconcile`; hasil kosong untuk master-only. Rerun migrator tidak membuat ruang/grant/dokumen tambahan.
 6. Recreate keempat aplikasi dari image rilis tersebut, tunggu readiness, cek prefix/aset/gateway. Uji login existing dan SSO, hak empat role, pencabutan grant, metadata lokasi 404 serta API lokasi 410. Setelah izin pemilik, lakukan penerimaan operasional tanpa memasukkan fixture sintetis ke produksi. Buka maintenance sesuai checkpoint rilis, lalu pantau error/backup.
 
 Rollback aplikasi tidak menjalankan down migration. Tabel baru dan riwayat dipertahankan. Jangan menurunkan aplikasi Consumables ke versi per lokasi setelah stok R22 sudah digunakan: versi lama dapat mengubah hak/semantik data. Gunakan maintenance + perbaikan maju atau pulihkan backup bersama pemilik dengan memperhitungkan transaksi setelah backup. Jangan menghapus volume.
