@@ -1,7 +1,7 @@
 # Rencana implementasi Consumable Room v1.1 — R22
 
 Tanggal: 2 November 2026. Baseline: `30df358`.
-Status: **Disetujui 2 November 2026. Fase 1–3 selesai; Fase 4–5 dalam pengerjaan**.
+Status: **Disetujui 2 November 2026. Fase 1–4 selesai; Fase 5 dalam pengerjaan**.
 
 Acuan kebutuhan: [brief revisi R22](../CONSUMABLE-ROOM-R22-REVISION-PROMPT.md), PRD Consumable Room, kontrak API, dan design system aktif. Keputusan K1–K4 pada brief tetap berlaku. R22 memakai aplikasi `/consumables` yang sudah ada.
 
@@ -90,6 +90,8 @@ Fase 1: migrasi `0002_high_shaman.sql` direview dan diuji pada MySQL 8.4 disposa
 Fase 2: **14/14 unit dan 30/30 integrasi lulus**; typecheck root dan empat aplikasi lulus. Pengujian mencakup dokumen multi-item, semua shortage, replay normalisasi, concurrent consume/return, snapshot konversi, K3, scope, pencarian alias, rollback audit, serta tahun nomor WIB. Bukti privat `.deploy/ci-check-45498022ad/`. Adapter ringkasan/aktivitas dan fixture ikut diperbarui bersama kontrak baru; penerimaan UI menyusul Fase 3–5.
 
 Fase 3: keranjang Consume/Return, modal qty, pemulihan draft, link dari detail stok, dan bukti cetak terpasang. **14/14 unit, typecheck root/empat aplikasi, serta smoke Chromium HTTPS development lulus**. Smoke Consume → navigasi/tema → submit/bukti → Return mobile, saldo aktual, redirect 308/query, dan endpoint lama 410 dijalankan ulang setelah perbaikan race pemuatan draft. Screenshot privat `.deploy/r22-phase3-browser/`; pemeriksaan browser lengkap/role/konflik menyusul Fase 5. Migrasi development memakai `plant-v2-dev`, tidak mengubah arsip nyata.
+
+Fase 4: Picklist, alias/master satuan, label role, badge keranjang, serta tab dokumen/ledger terpasang. Typecheck root/empat aplikasi dan **30/30 integrasi MySQL lulus** (bukti `.deploy/ci-check-e722e7671d/`). Smoke Chromium menerima picklist **20 baris SET → PCS**, memeriksa saldo hasil auto-enroll, riwayat dokumen/ledger, stok → keranjang, input cashier atas nama client, reservasi berulang, dan mobile tanpa overflow. Screenshot `.deploy/r22-phase4-browser/`. Perbaikan abort request mencegah detail riwayat terbuka kembali akibat request mount yang sudah dibatalkan.
 
 Baseline Fase 0 pada Node 26.12.1: **12/12 unit test lulus**, serta **typecheck root dan keempat aplikasi lulus**. Pemeriksaan dijalankan langsung melalui Node/TypeScript karena launcher pnpm pada terminal ini tidak berjalan. Belum menjalankan migrasi R22, integration test R22, build, atau browser test R22.
 

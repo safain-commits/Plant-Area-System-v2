@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Select, Textarea, Overlay, useConfirmation } from '@plant/ui';
 import { AddToOrder } from './add-to-order';
+import { AliasInput } from './alias-input';
 import {
   canConsume,
   formatDate,
@@ -9,6 +10,7 @@ import {
   localDecimal,
   decimalUnits,
   decimalString,
+  allowsDecimals,
   type Identity,
   type Material,
   type InventoryItem,
@@ -42,12 +44,20 @@ async function send(path: string, body: unknown, method = 'POST', key?: string) 
   return d;
 }
 const quantity = (n: string) => formatQuantity(n);
-export function ConsumablesWorkspace({ identity, view }: { identity: Identity; view: string }) {
+export function ConsumablesWorkspace({
+  identity,
+  view,
+  initialType = '',
+}: {
+  identity: Identity;
+  view: string;
+  initialType?: string;
+}) {
   const [query, setQuery] = useState(''),
     [location, setLocation] = useState(''),
     [availability, setAvailability] = useState(''),
     [category, setCategory] = useState(''),
-    [type, setType] = useState(''),
+    [type, setType] = useState(initialType),
     [from, setFrom] = useState(''),
     [to, setTo] = useState(''),
     [catalog, setCatalog] = useState(false),
@@ -315,48 +325,7 @@ export function ConsumablesWorkspace({ identity, view }: { identity: Identity; v
           {notice}
         </p>
       )}
-      {['receive', 'issue'].includes(view) ? (
-        <div className="stock-transaction-layout">
-          <section className="panel">
-            <h2>Pilih stok</h2>
-            {filters}
-            <StockRows
-              items={items as InventoryItem[]}
-              busy={busy}
-              ready={ready}
-              selected={selected?.inventoryId}
-              onSelect={setSelected}
-            />
-            {paging}
-          </section>
-          <section className="panel">
-            <h2>{view === 'receive' ? 'Penerimaan' : 'Pemakaian'}</h2>
-            {selected ? (
-              <StockTransaction
-                key={`${selected.inventoryId}-${selected.inventoryVersion}-${view}`}
-                item={selected}
-                kind={view === 'receive' ? 'receipt' : 'issue'}
-                onSaved={(m) => {
-                  saved(m);
-                  get('/materials/' + selected.id)
-                    .then((d) =>
-                      setSelected(
-                        d.stocks.find((s: InventoryItem) => s.inventoryId === selected.inventoryId) || null,
-                      ),
-                    )
-                    .catch(() =>
-                      setNotice(
-                        'Transaksi tersimpan; pembaruan tampilan gagal. Tekan Coba lagi atau Perbarui.',
-                      ),
-                    );
-                }}
-              />
-            ) : (
-              <p className="empty">Pilih material dan lokasi dari daftar stok.</p>
-            )}
-          </section>
-        </div>
-      ) : view === 'manage' ? (
+      {view === 'manage' ? (
         <>
           <div className="stock-tabs" role="group" aria-label="Pengelolaan">
             {[
@@ -781,33 +750,63 @@ function StockTransaction({
   onSaved,
 }: {
   item: InventoryItem;
-  kind: keyof typeof labels;
-  onSaved: (m: string) => void;
+  kind: 'opening' | 'adjustment';
+  onSaved: (message: string) => void;
 }) {
   const [amount, setAmount] = useState(''),
-    [mode, setMode] = useState('base'),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [pending, setPending] = useState<{ fingerprint: string; key: string } | null>(null),
-    [success, setSuccess] = useState(false);
+    [success, setSuccess] = useState(false),
+    [pending, setPending] = useState<{ fingerprint: string; key: string } | null>(null);
   const confirm = useConfirmation();
-  const adjustment = kind === 'opening' || kind === 'adjustment';
   let after: string | null = null;
   try {
-    if (mode === 'pack' && kind === 'receipt' && !/^\d+$/.test(amount)) throw Error();
-    const q = decimalUnits(localDecimal(amount));
-    const delta =
-      mode === 'pack' && kind === 'receipt' ? (q / 1000000n) * decimalUnits(item.packSize || '0') : q;
-    after = decimalString(adjustment ? q : decimalUnits(item.quantity) + (kind === 'issue' ? -delta : delta));
+    after = decimalString(decimalUnits(localDecimal(amount)));
   } catch {}
   return (
-    <>
+    <form
+      className="form-stack"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy || success) return;
+        const body = {
+          materialId: item.id,
+          locationId: item.locationId,
+          quantity: localDecimal(amount),
+          reason: new FormData(e.currentTarget).get('reason'),
+          expectedVersion: item.inventoryVersion,
+        };
+        if (
+          !(await confirm(
+            `${labels[kind]} ${item.mmid} di ${item.locationName}: jumlah fisik ${amount} ${item.unit}?`,
+          ))
+        )
+          return;
+        const fingerprint = JSON.stringify(body),
+          key = pending?.fingerprint === fingerprint ? pending.key : crypto.randomUUID();
+        setPending({ fingerprint, key });
+        setBusy(true);
+        setError('');
+        try {
+          const result = await send(
+            kind === 'opening' ? '/opening-balances' : '/adjustments',
+            body,
+            'POST',
+            key,
+          );
+          setSuccess(true);
+          onSaved(`${labels[kind]} tersimpan. ID ${result.movement.id}.`);
+        } catch (e) {
+          setError(
+            (e as Error).message + ' Jika koneksi terputus, key permintaan yang sama tetap digunakan.',
+          );
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
       <p className="muted">
-        <strong>
-          {item.mmid} · {item.description}
-        </strong>
-        <br />
-        {item.locationName} · Saldo:{' '}
+        {item.commonName || item.description} · {item.locationName} · Saldo:{' '}
         {item.initialized ? quantity(item.quantity) + ' ' + item.unit : 'Belum dihitung'}
       </p>
       {error && (
@@ -815,146 +814,29 @@ function StockTransaction({
           {error}
         </p>
       )}
-      {!adjustment && !item.initialized ? (
-        <p className="notice">Admin perlu mengonfirmasi saldo awal terlebih dahulu.</p>
-      ) : (
-        <form
-          className="form-stack"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (busy || success) return;
-            const f = new FormData(e.currentTarget);
-            const body: Record<string, unknown> = { materialId: item.id, locationId: item.locationId };
-            if (adjustment) {
-              body.quantity = localDecimal(amount);
-              body.reason = f.get('reason');
-              body.expectedVersion = item.inventoryVersion;
-            } else if (kind === 'issue') {
-              body.quantity = localDecimal(amount);
-              body.job = f.get('job');
-              body.wo = f.get('wo');
-              body.reference = f.get('reference');
-            } else {
-              body.mode = mode;
-              body.reference = f.get('reference');
-              if (mode === 'pack') {
-                if (!/^\d+$/.test(amount)) {
-                  setError('Jumlah pack harus bilangan bulat.');
-                  return;
-                }
-                body.packs = Number(amount);
-                body.materialVersion = item.version;
-              } else body.quantity = localDecimal(amount);
-            }
-            if (
-              adjustment &&
-              !(await confirm(
-                `${labels[kind]} ${item.mmid} di ${item.locationName}: jumlah fisik ${amount} ${item.unit}?`,
-              ))
-            )
-              return;
-            const fingerprint = JSON.stringify(body),
-              key = pending?.fingerprint === fingerprint ? pending.key : crypto.randomUUID();
-            setPending({ fingerprint, key });
-            setBusy(true);
-            setError('');
-            try {
-              const result = await send(
-                '/' +
-                  {
-                    opening: 'opening-balances',
-                    receipt: 'receipts',
-                    issue: 'issues',
-                    return: 'return-orders',
-                    adjustment: 'adjustments',
-                  }[kind],
-                body,
-                'POST',
-                key,
-              );
-              setSuccess(true);
-              onSaved(`${labels[kind]} tersimpan. ID ${result.movement.id}.`);
-            } catch (err) {
-              setError(
-                (err as Error).message +
-                  ' Jika koneksi terputus, coba simpan kembali; key permintaan tetap digunakan.',
-              );
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {kind === 'receipt' && (
-            <label>
-              Mode penerimaan
-              <Select
-                value={mode}
-                onChange={(e) => {
-                  setMode(e.target.value);
-                  setAmount('');
-                }}
-              >
-                <option value="base">Satuan dasar ({item.unit})</option>
-                <option value="pack" disabled={!item.packSize}>
-                  Pack{item.packSize ? ` · ${quantity(item.packSize)} ${item.unit}` : ' · belum diatur'}
-                </option>
-              </Select>
-            </label>
-          )}
-          <label>
-            {adjustment
-              ? 'Jumlah fisik'
-              : kind === 'receipt' && mode === 'pack'
-                ? 'Jumlah pack'
-                : `Jumlah (${item.unit})`}
-            <Input
-              required
-              inputMode={mode === 'pack' ? 'numeric' : 'decimal'}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={adjustment ? '0 atau hasil hitung fisik' : 'Jumlah positif'}
-            />
-          </label>
-          {adjustment ? (
-            <label>
-              Alasan / keterangan hitung fisik
-              <Textarea name="reason" required maxLength={500} />
-            </label>
-          ) : (
-            <>
-              <label>
-                Referensi {kind === 'receipt' ? 'penerimaan' : 'tambahan (opsional)'}
-                <Input name="reference" required={kind === 'receipt'} maxLength={200} />
-              </label>
-              {kind === 'issue' && (
-                <>
-                  <label>
-                    Pekerjaan / equipment
-                    <Textarea name="job" required maxLength={500} />
-                  </label>
-                  <label>
-                    WO Number (opsional)
-                    <Input name="wo" maxLength={100} />
-                  </label>
-                </>
-              )}
-            </>
-          )}
-          <div className="stock-preview">
-            <span>{adjustment ? 'Saldo sesuai hitung fisik' : 'Perkiraan saldo setelah transaksi'}</span>
-            <strong>{after !== null ? quantity(after) + ' ' + item.unit : '—'}</strong>
-            <small>Saldo diperiksa kembali oleh server saat menyimpan.</small>
-          </div>
-          <Button
-            className="primary"
-            busy={busy}
-            disabled={success || after === null || (after !== null && decimalUnits(after, true) < 0n)}
-          >
-            Simpan {labels[kind].toLowerCase()}
-          </Button>
-        </form>
-      )}
-    </>
+      <label>
+        Jumlah fisik
+        <Input
+          required
+          inputMode={item.decimalAllowed ? 'decimal' : 'numeric'}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0 atau hasil hitung fisik"
+        />
+      </label>
+      <label>
+        Alasan / keterangan hitung fisik
+        <Textarea name="reason" required maxLength={500} />
+      </label>
+      <div className="stock-preview">
+        <span>Saldo sesuai hitung fisik</span>
+        <strong>{after !== null ? quantity(after) + ' ' + item.unit : '—'}</strong>
+        <small>Saldo dan versi diperiksa kembali oleh server.</small>
+      </div>
+      <Button className="primary" busy={busy} disabled={success || after === null}>
+        Simpan {labels[kind].toLowerCase()}
+      </Button>
+    </form>
   );
 }
 function MaterialPicker({
@@ -1040,6 +922,10 @@ function MaterialPicker({
   );
 }
 function MaterialEditor({ material, saved }: { material: Material | null; saved: () => void }) {
+  const [unit, setUnit] = useState(material?.unit || ''),
+    [sapUnit, setSapUnit] = useState(material?.sapUnit || ''),
+    [decimalAllowed, setDecimalAllowed] = useState(material?.decimalAllowed ?? true),
+    [reviewed, setReviewed] = useState(material?.conversionReviewed ?? true);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
@@ -1056,6 +942,9 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           description: f.get('description'),
           commonName: f.get('commonName'),
           unit: f.get('unit'),
+          sapUnit: f.get('sapUnit'),
+          aliases: f.get('aliases'),
+          decimalAllowed,
           category: f.get('category'),
           mrpType: f.get('mrpType'),
           critical: f.has('critical'),
@@ -1092,10 +981,36 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
         <label>
           Nama umum
           <Input name="commonName" maxLength={160} defaultValue={material?.commonName} />
+          <small>Nama yang dikenal di lapangan, mis. Baut M16.</small>
+        </label>
+        <AliasInput initial={material?.aliases || ''} />
+        <label>
+          Satuan SAP
+          <Input
+            name="sapUnit"
+            required
+            maxLength={30}
+            value={sapUnit}
+            onChange={(e) => setSapUnit(e.target.value)}
+            placeholder="SET, EA, KG…"
+          />
         </label>
         <label>
-          Satuan dasar
-          <Input name="unit" required maxLength={30} defaultValue={material?.unit} />
+          Satuan R22 (terkecil)
+          <Input
+            name="unit"
+            required
+            maxLength={30}
+            value={unit}
+            readOnly={!!material?.unitLocked}
+            onChange={(e) => {
+              setUnit(e.target.value);
+              if (!material) setDecimalAllowed(allowsDecimals(e.target.value));
+            }}
+          />
+          <small>
+            {material?.unitLocked ? 'Terkunci setelah transaksi pertama.' : 'Contoh: PCS atau KG.'}
+          </small>
         </label>
         <label>
           Kategori
@@ -1106,16 +1021,29 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           <Input name="mrpType" maxLength={30} defaultValue={material?.mrpType} />
         </label>
         <label>
-          Isi per pack (opsional)
+          Konversi SAP (opsional)
           <Input
             name="packSize"
             inputMode="decimal"
             defaultValue={material?.packSize || ''}
             placeholder="Belum diatur"
           />
+          <small>
+            1 {sapUnit || 'satuan SAP'} = N {unit || 'satuan R22'}. Kosong berarti 1 hanya jika kedua satuan
+            sama.
+          </small>
         </label>
       </div>
       <div className="inline">
+        <label className="r22-onbehalf">
+          <input
+            type="checkbox"
+            name="decimalAllowed"
+            checked={decimalAllowed}
+            onChange={(e) => setDecimalAllowed(e.target.checked)}
+          />
+          Izinkan desimal
+        </label>
         <label>
           <input type="checkbox" name="critical" defaultChecked={material?.critical} />
           Critical part
@@ -1125,7 +1053,13 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           Aktif
         </label>
       </div>
-      <Button className="primary" busy={busy}>
+      {material && !material.conversionReviewed && (
+        <label className="r22-onbehalf">
+          <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} />
+          Saya telah memeriksa satuan SAP dan faktor konversi lama.
+        </label>
+      )}
+      <Button className="primary" busy={busy} disabled={!reviewed}>
         Simpan master material
       </Button>
     </form>

@@ -4,14 +4,15 @@ import { Shell, Heading } from '@plant/ui';
 import { canConsume } from '@plant/contracts';
 import { ConsumablesWorkspace } from '../workspace';
 import { OrderCart } from '../order-cart';
+import { Picklist } from '../picklist';
+import { StockHistory } from '../stock-history';
 export const dynamic = 'force-dynamic';
 const titles: Record<string, string> = {
   stock: 'Cari material',
   consume: 'Consume Order',
   return: 'Return Order',
-  receive: 'Penerimaan material',
-  issue: 'Pemakaian material',
-  history: 'Riwayat pergerakan stok',
+  picklist: 'Penerimaan Picklist',
+  history: 'Riwayat material',
   manage: 'Pengelolaan material',
   audit: 'Audit Consumable Room',
 };
@@ -24,15 +25,13 @@ export default async function Page({ params }: { params: Promise<{ section: stri
         ? 'return'
         : section === 'consume'
           ? 'issue'
-          : section === 'receive'
+          : section === 'picklist'
             ? 'receive'
-            : section === 'issue'
-              ? 'issue'
-              : section === 'manage'
-                ? 'manage'
-                : section === 'audit'
-                  ? 'audit'
-                  : 'read';
+            : section === 'manage'
+              ? 'manage'
+              : section === 'audit'
+                ? 'audit'
+                : 'read';
   return (
     <Shell identity={identity} active="consumables" activePath={`/consumables/${section}`}>
       <Heading
@@ -43,6 +42,10 @@ export default async function Page({ params }: { params: Promise<{ section: stri
       {canConsume(identity, action) ? (
         section === 'consume' || section === 'return' ? (
           <OrderCart identity={identity} type={section} />
+        ) : section === 'picklist' ? (
+          <Picklist identity={identity} />
+        ) : section === 'history' ? (
+          <StockHistory identity={identity} />
         ) : (
           <ConsumablesWorkspace identity={identity} view={section} />
         )

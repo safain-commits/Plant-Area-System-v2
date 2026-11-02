@@ -479,7 +479,12 @@ export async function materialDetail(actor: Identity, id: string) {
     db(),
     sql`SELECT ${invCols} FROM ${joinInv} WHERE m.id=${id} AND ${scope(actor, sql`i.location_id`)} ORDER BY l.name`,
   );
-  return { material, stocks: stocks.map(normalize) };
+  const [used] = await db()
+    .select({ id: movements.id })
+    .from(movements)
+    .where(eq(movements.materialId, id))
+    .limit(1);
+  return { material: { ...material, unitLocked: !!used }, stocks: stocks.map(normalize) };
 }
 export async function listMovements(actor: Identity, p: URLSearchParams) {
   const conditions = [

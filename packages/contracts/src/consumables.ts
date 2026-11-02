@@ -54,6 +54,7 @@ export type Material = {
   aliases: string;
   decimalAllowed: boolean;
   conversionReviewed: boolean;
+  unitLocked?: boolean;
   category: string;
   mrpType: string;
   critical: boolean;

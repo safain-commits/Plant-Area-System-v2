@@ -402,8 +402,8 @@ function ConsumablesAccess({
         <Select name="consumablesRole" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
           <option value="">Tidak diberi akses</option>
           <option value="viewer">Viewer — baca stok</option>
-          <option value="operator">Operator — pemakaian mandiri</option>
-          <option value="storekeeper">Petugas stok — penerimaan & pemakaian</option>
+          <option value="operator">Client (self-service) — Consume / Return</option>
+          <option value="storekeeper">R22 Cashier — Picklist & order client</option>
           <option value="admin">Admin — seluruh lokasi & pengelolaan</option>
         </Select>
       </label>

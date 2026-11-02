@@ -106,6 +106,125 @@
   font-size: 14px;
   color: var(--textSecondary);
 }
+.r22-nav-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 5px;
+  background: var(--surfaceSunken);
+  color: var(--textPrimary);
+  border-radius: 999px;
+  font-size: 11px;
+}
+.r22-picklist {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.r22-picklist > .panel {
+  margin: 0;
+  min-width: 0;
+}
+.r22-picklist .form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.r22-picklist-table .r22-cart-head,
+.r22-picklist-table .r22-cart-row {
+  grid-template-columns: 28px minmax(0, 1fr) 100px 120px 130px 64px;
+}
+.r22-conversion-output {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.r22-conversion-output small {
+  display: block;
+}
+.r22-reservation-warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  margin: 20px 0 0;
+}
+.r22-picklist-submit {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+.r22-picklist-submit p {
+  margin: 8px 0 0;
+}
+.r22-alias-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.r22-alias-chips > span {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--surfaceSunken);
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.r22-alias-chips button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--textPrimary);
+  min-width: 24px;
+  min-height: 24px;
+}
+.r22-alias-chips button:hover:not(:disabled) {
+  background: var(--surfaceMuted);
+  color: var(--textPrimary);
+}
+@media (max-width: 900px) {
+  .r22-picklist .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .r22-picklist-table .r22-cart-row {
+    grid-template-columns: 24px minmax(0, 1fr) 100px;
+  }
+  .r22-picklist-table .r22-cart-head {
+    display: none;
+  }
+  .r22-picklist-table .r22-conversion-output {
+    grid-column: 2;
+  }
+}
+@media (max-width: 639px) {
+  .r22-picklist .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .r22-picklist-table .r22-cart-row {
+    grid-template-columns: minmax(0, 1fr) 110px;
+  }
+  .r22-picklist-table .r22-cart-row > div {
+    grid-column: 1 / -1;
+  }
+  .r22-picklist-table .r22-conversion-output {
+    grid-column: 2;
+  }
+  .r22-picklist-table .r22-cart-row > label:not(.r22-line-quantity) {
+    grid-column: 1 / -1;
+  }
+  .r22-picklist-submit {
+    display: grid;
+  }
+  .r22-alias-chips button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 .r22-search {
   position: relative;
   z-index: 3;

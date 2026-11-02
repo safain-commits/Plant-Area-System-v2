@@ -4,7 +4,7 @@ import { canConsume, type Identity } from '@plant/contracts';
 import { Icon, type IconName } from './icon';
 import { Overlay } from './overlay';
 
-type Item = { label: string; href: string };
+type Item = { label: string; href: string; count?: number };
 type App = 'bag-filter' | 'consumables';
 export function SidebarNavigation({
   identity,
@@ -48,6 +48,11 @@ export function SidebarNavigation({
   const link = (item: Item) => (
     <a key={item.href} href={item.href} aria-current={activeHref === item.href ? 'page' : undefined}>
       {item.label}
+      {!!item.count && (
+        <span className="r22-nav-count" aria-label={`${item.count} item dalam keranjang`}>
+          {item.count}
+        </span>
+      )}
     </a>
   );
   return (

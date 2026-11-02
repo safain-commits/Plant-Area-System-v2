@@ -135,7 +135,7 @@ export async function page<T extends { id: string }>(
       : null;
   return { items: items.map(({ cursorSort, cursorId, ...item }) => item as unknown as T), nextCursor };
 }
-export const matCols = sql`m.id,m.mmid,m.description,m.common_name AS commonName,m.unit,m.sap_unit AS sapUnit,m.aliases,m.decimal_allowed AS decimalAllowed,m.conversion_reviewed AS conversionReviewed,m.category,m.mrp_type AS mrpType,m.critical,m.pack_size AS packSize,m.active,m.version,m.source_batch AS sourceBatch,m.source_date AS sourceDate`;
+export const matCols = sql`m.id,m.mmid,m.description,m.common_name AS commonName,m.unit,m.sap_unit AS sapUnit,m.aliases,m.decimal_allowed AS decimalAllowed,m.conversion_reviewed AS conversionReviewed,EXISTS(SELECT 1 FROM stock_movements used WHERE used.material_id=m.id LIMIT 1) AS unitLocked,m.category,m.mrp_type AS mrpType,m.critical,m.pack_size AS packSize,m.active,m.version,m.source_batch AS sourceBatch,m.source_date AS sourceDate`;
 export const invCols = sql`${matCols},i.id AS inventoryId,i.location_id AS locationId,l.name AS locationName,i.rack,i.quantity,i.initialized,i.active AS inventoryActive,i.version AS inventoryVersion,l.active AS locationActive`;
 export const joinInv = sql`inventory i JOIN materials m ON m.id=i.material_id JOIN locations l ON l.id=i.location_id`;
 export const moveCols = sql`v.id,v.material_id AS materialId,v.location_id AS locationId,v.document_id AS documentId,v.line_no AS lineNo,v.common_name AS commonName,v.sap_unit AS sapUnit,v.sap_quantity AS sapQuantity,v.mmid,v.description,v.unit,v.location_name AS locationName,v.type,v.quantity,v.balance_after AS balanceAfter,v.packs,v.pack_size AS packSize,v.reference,v.wo,v.job,v.reason,v.actor_id AS actorId,v.actor_name AS actorName,v.created_at AS createdAt`;
@@ -148,6 +148,7 @@ export const normalize = <T extends Record<string, unknown>>(item: T) => {
     'locationActive',
     'decimalAllowed',
     'conversionReviewed',
+    'unitLocked',
   ])
     if (k in item) (item as Record<string, unknown>)[k] = !!item[k];
   return item;

@@ -16,6 +16,7 @@ import { ThemeToggle } from './theme';
 import { LogoutButton } from './logout';
 import { SidebarNavigation } from './sidebar-navigation';
 import { BrandLogo } from './brand';
+import { cartCount } from './r22-cart';
 
 type Activity = {
   id: string;
@@ -30,7 +31,7 @@ type Activity = {
   installedAt: string;
   createdAt: string;
 };
-type LinkItem = { label: string; href: string; icon: IconName; group: string };
+type LinkItem = { label: string; href: string; icon: IconName; group: string; count?: number };
 const batchLink = (item: Activity) =>
   item.appId === 'consumables'
     ? `/consumables/history?document=${encodeURIComponent(item.id)}`
@@ -74,6 +75,18 @@ export function Workspace({
     list = useRef<HTMLDivElement>(null);
   const grant = identity.grants.find((g) => g.appId === 'bag-filter');
   const stockGrant = canConsume(identity, 'read');
+  const [cartCounts, setCartCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const update = () =>
+      setCartCounts({
+        consume: cartCount(identity.id, 'consume'),
+        return: cartCount(identity.id, 'return'),
+        picklist: cartCount(identity.id, 'picklist'),
+      });
+    update();
+    window.addEventListener('r22-cart-change', update);
+    return () => window.removeEventListener('r22-cart-change', update);
+  }, [identity.id]);
   const stockLinks: LinkItem[] = stockGrant
     ? [
         { label: 'Ringkasan', href: '/consumables', icon: 'grid', group: 'Consumable Room' },
@@ -94,6 +107,7 @@ export function Workspace({
             href: '/consumables/' + path,
             icon: 'grid' as const,
             group: 'Consumable Room',
+            count: cartCounts[path],
           })),
       ]
     : [];
@@ -307,12 +321,14 @@ export function Workspace({
             else {
               activities.push(...data.items.map(normalizeStock));
               materials.push(
-                ...data.materials.map((m: { id: string; mmid: string; description: string }) => ({
-                  label: m.mmid + ' ? ' + m.description,
-                  href: '/consumables/stock?material=' + m.id,
-                  icon: 'grid' as const,
-                  group: 'Material',
-                })),
+                ...data.materials.map(
+                  (m: { id: string; mmid: string; description: string; commonName?: string }) => ({
+                    label: m.mmid + ' · ' + (m.commonName || m.description),
+                    href: '/consumables/stock?material=' + m.id,
+                    icon: 'grid' as const,
+                    group: 'Material',
+                  }),
+                ),
               );
             }
           }
