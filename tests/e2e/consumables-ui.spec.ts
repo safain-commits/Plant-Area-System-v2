@@ -29,7 +29,7 @@ const actor: Identity = {
 };
 let userId: string, locationId: string, client: APIRequestContext;
 const year = new Date(Date.now() + 7 * 3600000).getUTCFullYear();
-const types = ['opening', 'receipt', 'issue', 'adjustment'] as const;
+const types = ['consume', 'return', 'picklist'] as const;
 function fixture(): StockDashboard {
   return {
     operational: 64,
@@ -39,11 +39,13 @@ function fixture(): StockDashboard {
     uncounted: 21,
     year,
     currentYear: year,
+    legacyMovementCount: 0,
     series: [1, 2, 3, 4].map((quarter) => ({
       quarter,
       opening: quarter < 4 ? 2 : 41,
-      receipt: quarter < 4 ? 0 : 1109,
-      issue: quarter < 4 ? 0 : 23,
+      picklist: quarter < 4 ? 0 : 1109,
+      consume: quarter < 4 ? 0 : 23,
+      return: 0,
       adjustment: quarter < 4 ? 0 : 6,
     })),
     recent: Array.from({ length: 8 }, (_, i) => ({
@@ -55,7 +57,20 @@ function fixture(): StockDashboard {
         'Synthetic long material description for visual verification of industrial spare parts and maintenance supplies with a deliberately extended name',
       unit: i % 2 ? 'KG' : 'EA',
       locationName: 'Synthetic location',
-      type: types[i % 4],
+      type: types[i % 3],
+      number: `R22-CO-${year}-${String(i + 1).padStart(6, '0')}`,
+      hec: '452-BU1',
+      note: 'Synthetic document',
+      channel: 'self' as const,
+      requesterName: 'Synthetic requester with an extended name for verification',
+      requesterNik: '',
+      sourceRef: '',
+      reservationNo: '',
+      equipmentNo: '',
+      functionalLocation: '',
+      costCenter: '',
+      requiredDate: null,
+      lineCount: 20,
       quantity: i % 4 === 2 ? '-0.123456' : '123.456789',
       balanceAfter: '1000.000000',
       packs: null,
@@ -319,8 +334,9 @@ test('quarter scale and details preserve counts, zeros, year selection, errors a
     data.series = [1, 2, 3, 4].map((quarter) => ({
       quarter,
       opening: kind === 'balanced' ? 2 : 0,
-      receipt: kind === 'empty' ? 0 : 2,
-      issue: kind === 'balanced' ? 2 : 0,
+      picklist: kind === 'empty' ? 0 : 2,
+      consume: kind === 'balanced' ? 2 : 0,
+      return: 0,
       adjustment: kind === 'balanced' ? 2 : 0,
     }));
     if (kind === 'empty')

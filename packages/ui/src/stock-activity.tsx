@@ -1,5 +1,5 @@
-import { formatDate, formatQuantity, type Movement } from '@plant/contracts';
-import { Icon, type IconName } from './icon';
+import { formatDate, stockDocumentLabels, type StockDocument } from '@plant/contracts';
+import { Icon } from './icon';
 export const movementLabels = {
   opening: 'Saldo awal',
   receipt: 'Penerimaan',
@@ -7,14 +7,7 @@ export const movementLabels = {
   return: 'Return Order',
   adjustment: 'Koreksi',
 } as const;
-const icons: Record<Movement['type'], IconName> = {
-  opening: 'box',
-  receipt: 'receipt',
-  issue: 'issue',
-  return: 'receipt',
-  adjustment: 'settings',
-};
-export function StockActivity({ items, compact = false }: { items: Movement[]; compact?: boolean }) {
+export function StockActivity({ items, compact = false }: { items: StockDocument[]; compact?: boolean }) {
   return (
     <section className="panel recent-card stock-activity">
       <div className="section-head">
@@ -25,33 +18,32 @@ export function StockActivity({ items, compact = false }: { items: Movement[]; c
         {!items.length ? (
           <div className="empty">
             <Icon name="clock" />
-            <p>Belum ada transaksi pada lokasi Anda.</p>
+            <p>Belum ada dokumen pada lokasi Anda.</p>
           </div>
         ) : (
-          items.slice(0, compact ? 3 : 8).map((m) => (
+          items.slice(0, compact ? 3 : 8).map((d) => (
             <a
-              key={m.id}
+              key={d.id}
               className="activity-row stock-activity-row"
-              href={`/consumables/history?movement=${encodeURIComponent(m.id)}`}
+              href={`/consumables/history?document=${encodeURIComponent(d.id)}`}
             >
-              <span className={`app-icon movement-icon ${m.type}`}>
-                <Icon name={icons[m.type]} />
+              <span className={`app-icon movement-icon ${d.type}`}>
+                <Icon name={d.type === 'consume' ? 'issue' : 'receipt'} />
               </span>
               <span className="stock-activity-description">
-                <strong title={`${m.mmid} · ${m.description}`}>{m.description}</strong>
-                <small className="stock-activity-code" title={`${m.mmid} · ${m.locationName}`}>
-                  {m.mmid} · {m.locationName}
+                <strong>{d.number}</strong>
+                <small>
+                  {stockDocumentLabels[d.type]} · {d.hec || d.locationName}
                 </small>
-                <small title={`${m.actorName} · ${formatDate(m.createdAt)} WIB`}>
-                  {m.actorName} · {formatDate(m.createdAt)} WIB
+                <small title={d.requesterName}>{d.requesterName}</small>
+                <small>
+                  {d.actorName} · {formatDate(d.createdAt)} WIB
                 </small>
               </span>
               <span className="stock-activity-value">
-                <strong title={`${formatQuantity(m.quantity)} ${m.unit}`}>
-                  {formatQuantity(m.quantity)} <small>{m.unit}</small>
+                <strong>
+                  {d.lineCount} <small>item</small>
                 </strong>
-                <small>{movementLabels[m.type]}</small>
-                {m.type === 'adjustment' && <small>Selisih saldo</small>}
               </span>
             </a>
           ))

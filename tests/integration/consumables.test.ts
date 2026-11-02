@@ -344,14 +344,15 @@ test('quarter and date filters use WIB boundaries rather than UTC dates', async 
   };
   const d = await stockDashboard(scoped, 2026);
   assert.deepEqual(
-    d.series.map((q) => q.receipt),
-    [1, 1, 1, 1],
+    d.series.map((q) => q.picklist),
+    [0, 0, 0, 0],
   );
   assert.deepEqual(
     d.series.map((q) => q.opening),
     [0, 0, 0, 0],
   );
   const day = await listMovements(scoped, new URLSearchParams({ from: '2026-04-01', to: '2026-04-01' }));
+  assert.equal(d.legacyMovementCount, 4);
   assert.equal(day.items.length, 1);
   assert.equal(day.items[0].createdAt, '2026-03-31T17:00:00.000Z');
 });

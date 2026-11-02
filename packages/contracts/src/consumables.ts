@@ -231,6 +231,14 @@ export type StockDashboard = {
   uncounted: number;
   year: number;
   currentYear: number;
-  series: { quarter: number; opening: number; receipt: number; issue: number; adjustment: number }[];
-  recent: Movement[];
+  series: {
+    quarter: number;
+    opening: number;
+    consume: number;
+    return: number;
+    picklist: number;
+    adjustment: number;
+  }[];
+  legacyMovementCount: number;
+  recent: StockDocument[];
 };

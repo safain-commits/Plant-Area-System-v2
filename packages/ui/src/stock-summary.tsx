@@ -7,13 +7,26 @@ import { Icon } from './icon';
 import { AnimatedNumber } from './dashboard';
 import { QuarterlyChart, type ChartSeries } from './quarterly-chart';
 import { StockActivity, movementLabels } from './stock-activity';
-const kinds = ['opening', 'receipt', 'issue', 'adjustment'] as const;
-const colors = ['var(--gray-500)', 'var(--primary-500)', 'var(--secondary-500)', 'var(--primary-800)'];
+const kinds = ['opening', 'picklist', 'consume', 'return', 'adjustment'] as const;
+const labels = {
+  opening: 'Saldo awal',
+  picklist: 'Penerimaan Picklist',
+  consume: 'Consume Order',
+  return: 'Return Order',
+  adjustment: 'Koreksi',
+};
+const colors = [
+  'var(--gray-500)',
+  'var(--primary-500)',
+  'var(--secondary-500)',
+  'var(--highlight)',
+  'var(--primary-800)',
+];
 const series: ChartSeries[] = kinds.map((key, i) => ({
   key,
-  label: movementLabels[key],
+  label: labels[key],
   color: colors[i],
-  hatch: key === 'receipt' || key === 'issue',
+  hatch: key === 'picklist' || key === 'consume',
 }));
 const n = (value: number) => value.toLocaleString('id-ID');
 
@@ -222,8 +235,15 @@ export function StockSummary({
                       : `Data tahun kalender ${data.year}.`}
                 </p>
                 <p className="fine stock-chart-note">
-                  Kuantitas berbeda satuan tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
+                  Order dihitung per dokumen; saldo awal dan koreksi per pencatatan. Kuantitas berbeda satuan
+                  tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
                 </p>
+                {!!data.legacyMovementCount && (
+                  <p className="fine">
+                    {n(data.legacyMovementCount)} transaksi v1 tanpa dokumen tersedia pada tab Pergerakan
+                    stok.
+                  </p>
+                )}
               </div>
               <div className="kpi-rail">
                 {metrics.map(([label, value]) => (

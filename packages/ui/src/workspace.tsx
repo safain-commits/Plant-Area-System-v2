@@ -6,6 +6,8 @@ import {
   canConsume,
   formatQuantity,
   type Movement,
+  type StockDocument,
+  stockDocumentLabels,
   type Identity,
 } from '@plant/contracts';
 import { Icon, type IconName } from './icon';
@@ -31,7 +33,7 @@ type Activity = {
 type LinkItem = { label: string; href: string; icon: IconName; group: string };
 const batchLink = (item: Activity) =>
   item.appId === 'consumables'
-    ? `/consumables/history?movement=${encodeURIComponent(item.id)}`
+    ? `/consumables/history?document=${encodeURIComponent(item.id)}`
     : `/bag-filter/equipment/${item.equipmentCode.toLowerCase()}?batch=${encodeURIComponent(item.id)}`;
 export function Workspace({
   identity,
@@ -95,23 +97,14 @@ export function Workspace({
       ]
     : [];
   const sourceIds = [...(grant ? ['bag-filter'] : []), ...(stockGrant ? ['consumables'] : [])];
-  const normalizeStock = (m: Movement): Activity => ({
+  const normalizeStock = (m: StockDocument): Activity => ({
     id: m.id,
-    equipmentCode: m.mmid,
-    wo: m.reference,
-    reason:
-      {
-        opening: 'Saldo awal',
-        receipt: 'Penerimaan',
-        issue: 'Pemakaian',
-        return: 'Return Order',
-        adjustment: 'Koreksi',
-      }[m.type] +
-      ' · ' +
-      m.description,
+    equipmentCode: m.hec || m.locationName,
+    wo: m.number,
+    reason: stockDocumentLabels[m.type] + ' · ' + m.requesterName,
     brand: m.locationName,
-    positionCount: formatQuantity(m.quantity),
-    unit: m.unit,
+    positionCount: m.lineCount,
+    unit: 'item',
     actorName: m.actorName,
     installedAt: m.createdAt,
     createdAt: m.createdAt,

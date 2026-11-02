@@ -16,6 +16,12 @@ import {
   saveLocation,
   saveInventory,
   postMovement,
+  createDocument,
+  documentDetail,
+  listDocuments,
+  searchMaterials,
+  hecSuggestions,
+  DocumentConflict,
 } from '@plant/consumables-core';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path: string[] }> };
@@ -29,6 +35,11 @@ export async function GET(request: Request, context: Context) {
       p = new URL(request.url).searchParams,
       s = path.join('/');
     if (s === 'locations') return json(await listLocations(a));
+    if (s === 'search') return json(await searchMaterials(a, p));
+    if (s === 'catalog-search') return json(await searchMaterials(a, p, true));
+    if (s === 'hec-suggestions') return json(await hecSuggestions(a, p.get('q') || ''));
+    if (s === 'documents') return json(await listDocuments(a, p));
+    if (path.length === 2 && path[0] === 'documents') return json(await documentDetail(a, path[1]));
     if (s === 'categories') return json(await listCategories(a));
     if (s === 'materials') return json(await listMaterials(a, p));
     if (s === 'inventory') return json(await listInventory(a, p));
@@ -39,7 +50,7 @@ export async function GET(request: Request, context: Context) {
     if (s === 'reconciliation') return json(await reconcile(a));
     if (s === 'dashboard')
       return json(await stockDashboard(a, p.has('year') ? Number(p.get('year')) : undefined));
-    if (s === 'activity') return json(await listMovements(a, new URLSearchParams({ limit: '12' })));
+    if (s === 'activity') return json(await listDocuments(a, new URLSearchParams({ limit: '12' })));
     if (s === 'discovery') return json(await discovery(a, p.get('q') || ''));
     throw new AppError(404, 'Endpoint tidak ditemukan.');
   } catch (e) {
@@ -50,8 +61,18 @@ async function mutate(request: Request, context: Context) {
   try {
     verifyOrigin(request);
     const a = await apiIdentity(request),
-      path = (await context.params).path,
-      body = await readJson(request);
+      path = (await context.params).path;
+    if (!canConsume(a, 'read')) throw new AppError(403, 'Akses Consumable Room belum diberikan.');
+    if (request.method === 'POST' && path.length === 1 && ['issues', 'receipts'].includes(path[0]))
+      return json({ error: 'Gunakan /consume-orders atau /picklist-receipts.' }, 410);
+    const body = await readJson(request);
+    const documentType = (
+      { 'consume-orders': 'consume', 'return-orders': 'return', 'picklist-receipts': 'picklist' } as const
+    )[path[0] as 'consume-orders'];
+    if (request.method === 'POST' && path.length === 1 && documentType) {
+      const result = await createDocument(a, documentType, body, request.headers.get('idempotency-key'));
+      return json(result, result.replayed ? 200 : 201);
+    }
     const kind = (
       {
         receipts: 'receipt',
@@ -75,6 +96,7 @@ async function mutate(request: Request, context: Context) {
     }
     throw new AppError(404, 'Endpoint tidak ditemukan.');
   } catch (e) {
+    if (e instanceof DocumentConflict) return json({ error: e.message, code: e.code, lines: e.lines }, 409);
     return failure(e);
   }
 }
