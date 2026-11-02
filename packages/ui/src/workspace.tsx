@@ -100,7 +100,13 @@ export function Workspace({
     equipmentCode: m.mmid,
     wo: m.reference,
     reason:
-      { opening: 'Saldo awal', receipt: 'Penerimaan', issue: 'Pemakaian', adjustment: 'Koreksi' }[m.type] +
+      {
+        opening: 'Saldo awal',
+        receipt: 'Penerimaan',
+        issue: 'Pemakaian',
+        return: 'Return Order',
+        adjustment: 'Koreksi',
+      }[m.type] +
       ' · ' +
       m.description,
     brand: m.locationName,

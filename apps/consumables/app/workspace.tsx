@@ -17,7 +17,13 @@ import {
 type AuditItem = { id: string; action: string; actorName: string; createdAt: string; details: string };
 type ListItem = Material | InventoryItem | Movement | AuditItem;
 const api = '/consumables/api';
-const labels = { opening: 'Saldo awal', receipt: 'Penerimaan', issue: 'Pemakaian', adjustment: 'Koreksi' };
+const labels = {
+  opening: 'Saldo awal',
+  receipt: 'Penerimaan',
+  issue: 'Pemakaian',
+  return: 'Return Order',
+  adjustment: 'Koreksi',
+};
 async function get(path: string, signal?: AbortSignal) {
   const r = await fetch(api + path, { cache: 'no-store', signal }),
     d = await r.json();
@@ -865,6 +871,7 @@ function StockTransaction({
                     opening: 'opening-balances',
                     receipt: 'receipts',
                     issue: 'issues',
+                    return: 'return-orders',
                     adjustment: 'adjustments',
                   }[kind],
                 body,

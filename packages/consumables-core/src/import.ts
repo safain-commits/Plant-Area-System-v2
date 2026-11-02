@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { AppError } from '@plant/contracts';
+import { AppError, allowsDecimals } from '@plant/contracts';
 import { getConsumablesDb } from './database';
 import { materials, imports, audit } from './schema';
 export function parseCatalog(contents: string) {
@@ -90,6 +90,8 @@ export async function importCatalog(contents: string, apply = false) {
         newRows.push({
           id: randomUUID(),
           ...m,
+          sapUnit: m.unit,
+          decimalAllowed: allowsDecimals(m.unit),
           sourceBatch: data.batch,
           packSize: null,
           version: 1,

@@ -6,6 +6,13 @@ import {
   formatQuantity,
   localDecimal,
   canConsume,
+  normalizeHec,
+  HEC_PATTERN,
+  normalizeAliases,
+  sapToR22,
+  validateStockQuantity,
+  canonicalDocumentPayload,
+  allowsDecimals,
   type Identity,
 } from '@plant/contracts';
 import { parseCatalog } from '@plant/consumables-core/import';
@@ -36,11 +43,51 @@ test('consumable permissions are app-specific, scoped and fail closed', () => {
     assert.equal(canConsume(actor, 'read', 'B'), role === 'admin');
     assert.equal(canConsume(actor, 'issue', 'A'), role !== 'viewer');
     assert.equal(canConsume(actor, 'receive', 'A'), role === 'storekeeper' || role === 'admin');
+    assert.equal(canConsume(actor, 'return', 'A'), role !== 'viewer');
+    assert.equal(canConsume(actor, 'onbehalf', 'A'), role === 'storekeeper' || role === 'admin');
     assert.equal(canConsume(actor, 'manage', 'A'), role === 'admin');
     assert.equal(canConsume(actor, 'invented' as never, 'A'), false);
   }
   actor.mustChangePassword = true;
   assert.equal(canConsume(actor, 'read'), false);
+});
+
+test('R22 HEC and aliases normalize consistently without accepting malformed locations', () => {
+  assert.equal(normalizeHec(' tq.452-bu1 '), '452-BU1');
+  for (const v of ['452-BU1', '123-ABC']) assert.ok(HEC_PATTERN.test(normalizeHec(v)));
+  for (const v of ['', '45-BU1', '452-BU11', '452 BU1', 'TQ.TQ.452-BU1'])
+    assert.ok(!HEC_PATTERN.test(normalizeHec(v)));
+  assert.equal(normalizeAliases(' Baut , mur, BAUT,, Mur M16 '), 'Baut, mur, Mur M16');
+  assert.throws(() => normalizeAliases('x'.repeat(41)));
+  assert.throws(() => normalizeAliases(Array.from({ length: 11 }, (_, i) => 'alias' + i).join(',')));
+});
+test('R22 SAP conversion is exact, bounded and respects count units', () => {
+  const m = { unit: 'PCS', sapUnit: 'SET', packSize: '2', decimalAllowed: false };
+  assert.equal(sapToR22('0.5', m), '1.000000');
+  assert.throws(() => sapToR22('0.1', m));
+  assert.equal(
+    sapToR22('0.2', { ...m, unit: 'KG', sapUnit: 'KG', packSize: null, decimalAllowed: true }),
+    '0.200000',
+  );
+  assert.throws(() => sapToR22('1', { ...m, packSize: null }));
+  assert.throws(() => sapToR22('0.000001', { ...m, packSize: '0.000001', decimalAllowed: true }));
+  assert.throws(() => sapToR22('999999999999', m));
+  assert.throws(() => validateStockQuantity('1.1', false));
+  assert.equal(validateStockQuantity('2.000', false), '2.000000');
+  assert.equal(allowsDecimals(' ea '), false);
+  assert.equal(allowsDecimals('KG'), true);
+  assert.equal(
+    canonicalDocumentPayload({
+      type: 'consume',
+      hec: '452-BU1',
+      lines: [{ quantity: '1.000000', materialId: 'a' }],
+    }),
+    canonicalDocumentPayload({
+      lines: [{ materialId: 'a', quantity: '1.000000' }],
+      hec: '452-BU1',
+      type: 'consume',
+    }),
+  );
 });
 test('catalog mapping preserves master and excludes historical quantity/value', () => {
   const row = [

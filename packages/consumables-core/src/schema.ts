@@ -9,6 +9,8 @@ import {
   index,
   uniqueIndex,
   check,
+  primaryKey,
+  date,
 } from 'drizzle-orm/mysql-core';
 import { sql } from 'drizzle-orm';
 export const materials = mysqlTable(
@@ -19,6 +21,10 @@ export const materials = mysqlTable(
     description: varchar('description', { length: 160 }).notNull(),
     commonName: varchar('common_name', { length: 160 }).notNull(),
     unit: varchar('unit', { length: 30 }).notNull(),
+    sapUnit: varchar('sap_unit', { length: 30 }).notNull().default(''),
+    aliases: varchar('aliases', { length: 500 }).notNull().default(''),
+    decimalAllowed: boolean('decimal_allowed').notNull().default(true),
+    conversionReviewed: boolean('conversion_reviewed').notNull().default(true),
     category: varchar('category', { length: 100 }).notNull(),
     mrpType: varchar('mrp_type', { length: 30 }).notNull(),
     critical: boolean('critical').notNull(),
@@ -61,10 +67,59 @@ export const inventory = mysqlTable(
     check('inventory_quantity_nonnegative', sql`${t.quantity} >= 0`),
   ],
 );
+export const documents = mysqlTable(
+  'stock_documents',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    number: varchar('number', { length: 30 }).notNull().unique(),
+    type: varchar('type', { length: 16 }).notNull(),
+    locationId: varchar('location_id', { length: 36 })
+      .notNull()
+      .references(() => locations.id),
+    locationName: varchar('location_name', { length: 100 }).notNull(),
+    hec: varchar('hec', { length: 20 }).notNull().default(''),
+    wo: varchar('wo', { length: 100 }).notNull().default(''),
+    note: varchar('note', { length: 500 }).notNull().default(''),
+    channel: varchar('channel', { length: 10 }).notNull(),
+    requesterName: varchar('requester_name', { length: 100 }).notNull(),
+    requesterNik: varchar('requester_nik', { length: 30 }).notNull().default(''),
+    sourceRef: varchar('source_ref', { length: 100 }).notNull().default(''),
+    reservationNo: varchar('reservation_no', { length: 30 }).notNull().default(''),
+    equipmentNo: varchar('equipment_no', { length: 100 }).notNull().default(''),
+    functionalLocation: varchar('functional_location', { length: 100 }).notNull().default(''),
+    costCenter: varchar('cost_center', { length: 40 }).notNull().default(''),
+    requiredDate: date('required_date', { mode: 'string' }),
+    lineCount: int('line_count').notNull(),
+    actorId: varchar('actor_id', { length: 64 }).notNull(),
+    actorName: varchar('actor_name', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { fsp: 3 }).notNull(),
+  },
+  (t) => [
+    index('document_location_time_idx').on(t.locationId, t.createdAt, t.id),
+    index('document_type_time_idx').on(t.type, t.createdAt, t.id),
+    index('document_hec_idx').on(t.hec),
+    index('document_wo_idx').on(t.wo),
+    index('document_reservation_idx').on(t.reservationNo),
+  ],
+);
+export const documentSequences = mysqlTable(
+  'stock_document_sequences',
+  {
+    type: varchar('type', { length: 16 }).notNull(),
+    year: int('year').notNull(),
+    lastValue: int('last_value').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.type, t.year] })],
+);
 export const movements = mysqlTable(
   'stock_movements',
   {
     id: varchar('id', { length: 36 }).primaryKey(),
+    documentId: varchar('document_id', { length: 36 }).references(() => documents.id),
+    lineNo: int('line_no'),
+    commonName: varchar('common_name', { length: 160 }),
+    sapUnit: varchar('sap_unit', { length: 30 }),
+    sapQuantity: decimal('sap_quantity', { precision: 18, scale: 6 }),
     inventoryId: varchar('inventory_id', { length: 36 })
       .notNull()
       .references(() => inventory.id),
@@ -94,6 +149,7 @@ export const movements = mysqlTable(
   (t) => [
     index('movement_location_time_idx').on(t.locationId, t.createdAt, t.id),
     index('movement_material_idx').on(t.materialId, t.createdAt, t.id),
+    uniqueIndex('movement_document_line_uq').on(t.documentId, t.lineNo),
   ],
 );
 export const idempotency = mysqlTable(
@@ -103,11 +159,16 @@ export const idempotency = mysqlTable(
     actorId: varchar('actor_id', { length: 64 }).notNull(),
     key: varchar('request_key', { length: 128 }).notNull(),
     hash: varchar('payload_hash', { length: 64 }).notNull(),
-    movementId: varchar('movement_id', { length: 36 })
-      .notNull()
-      .references(() => movements.id),
+    movementId: varchar('movement_id', { length: 36 }).references(() => movements.id),
+    documentId: varchar('document_id', { length: 36 }).references(() => documents.id),
   },
-  (t) => [uniqueIndex('stock_idempotency_actor_key_uq').on(t.actorId, t.key)],
+  (t) => [
+    uniqueIndex('stock_idempotency_actor_key_uq').on(t.actorId, t.key),
+    check(
+      'stock_idempotency_one_target',
+      sql`(${t.movementId} IS NOT NULL) <> (${t.documentId} IS NOT NULL)`,
+    ),
+  ],
 );
 export const audit = mysqlTable(
   'consumables_audit',

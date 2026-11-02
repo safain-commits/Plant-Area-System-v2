@@ -6,6 +6,8 @@ import {
   canConsume,
   decimalUnits,
   decimalString,
+  allowsDecimals,
+  normalizeAliases,
   type Identity,
   type StockAction,
   type Material,
@@ -83,6 +85,9 @@ const materialInput = z
     description: z.string().trim().min(1).max(160),
     commonName: z.string().trim().max(160).default(''),
     unit: z.string().trim().min(1).max(30),
+    sapUnit: z.string().trim().min(1).max(30).optional(),
+    aliases: z.string().max(500).transform(normalizeAliases).optional(),
+    decimalAllowed: z.boolean().optional(),
     category: z.string().trim().min(1).max(100),
     mrpType: z.string().trim().max(30).default(''),
     critical: z.boolean().default(false),
@@ -113,7 +118,14 @@ function code(e: unknown): string | undefined {
 }
 export async function saveMaterial(actor: Identity, body: unknown, id?: string) {
   requireStock(actor, 'manage');
-  const input = parse(materialInput, body);
+  const parsed = parse(materialInput, body);
+  const input = {
+    ...parsed,
+    sapUnit: parsed.sapUnit ?? parsed.unit,
+    aliases: parsed.aliases ?? '',
+    decimalAllowed: parsed.decimalAllowed ?? allowsDecimals(parsed.unit),
+    conversionReviewed: true,
+  };
   const now = new Date();
   try {
     return await db().transaction(async (tx) => {
@@ -145,7 +157,15 @@ export async function saveMaterial(actor: Identity, body: unknown, id?: string) 
         }
         await tx
           .update(materials)
-          .set({ ...input, version: old.version + 1, updatedAt: now })
+          .set({
+            ...input,
+            sapUnit: parsed.sapUnit ?? old.sapUnit,
+            aliases: parsed.aliases ?? old.aliases,
+            decimalAllowed: parsed.decimalAllowed ?? old.decimalAllowed,
+            conversionReviewed: parsed.sapUnit === undefined ? old.conversionReviewed : true,
+            version: old.version + 1,
+            updatedAt: now,
+          })
           .where(eq(materials.id, id));
       }
       await tx.insert(audit).values(entry(actor, 'material.saved', id, { ...input }));
@@ -296,6 +316,7 @@ export async function postMovement(actor: Identity, kind: MoveKind, body: unknow
       .where(and(eq(idempotency.actorId, actor.id), eq(idempotency.key, key!)));
     if (!old) return null;
     if (old.hash !== hash) throw new AppError(409, 'Key sudah digunakan untuk payload berbeda.');
+    if (!old.movementId) throw new AppError(409, 'Key digunakan untuk dokumen.');
     const [move] = await db().select().from(movements).where(eq(movements.id, old.movementId));
     return { movement: move, replayed: true };
   }
@@ -319,6 +340,7 @@ export async function postMovement(actor: Identity, kind: MoveKind, body: unknow
           .for('update');
         if (previous) {
           if (previous.hash !== hash) throw new AppError(409, 'Key sudah digunakan untuk payload berbeda.');
+          if (!previous.movementId) throw new AppError(409, 'Key digunakan untuk dokumen.');
           const [movement] = await tx.select().from(movements).where(eq(movements.id, previous.movementId));
           return { movement, replayed: true };
         }
@@ -456,12 +478,20 @@ async function page<T extends { id: string }>(
       : null;
   return { items: items.map(({ cursorSort, cursorId, ...item }) => item as unknown as T), nextCursor };
 }
-const matCols = sql`m.id,m.mmid,m.description,m.common_name AS commonName,m.unit,m.category,m.mrp_type AS mrpType,m.critical,m.pack_size AS packSize,m.active,m.version,m.source_batch AS sourceBatch,m.source_date AS sourceDate`;
+const matCols = sql`m.id,m.mmid,m.description,m.common_name AS commonName,m.unit,m.sap_unit AS sapUnit,m.aliases,m.decimal_allowed AS decimalAllowed,m.conversion_reviewed AS conversionReviewed,m.category,m.mrp_type AS mrpType,m.critical,m.pack_size AS packSize,m.active,m.version,m.source_batch AS sourceBatch,m.source_date AS sourceDate`;
 const invCols = sql`${matCols},i.id AS inventoryId,i.location_id AS locationId,l.name AS locationName,i.rack,i.quantity,i.initialized,i.active AS inventoryActive,i.version AS inventoryVersion,l.active AS locationActive`;
 const joinInv = sql`inventory i JOIN materials m ON m.id=i.material_id JOIN locations l ON l.id=i.location_id`;
 const moveCols = sql`v.id,v.material_id AS materialId,v.location_id AS locationId,v.mmid,v.description,v.unit,v.location_name AS locationName,v.type,v.quantity,v.balance_after AS balanceAfter,v.packs,v.pack_size AS packSize,v.reference,v.wo,v.job,v.reason,v.actor_id AS actorId,v.actor_name AS actorName,v.created_at AS createdAt`;
 const normalize = <T extends Record<string, unknown>>(item: T) => {
-  for (const k of ['active', 'critical', 'initialized', 'inventoryActive', 'locationActive'])
+  for (const k of [
+    'active',
+    'critical',
+    'initialized',
+    'inventoryActive',
+    'locationActive',
+    'decimalAllowed',
+    'conversionReviewed',
+  ])
     if (k in item) (item as Record<string, unknown>)[k] = !!item[k];
   return item;
 };

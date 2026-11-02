@@ -4,12 +4,14 @@ export const movementLabels = {
   opening: 'Saldo awal',
   receipt: 'Penerimaan',
   issue: 'Pemakaian',
+  return: 'Return Order',
   adjustment: 'Koreksi',
 } as const;
 const icons: Record<Movement['type'], IconName> = {
   opening: 'box',
   receipt: 'receipt',
   issue: 'issue',
+  return: 'receipt',
   adjustment: 'settings',
 };
 export function StockActivity({ items, compact = false }: { items: Movement[]; compact?: boolean }) {
