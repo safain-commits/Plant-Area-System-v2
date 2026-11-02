@@ -17,3 +17,5 @@ backups/
 tmp/
 testsprite_tests/tmp/
 testsprite_tests/tmp/config.json
+.DS_Store
+ref-client/
