@@ -21,6 +21,8 @@ async function choose(select: Locator, value: string) {
   await select.page().getByRole('option', { name: label, exact: true }).click();
 }
 async function openInstallation(page: import('@playwright/test').Page) {
+  if (!(await page.locator('[data-sheet-trigger]:visible').count()))
+    await page.locator('.bag-cell').first().click();
   await page.locator('[data-sheet-trigger]:visible').click();
 }
 test.beforeAll(async () => {

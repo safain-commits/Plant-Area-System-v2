@@ -1,5 +1,7 @@
 # Rencana perbaikan sidebar dan dashboard Consumable Room
 
+Catatan 4 November 2026: tampilan sesi ringkas/countdown dan logout sidebar pada rancangan awal di bawah telah dihapus dari shell bersama. Logout tetap tersedia melalui Menu akun dan Profil; aturan sesi server tidak berubah. Acuan implementasi terbaru: [UI-THEME.md](../UI-THEME.md).
+
 Tanggal: 23 Oktober 2026. Status: **diimplementasikan; hasil pemeriksaan dicatat pada VALIDATION.md**.
 
 Acuan visual utama adalah screenshot Bag Filter yang disetujui pengguna sebagai gold standard, [UI refresh](UI-REFRESH.md), serta [token bersama](ui-brief.jsonc). Kebutuhan di bawah berasal dari audit tiga screenshot pengguna dan source. Bukti implementasi serta batas pengujian tersedia di [VALIDATION.md](../VALIDATION.md).

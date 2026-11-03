@@ -12,6 +12,8 @@ export function Overlay({
   anchor,
   hideTitle = false,
   placement = 'bottom',
+  className = '',
+  showHandle = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +23,8 @@ export function Overlay({
   anchor?: React.RefObject<HTMLElement | null>;
   hideTitle?: boolean;
   placement?: 'bottom' | 'right';
+  className?: string;
+  showHandle?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     last = useRef<HTMLElement | null>(null),
@@ -63,7 +67,7 @@ export function Overlay({
   return createPortal(
     <dialog
       ref={ref}
-      className={`overlay overlay-${kind}`}
+      className={`overlay overlay-${kind} ${className}`}
       aria-labelledby={id}
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -136,7 +140,7 @@ export function Overlay({
           setDragX(0);
         }}
       >
-        {(kind === 'sheet' || kind === 'menu') && (
+        {showHandle && (kind === 'sheet' || kind === 'menu') && (
           <div
             className="sheet-grab"
             onPointerDown={(e) => {

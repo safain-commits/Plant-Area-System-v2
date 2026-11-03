@@ -220,7 +220,7 @@ for (const value of ['light', 'dark']) {
             await link.scrollIntoViewIfNeeded();
             await expect(link).toBeInViewport({ ratio: 0.99 });
           }
-          expect(await nav.evaluate((el) => el.scrollHeight > el.clientHeight)).toBeTruthy();
+          expect(await nav.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBeTruthy();
           const toggle = nav.getByRole('button', {
             name: `Tutup menu ${path === '/bag-filter' ? 'Bag Filter' : 'Consumable Room'}`,
             exact: true,
@@ -240,7 +240,8 @@ for (const value of ['light', 'dark']) {
         await expect(drawer.getByRole('link', { name: 'Kelola akses', exact: true })).toBeInViewport({
           ratio: 0.99,
         });
-        await expect(drawer.getByRole('button', { name: /^Keluar akun/ })).toBeInViewport({ ratio: 0.99 });
+        await expect(drawer.getByRole('button', { name: /^Keluar akun/ })).toHaveCount(0);
+        await expect(drawer.locator('.session-card, .session-compact')).toHaveCount(0);
         await nav.evaluate((el) => {
           el.scrollTop = 0;
         });
@@ -301,11 +302,11 @@ test('premium dashboard, bounded activity, responsive sidebar, themes and Bag Fi
     await page.locator('.stock-activity .activity-scroll').evaluate((e) => e.scrollHeight > e.clientHeight),
   ).toBeTruthy();
   await expect(page.locator('.quarter-details')).toContainText('1.179 transaksi');
-  await page.getByRole('button', { name: 'Detail sesi aktif', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Sesi aktif', exact: true })).toContainText('Berakhir');
-  await expect(page.getByRole('dialog', { name: 'Sesi aktif', exact: true })).toContainText('WIB');
+  await expect(page.getByRole('button', { name: 'Detail sesi aktif', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Menu akun', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^Keluar akun/ })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Detail sesi aktif', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Menu akun', exact: true })).toBeFocused();
   for (const value of ['Terang', 'Gelap']) {
     await theme(page, value);
     await sidebarContrast(page);
@@ -348,7 +349,7 @@ test('premium dashboard, bounded activity, responsive sidebar, themes and Bag Fi
         await page.getByRole('button', { name: 'Buka navigasi' }).click();
         const drawer = page.getByRole('dialog', { name: 'Navigasi', exact: true });
         await expect(drawer.getByRole('link', { name: 'Consume Order', exact: true })).toBeVisible();
-        await expect(drawer.getByRole('button', { name: 'Keluar akun' })).toBeVisible();
+        await expect(drawer.getByRole('button', { name: 'Keluar akun' })).toHaveCount(0);
         await page.keyboard.press('Escape');
       }
     }
@@ -506,10 +507,8 @@ test('sidebar and action card follow consumable roles while portal controls rema
         .getByRole('link', { name: 'Kelola akses' }),
     ).toBeVisible();
   }
-  await page
-    .locator('.sidebar-bottom')
-    .getByRole('button', { name: /^Keluar akun/ })
-    .click();
+  await page.getByRole('button', { name: 'Menu akun', exact: true }).click();
+  await page.getByRole('button', { name: /^Keluar akun/ }).click();
   await page.waitForURL('**/auth/login');
   expect((await page.request.get('/consumables/api/dashboard')).status()).toBe(401);
   expect((await page.request.get('/bag-filter/api/dashboard')).status()).toBe(401);

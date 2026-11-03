@@ -1,5 +1,68 @@
 # Hasil validasi implementasi v2
 
+## Halaman equipment Bag Filter dan sidebar bersama — 4 November 2026
+
+Halaman memakai satu CTA **Catat penggantian** pada bilah pilihan; kartu pencatatan duplikat dihapus. Bilah tersembunyi saat sheet pemilihan/pencatatan terbuka, dengan fokus dikembalikan ke pemicu dan pilihan/draft dipertahankan. Pilih banyak memakai tombol sekunder; Undo/Clear memakai aksi ringan. Pada kontainer kerja minimal 960 px, kartu grid selebar 520 px berada di kiri dan kedua riwayat di kanan; di bawahnya susunan vertikal maksimal 520 px. Timeline/daftar pekerjaan dibatasi 320/560 px, dapat difokuskan dengan keyboard, dan pesan kosong diringkas.
+
+KPI **Umur bag aktif** berasal dari pemasangan terkini seluruh posisi, mengecualikan posisi kosong, tanpa pembatasan 900 hari dan disertai jumlah bag ≥900 hari. Seleksi overview memakai dua garis inset, kompartemen aktif mempunyai bingkai kontras dan `aria-current`, serta notch tua maksimal sepertiga sel/3 px. Pengujian menemukan aturan dasar dark mode menimpa indikator seleksi; selector diperbaiki dan regresinya lulus. Tampilan sesi/countdown/ikon/popup dan logout sidebar dihapus dari shell bersama; logout Menu akun/Profil dan kebijakan sesi server tetap berlaku.
+
+Pemeriksaan aktual yang lulus:
+
+- **28/28 unit test** pada Node.js 26.12.1. Kasus umur meliputi kosong/null, satu umur, umur sama, rentang 7–1.678 hari, ambang 900, pemasangan terbaru menggantikan umur lama dan pembaruan waktu. Pengujian pemilihan mencakup enam equipment, area terbalik, duplikasi, 450 bag, batas 500/501 serta Undo.
+- **Typecheck root dan keempat aplikasi**; build standalone **Auth, Portal, Bag Filter dan Consumables** dengan versi yang dipin; pemeriksaan format dan whitespace.
+- **28/28 tes browser HTTPS dalam satu putaran akhir**, menggunakan empat image final dan MySQL QA baru. Fixture KPI memasukkan pemasangan 1.678 hari, mengganti salah satu posisi dengan pemasangan lebih baru, memeriksa rentang 7–1.678 dan jumlah tua, lalu memajukan jam browser 60 detik hingga rentang 8–1.678. Filter legenda tidak mengubah KPI. Selector pengujian dibatasi ke main yang terlihat agar fragmen streaming tersembunyi tidak dihitung sebagai kartu kedua.
+- Layout/CTA/fokus diuji pada **320, 390, 1280, 1440 dan 1920 px** dalam kedua tema: kartu kiri 520 px ketika area ≥960, riwayat kanan sejajar, susunan vertikal pada area sempit, satu CTA, bilah tersembunyi selama kedua sheet terbuka, serta fokus/pilihan kembali setelah Escape. Navigasi koordinat history mengubah kompartemen aktif. Sel terpilih mempertahankan dimensi, memakai shadow inset dan tidak membesar saat hover.
+- Geometri seluruh **enam equipment**, orientasi, label dan stiffener diuji pada **320, 390, 768, 1024, 1440, 1920 dan 2552 px** dalam kedua tema. Sel/gap seragam, kedua sisi sejajar, kompartemen terakhir terjangkau, target detail mobile minimal 44 px, resize/sidebar dan scroll sentuh/keyboard bekerja tanpa overflow halaman.
+- Regresi mencakup penyimpanan **450 bag**, respons penyimpanan terputus dan retry tanpa duplikasi, kuota/Undo/draft, viewer/scope, SSO, R22, hover/dropdown dan tema. Logout lewat Menu akun pada **Portal, Bag Filter dan Consumables** diikuti penolakan API Bag Filter/Consumables dengan **401**. Drawer mobile tetap menyediakan semua menu setelah area sesi dihapus.
+
+Bukti privat di `.deploy/map-mobile/`: `unit-equipment.log`, `typecheck-equipment.log`, `build-equipment-*.log`, serta `equipment-final-qa/` berisi hasil, browser log, laporan HTML dan screenshot. Acuan visual sebelum perubahan yang sudah tersedia (`geometry-before-*`/`geometry-after-*`) dipertahankan; hasil akhir tersedia pada `equipment-preview-*` dan `equipment-workspace-*`. Screenshot desktop/mobile kedua tema ditinjau visual.
+
+QA memakai network internal unik tanpa port host dan database/volume sementara yang telah dibersihkan. Tidak mengubah schema, kontrak HTTP, data perusahaan, arsip database nyata atau VPS. Suite integrasi backend terpisah tidak diulang pada perubahan UI ini; browser menjalankan alur persistence pada MySQL QA. Pengujian Chromium memakai emulasi viewport, bukan perangkat fisik Safari/iPhone/Android. Validasi dilakukan lokal; deployment VPS merupakan langkah rilis terpisah.
+
+## Penyempurnaan kuota dan tata letak Pilih banyak — 4 November 2026
+
+Evaluasi pengguna diterapkan pada panel pemilihan: kapasitas 136/128 bag per kompartemen terlihat, checkbox yang tidak muat dinonaktifkan sebelum dipilih, dan checkbox draft yang dicentang tetap dapat dibatalkan. Perhitungan memakai tambahan posisi unik: kompartemen parsial yang kekurangan 36 bag tetap dapat dipilih bila sisa kuota mencukupi, tanpa membebankan kapasitas penuh. Area yang berlebih memakai total merah dan pesan singkat, dengan validasi final 500 posisi tetap berlaku.
+
+Header/footer dipisahkan dari region gulir, dengan garis batas serta fade dinamis. Footer tidak memakai blok putih terpisah; angka **Sudah ada / Tambahan / Total** sejajar dan tombol memenuhi lebar dengan rasio 1:2 di desktop/mobile. Mode memakai garis aktif; kartu menampilkan nama ringkas tanpa mengulang “Comp.”, tetapi nama aksesibel dipertahankan. Microcopy/status berulang dihapus. Handle geser disembunyikan khusus panel ini; X dan Batal tetap tersedia, bersama Escape/backdrop. Overlay mendapat prop opsional `className` dan `showHandle` dengan perilaku default existing dipertahankan.
+
+Pemeriksaan aktual yang lulus:
+
+- **24/24 unit test**, termasuk kuota proaktif enam equipment, pembatalan checkbox draft pada kuota kecil dan perhitungan tambahan kompartemen parsial/koordinat duplikat.
+- **26/26 tes browser HTTPS dalam satu run** pada empat image aplikasi baru dan database QA terisolasi. Semua alur pemilihan, 450 bag, retry setelah respons terputus, batas 500/501, role/scope, SSO, R22, peta, hover dan dropdown tetap lulus.
+- Tes geometri panel pada delapan kombinasi dua tema × 320×568, 390×640, 390×844 dan 1440×1000 memverifikasi angka sejajar (<1 px), tombol memenuhi footer dengan rasio 1:2, tidak ada overflow root dialog, serta area gulir terpisah dari footer. Area daftar tetap >200 px pada layar terkecil, >240 px pada 390×640 dan >400 px pada layar lebih tinggi. Pesan error menambah tinggi footer maksimal 17 px; angka 544 berbeda dari warna teks standar dan tombol apply ditolak. Kompartemen terakhir dapat dijangkau dan indikator batas scroll memperbarui statusnya.
+- Kapasitas 136/128 dan label sisi diperiksa pada seluruh enam equipment, kedua tema dan mobile. Checkbox keempat setelah 408/384 bag menjadi nonaktif; melepas salah satu checkbox kembali membuka kuota. Screenshot panel normal, kuota penuh/berlebih dan ringkasan diperiksa visual pada mobile serta desktop.
+- Build standalone **keempat aplikasi**, typecheck root dan Bag Filter, pemeriksaan format serta whitespace lulus pada Node.js 26.12.1 / Next.js 16.4.2. Tidak ada perubahan schema atau kontrak HTTP.
+
+Bukti privat: `.deploy/map-mobile/build-bulk-polish-*.log` dan `bulk-polish-qa/` (hasil, browser log, laporan dan screenshot `bulk-polish-*`). Container, database/volume dan network QA unik telah dibersihkan; tidak membuka port host. Tidak mengubah data perusahaan, arsip database nyata atau deployment VPS. Pengujian menggunakan Chromium dengan emulasi viewport; tidak menyatakan pengujian perangkat fisik Safari/iPhone/Android.
+
+## Pemilihan banyak bag dan Urungkan — 3 November 2026
+
+Ditambahkan sheet **Pilih banyak** pada detail kompartemen untuk operator/admin: beberapa kompartemen penuh atau area inklusif kolom/baris. Titik rentang terbalik dinormalisasi dan posisi tumpang tindih tidak digandakan. Pratinjau jumlah serta pesan kelebihan batas tetap terlihat di footer saat daftar digulir. Penambahan yang melewati 500 ditolak seluruhnya. **Urungkan pilihan terakhir** memulihkan satu perubahan seleksi, termasuk clear dan satu gestur drag; pembatalan/overflow drag mengembalikan basis pilihannya. Form pencatatan memakai kelompok kompartemen tertutup dengan koordinat yang dapat dibuka/dikeluarkan individual.
+
+Pemeriksaan aktual yang lulus:
+
+- **22/22 unit test**, termasuk enam tes baru untuk kedua sisi enam equipment, orientasi label, rentang terbalik/baris/kolom/stiffener, 408 + 42 = 450, deduplikasi, batas 500/501, pengecualian individual, clear/undo/reset dan atomisitas seleksi drag. Reducer murni tidak menjalankan side effect dalam updater React.
+- **3/3 tes browser fitur baru pada run final** melalui HTTPS dan build produksi terisolasi. Contoh 450 bag diperiksa sampai seluruh koordinat payload dan riwayat persis sesuai tiga kompartemen penuh ditambah area A–G/baris 1–6 kompartemen keempat. Respons save pertama sengaja diputus setelah server menyimpan; retry mempertahankan key/payload, menghasilkan satu batch dengan 450 pemasangan. Form tetap membawa draft dan kontrol terkunci selama save.
+- Dua belas kombinasi enam equipment × terang/gelap pada 390 px lulus untuk pilihan lintas sisi, label lapangan, area terbalik, Batal/Escape, draft baru ketika dibuka ulang dan ringkasan tertutup. Tes desktop memeriksa preview 544 ditolak, 500 diterima, 501 ditolak tanpa mengubah pilihan/undo, pengurangan individual dan pembatasan viewer/scope equipment melalui API langsung.
+- **22 tes regresi existing lulus** dalam run lengkap yang sama dengan dua tes baru awal; mencakup 84 kombinasi geometri peta, swipe, SSO, R22, tema, menu, hover, dropdown dan pencatatan Bag Filter. Satu tes baru sempat gagal akibat selector harness mencocokkan alert tersembunyi/announcer Next; selector dibatasi ke area aktif dan ketiga tes baru dijalankan ulang sampai lulus. Selector tombol saat busy juga memakai `aria-busy` karena label visual disembunyikan oleh komponen Button existing. Tidak menyatakan satu run penuh 25/25; bukti run regresi dan run final fitur disimpan terpisah.
+- Typecheck root dan Bag Filter, build standalone Bag Filter Node.js 26.12.1/Next.js 16.4.2, format dan whitespace lulus. Screenshot sheet, area dan ringkasan desktop/mobile terang/gelap ditinjau visual. Pratinjau angka dipindahkan ke footer sticky setelah tinjauan mobile agar tetap terlihat saat memilih kompartemen.
+
+Bukti privat: `.deploy/map-mobile/build-bulk.log`, `bulk-mobile.png`, `bulk-summary-mobile.png`, folder `bulk-qa/` (regresi lengkap) dan `bulk-final-qa/` (3/3 fitur final). Database, volume, network dan container QA bernama unik telah dibersihkan; tidak membuka port host. Transaksi dan retry diuji dengan MySQL fixture melalui API; suite integrasi server terpisah tidak diulang. Aplikasi lain memakai image baseline UI sebelumnya. Tidak mengubah schema/API, data perusahaan, arsip sumber, atau VPS; seleksi tetap di memori halaman sampai Simpan.
+
+## Keseragaman grid kompartemen desktop — 3 November 2026
+
+Bug direproduksi melalui pengukuran DOM: track nomor baris `0.8fr` masih mempunyai minimum intrinsik yang mengikuti isi setiap baris. Pada overview 422-BF1 di 1440 px, nomor dua digit mengambil lebar 9,34 px sedangkan satu digit 4,67 px; kotak bag menjadi sekitar 4,86 px dan 5,44 px dengan awal kolom bergeser 4,67 px. Header A–H juga belum memakai jarak horizontal yang sama dengan baris bag.
+
+Track nomor diganti gutter bersama pada seluruh baris dan header, dengan ukuran desktop `clamp(12px, 0.75vw, 16px)` dan mode scroll tetap 16 px. Angka tabular serta line-height eksplisit menjaga tinggi baris. Hasil di 1440 px: kedua kelompok memakai kotak sekitar 4,53 × 4,53 px dengan awal kolom yang sama; di 2552 px keduanya sekitar 8,58 × 8,58 px. Jeda stiffener tetap terpisah dari jarak antarbaris normal. Ukuran mobile 140 px serta penyesuaian existing identitas kolom 9 px/judul 40 px dipertahankan; assertion dan dokumentasi aktif diselaraskan dengan konfigurasi tersebut.
+
+Pemeriksaan aktual:
+
+- **3/3 tes browser peta HTTPS lulus** pada build produksi terisolasi, mencakup **84 kombinasi** enam equipment × viewport 320/390/768/1024/1440/1920/2552 px × dua tema. Semua kompartemen diperiksa: dimensi sel persegi, lebar/tinggi dan posisi kolom yang sama antarbaris, jarak vertikal konsisten di luar margin stiffener, serta pusat label A–H/H–A tepat di tengah sel (toleransi subpixel 0,05 px).
+- Orientasi, seluruh koordinat, stiffener, tidak ada overflow halaman, scroll mobile, pilihan bag, keyboard, perubahan tema/filter, serta resize/sidebar tetap lulus.
+- Typecheck root, build standalone Bag Filter pada Node.js 26.12.1/Next.js 16.4.2, format dan whitespace lulus. Screenshot sebelum/sesudah development serta screenshot produksi perwakilan desktop dan mobile ditinjau visual.
+
+Bukti privat: `.deploy/map-mobile/geometry-before.json`, `geometry-after.json`, screenshot `geometry-*.png`, `build-geometry.log` dan subfolder `geometry-qa/`. Container, network dan database fixture QA dibersihkan. Tidak ada migrasi, perubahan API, pengujian ke database nyata atau pembaruan VPS. Suite unit dan regresi lengkap tidak diulang untuk koreksi CSS ini.
+
 ## Penyempurnaan ukuran peta mobile — 3 November 2026
 
 Menindaklanjuti tinjauan pengguna, kompartemen pada mode scroll diperkecil dari 176 menjadi **140 px** (sekitar 20%), dengan jarak 10 px dan gutter nomor baris 16 px. Font nomor baris **10 px**, identitas kolom **8 px**, serta judul kompartemen **10 px**. Tombol navigasi dan judul kompartemen tetap memiliki tinggi target sentuh 44 px; detail bag serta susunan desktop pada kontainer luas tidak diubah. Langkah tombol/keyboard mengikuti ukuran aktual menjadi 150 px per kolom.

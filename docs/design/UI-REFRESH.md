@@ -2,6 +2,10 @@
 
 Give the existing app a fresh, premium visual design. Keep every feature, flow, permission rule, label and data source as they are. Only the presentation and interaction feel change. Earlier theme rules for the app no longer apply; this brief replaces them. Use the token sheet (ui-brief.jsonc) as the single source of truth for values. You may build the controls on shadcn/ui components, but restyle them completely to these tokens so nothing looks like the library default.
 
+## Active implementation update — 4 November 2026
+
+The equipment-page refinements in [PRD v2](../PRD-v2.md) and [UI theme](../UI-THEME.md) supersede the session-card and selection-ring details below. The shared sidebar has no session timer, session popup or logout control; account-menu and Profile logout remain available. Equipment pages use actual active-bag age KPIs, one recording CTA after selection, inset overview selection, an active-compartment frame, and a 520 px detail card with both histories beside it when the workspace is at least 960 px wide.
+
 ## The look
 
 The app should feel calm, airy, data-first and expensive. Pages sit on a light-gray canvas. Content lives in white cards with 16px corners and no borders. Lime is the hero data color: it marks whatever value is active or important. Orange marks contrast (negative, behind target, warnings). Near-black "ink" is used for decisions: primary buttons, checked controls, selection rings and small tooltips. Everything inactive is drawn as a flat soft-gray copy of the same shape, so a chart with one highlighted day shows the other days as quiet gray bars. Active data marks get a fine 45° diagonal hatch. Big numbers carry the hierarchy: large, medium weight, tight tracking, tabular figures. Labels stay small and gray.
@@ -9,11 +13,11 @@ The app should feel calm, airy, data-first and expensive. Pages sit on a light-g
 ## Shell
 
 - **Sidebar.** It follows the theme: a white panel on the gray canvas in light mode, a dark panel in dark mode.
-  - **Contents:** the wordmark, nav items (icon + label, 48px tall, 12px corners), expandable groups whose children connect with a thin tree line, count badges, a divider, secondary links, a bottom session card and a "Collapse sidebar" row.
+  - **Contents:** the wordmark, nav items (icon + label, 48px tall, 12px corners), expandable groups whose children connect with a thin tree line, count badges, a divider, secondary links and a "Collapse sidebar" row. Logout is available from the account menu and Profile.
   - **Active item:** a soft gray pill (dark gray in dark mode) with bold text, plus a short indicator bar on its left edge. The bar is ink in light mode and lime in dark mode, and it glides to the new item when the page changes.
 - **Sidebar collapse.** The sidebar collapses to a 76px icon rail.
   - **Ways to toggle:** the footer row, a small round handle that appears on the sidebar's right edge when hovered, and the ⌘B / Ctrl+B shortcut.
-  - **Collapsed anatomy:** icons stay exactly in place. The logo becomes a monogram. Groups open as a flyout menu to the right. Count badges shrink to dots. The session card becomes an icon with a thin progress ring for time left. Every icon shows a tooltip with its label and shortcut.
+  - **Collapsed anatomy:** icons stay exactly in place. The logo becomes a monogram. Groups open as a flyout menu to the right. Count badges shrink to dots. Every icon shows a tooltip with its label and shortcut. There is no session icon or countdown.
   - **Motion:** on collapse, labels fade and slide out first, then the width shrinks. On expand, the width grows first, then labels fade in with a light stagger. The motion takes about 300ms on a soft, decelerating curve.
   - **Defaults:** collapsed on tablet widths, where expanding floats over the content. Expanded on desktop, where it is docked and the content smoothly reflows. The user's choice is remembered per browser.
 - **Header.** It contains:

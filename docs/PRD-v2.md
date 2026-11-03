@@ -9,7 +9,7 @@ Sediakan satu pintu login untuk aplikasi maintenance yang dapat dibangun dan dip
 
 ### Tampilan bersama (UI refresh v2)
 
-Acuan visual aktif adalah [UI-REFRESH.md](design/UI-REFRESH.md) dan [ui-brief.jsonc](design/ui-brief.jsonc). Sidebar mengikuti tema, dapat diciutkan menjadi rail 76 px, dan menyediakan navigasi mobile. Tombol utama memakai ink, data utama lime, dan peringatan pumpkin. Dashboard, pencarian cepat, notifikasi aktivitas batch, dan timer sesi memakai data aktual sesuai scope. Tema Terang/Gelap/Sistem tersedia melalui menu ikon. Kontrak fitur, koordinat equipment, role, transaksi, dan tanggal tetap berlaku. Rincian implementasi serta pengecualian kontras ada di [UI-THEME.md](UI-THEME.md).
+Acuan visual aktif adalah [UI-REFRESH.md](design/UI-REFRESH.md) dan [ui-brief.jsonc](design/ui-brief.jsonc). Sidebar mengikuti tema, dapat diciutkan menjadi rail 76 px, dan menyediakan navigasi mobile. Tombol utama memakai ink, data utama lime, dan peringatan pumpkin. Dashboard, pencarian cepat, serta notifikasi aktivitas batch memakai data aktual sesuai scope. Sidebar tidak menampilkan timer sesi atau tombol logout; logout tersedia melalui Menu akun dan Profil. Tema Terang/Gelap/Sistem tersedia melalui menu ikon. Kontrak fitur, koordinat equipment, role, transaksi, dan tanggal tetap berlaku. Rincian implementasi serta pengecualian kontras ada di [UI-THEME.md](UI-THEME.md).
 
 Grafik pemasangan menampilkan Q1–Q4 menurut tanggal pemasangan WIB, dengan pilihan tahun 2000 sampai tahun berjalan (default). Setiap kuartal dirinci menurut Brand/Pabrikan. Total dan pembanding grafik memakai tahun terpilih dan tahun kalender sebelumnya; tahun berjalan diberi keterangan parsial. KPI kondisi terkini dan distribusi umur tidak mengikuti filter tahun grafik.
 
@@ -54,9 +54,10 @@ Total 18.784 posisi bag. Konfigurasi peta mengikuti equipment, dengan nomor bari
 
 `422-BF1` adalah kode yang benar; `422-BF2` hanya merupakan nama lama dalam audit baseline dan migrasi, bukan alias operasional. Upgrade mempertahankan ID, tanggal, actor, batch, serta posisi fisik transaksi; Utara/Selatan lama pada 421/422 menjadi A/B dengan nomor lokal dan indeks kolom tetap.
 
-- Tema netral light/dark sesuai UI refresh v2; pilihan double ring dan tanda centang tanpa mengubah warna umur; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target sentuh minimal 44 px dan scroll internal di mobile.
+- Tema netral light/dark sesuai UI refresh v2; seleksi overview memakai garis dua warna di dalam sel, detail memakai double ring dan tanda centang tanpa mengubah warna umur; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target sentuh minimal 44 px dan scroll internal di mobile.
 - Umur berjalan 24/7 sejak pemasangan. Skala warna 0–900 hari, dijenuhkan setelah 900 hari; umur tampilan diperbarui setiap 60 detik.
 - Satu batch: 1–500 posisi unik dalam satu equipment, boleh lintas kompartemen/sisi.
+- Pemilihan cepat: beberapa kompartemen penuh atau area inklusif kolom/baris, digabung dengan pilihan individual tanpa duplikasi. Kapasitas 136/128 bag per kompartemen terlihat; checkbox yang membutuhkan bag baru melebihi sisa kuota dinonaktifkan secara proaktif. Kompartemen parsial dihitung dari posisi unik yang belum dipilih dan checkbox draft tetap dapat dibatalkan. Pratinjau jumlah wajib tersedia; penambahan di atas 500 ditolak seluruhnya. Tersedia Urungkan satu perubahan terakhir dan ringkasan per kompartemen sebelum penyimpanan. Pilihan hanya berada pada halaman aktif, belum menjadi transaksi sampai disimpan.
 - Tanggal dan alasan wajib; alasan 1–500 karakter, WO opsional maksimal 100 karakter.
 - Brand/Pabrikan wajib dipilih sebelum kolom alasan: `Intensiv filter (Original)`, `Filtras`, `Cipta Medya`, atau `Other`. Form dimulai tanpa pilihan dan kembali kosong setelah berhasil disimpan. Satu brand berlaku untuk seluruh posisi dalam batch dan tampil di history, timeline, serta audit. Catatan lama ditampilkan “Belum tercatat”; tidak diisi default brand.
 - Input diberi label WIB. Penyimpanan UTC, tampilan Asia/Jakarta. Tanggal minimal `2000-01-01T00:00:00Z`, maksimal waktu server +60 detik.
@@ -109,3 +110,11 @@ Mulai 23 Oktober 2026, Consumable Room menjadi aplikasi operasional keempat pada
 ## Revisi R22 — 2 November 2026
 
 Perluasan Consumable Room menjadi v1.1: satu stok R22 tanpa fitur lokasi, rak opsional, HEC tujuan pekerjaan wajib pada Consume/Return, dokumen multi-item, retur, Picklist SAP dan bukti cetak. Grant hanya role; semua pengguna aplikasi melihat stok/riwayat yang sama. Ketentuan lokasi Consumables pada revisi terdahulu digantikan [PRD R22](CONSUMABLE-ROOM-PRD.md); scope equipment Bag Filter tetap berlaku.
+
+## Penyempurnaan equipment Bag Filter — 4 November 2026
+
+Alur halaman: lihat kondisi, pilih posisi, lalu catat penggantian. KPI **Umur bag aktif** menampilkan umur termuda–tertua dari pemasangan terkini seluruh posisi equipment, tanpa batas 900 hari. Umur yang sama ditampilkan sekali; tanpa pemasangan tampil **—**. Jumlah bag ≥900 hari memberi konteks perhatian. Perhitungan diperbarui setiap 60 detik dan tidak mengikuti filter legenda/kompartemen; skala warna tetap 0–900+ hari.
+
+Kompartemen yang dibuka mempunyai bingkai dan penanda judul berbeda dari garis seleksi di dalam sel bag. Pada area kerja minimal 960 px, kartu detail selebar 520 px berada di kiri; Riwayat koordinat dan Riwayat pekerjaan berada di kanan. Pada ruang lebih sempit, ketiganya tersusun vertikal dengan lebar maksimal 520 px. Timeline dibatasi sekitar 320 px dan daftar pekerjaan 560 px, dengan pencarian serta pagination di luar area gulir.
+
+Satu CTA **Catat penggantian** pada bilah bawah hanya muncul setelah ada pilihan dan disembunyikan selama sheet terbuka. Pilih banyak adalah aksi sekunder; Undo dan Bersihkan semua adalah aksi ringan. Pilihan/draft tetap tersimpan saat sheet ditutup. Hak viewer, batas 500, transaksi dan idempotensi tetap berlaku. Penghapusan tampilan sesi/sidebar logout tidak mengubah sesi absolut delapan jam atau pencabutannya.

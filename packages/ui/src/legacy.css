@@ -765,9 +765,6 @@ small {
   margin: 20px 0;
   align-items: start;
 }
-.bag-layout .panel + .panel {
-  margin-top: 18px;
-}
 .bag-grid {
   display: grid;
   grid-template-columns: 22px repeat(8, minmax(0, 1fr));
@@ -1257,13 +1254,7 @@ a:focus-visible {
 .sidebar .error-text {
   color: var(--danger-text);
 }
-.sidebar .logout {
-  background: transparent;
-  color: var(--inverse-text);
-}
-.sidebar .logout:hover:not(:disabled) {
-  background: var(--brand-slate);
-}
+
 .topbar-actions {
   display: flex;
   align-items: center;

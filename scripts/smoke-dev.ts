@@ -476,6 +476,7 @@ try {
         await page.getByRole('group', { name: `Detail kompartemen ${firstComp}`, exact: true }).waitFor({
           state: 'visible',
         });
+        await page.locator('.bag-cell').first().click();
         await page.locator('[data-sheet-trigger]:visible').click();
         await page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true }).click();
         const options = await page.getByRole('option').allTextContents();
@@ -581,7 +582,8 @@ try {
 
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Keluar' }).first().click();
+    await page.getByRole('button', { name: 'Menu akun', exact: true }).click();
+    await page.getByRole('button', { name: /^Keluar akun/ }).click();
     await page.waitForURL(/\/auth\/login/);
 
     assert.equal((await page.request.get('/bag-filter/api/equipment')).status(), 401);

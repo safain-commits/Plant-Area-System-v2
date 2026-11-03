@@ -1,6 +1,9 @@
 'use client';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { OverviewMap } from './overview-map';
+import { activeAgeSummary } from './age-summary';
+import { BulkSelection } from './bulk-selection';
+import { groupSelection, initialSelection, selectionReducer } from './selection';
 import {
   ageHours,
   ageStops,
@@ -84,8 +87,10 @@ export default function BagMonitor({
     base = `/bag-filter/api/equipment/${eq.code}`;
   const [side, setSide] = useState<Position['side']>(eq.sides[0].name),
     [compartment, setCompartment] = useState(1),
-    [selected, setSelected] = useState<Position[]>([]),
     [focused, setFocused] = useState<Position | null>(null);
+  const [selection, dispatchSelection] = useReducer(selectionReducer, initialSelection);
+  const selected = selection.positions;
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [installedAt, setInstalledAt] = useState(() => wibInput(Date.parse(initial.serverTime))),
     [reason, setReason] = useState(''),
     [brand, setBrand] = useState<BagBrand | ''>(''),
@@ -106,11 +111,17 @@ export default function BagMonitor({
   const [hovered, setHovered] = useState<{ position: Position; x: number; y: number } | null>(null),
     [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const anchorSelection = useRef<Position | null>(null),
-    drag = useRef<{ x: number; y: number; active: boolean; base: Position[] } | null>(null),
+    drag = useRef<{ x: number; y: number; active: boolean; base: Position[]; items: Position[] } | null>(
+      null,
+    ),
     suppressClick = useRef(false);
   const retry = useRef<{ key: string; payload: string } | null>(null);
+  const recordButton = useRef<HTMLButtonElement>(null);
   const latest = useMemo(() => new Map(data.positions.map((p) => [positionKey(p), p])), [data.positions]);
+  const ages = useMemo(() => activeAgeSummary(latest.values(), now), [latest, now]);
   const selectedKeys = useMemo(() => new Set(selected.map(positionKey)), [selected]);
+  const selectedGroups = useMemo(() => groupSelection(eq, selected), [eq, selected]);
+  const displayError = error || selection.error;
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(timer);
@@ -182,13 +193,18 @@ export default function BagMonitor({
       b = positions.findIndex((v) => positionKey(v) === positionKey(p));
     return positions.slice(Math.min(a, b), Math.max(a, b) + 1);
   }
-  function addPositions(items: Position[], base = selected) {
-    const merged = new Map([...base, ...items].map((p) => [positionKey(p), p]));
-    if (merged.size > 500) {
-      setError('Maksimal 500 posisi untuk satu penyimpanan.');
-      return;
-    }
-    setSelected([...merged.values()]);
+  function addPositions(items: Position[]) {
+    if (writable && !busy) dispatchSelection({ type: 'add', positions: items });
+  }
+  function undoSelection() {
+    if (!writable || busy) return;
+    dispatchSelection({ type: 'undo' });
+    anchorSelection.current = null;
+  }
+  function clearSelection() {
+    if (!writable || busy) return;
+    dispatchSelection({ type: 'clear' });
+    anchorSelection.current = null;
   }
   function cellKey(e: React.KeyboardEvent<HTMLButtonElement>, p: Position) {
     if ([' ', 'Enter'].includes(e.key)) {
@@ -250,16 +266,7 @@ export default function BagMonitor({
       return;
     }
     anchorSelection.current = p;
-    const key = positionKey(p);
-    setSelected((previous) => {
-      if (previous.some((item) => positionKey(item) === key))
-        return previous.filter((item) => positionKey(item) !== key);
-      if (previous.length === 500) {
-        setError('Maksimal 500 posisi untuk satu penyimpanan.');
-        return previous;
-      }
-      return [...previous, p];
-    });
+    dispatchSelection({ type: 'toggle', position: p });
   }
   function showComp(nextSide: Position['side'], nextComp: number) {
     setSide(nextSide);
@@ -297,7 +304,8 @@ export default function BagMonitor({
         `${result.count} posisi tersimpan dalam satu batch${result.replayed ? ' (permintaan sebelumnya sudah tersimpan)' : ''}.`,
       );
       setSheetOpen(false);
-      setSelected([]);
+      dispatchSelection({ type: 'reset' });
+      anchorSelection.current = null;
       setReason('');
       setBrand('');
       setWo('');
@@ -333,19 +341,21 @@ export default function BagMonitor({
       >
         <span className="badge">Data aktual</span>
       </Heading>
-      {error && (
+      {displayError && (
         <div className="notice error" role="alert">
-          {error}{' '}
-          <button
-            className="small secondary"
-            onClick={() =>
-              void reload()
-                .then(() => setError(''))
-                .catch((e) => setError(e.message))
-            }
-          >
-            Muat ulang data
-          </button>
+          {displayError}{' '}
+          {error && (
+            <button
+              className="small secondary"
+              onClick={() =>
+                void reload()
+                  .then(() => setError(''))
+                  .catch((e) => setError(e.message))
+              }
+            >
+              Muat ulang data
+            </button>
+          )}
         </div>
       )}
       <Toast message={notice} onDismiss={() => setNotice('')} />
@@ -355,12 +365,23 @@ export default function BagMonitor({
           <strong>{eq.compartments}</strong>
           <small>{equipmentSideSummary(eq)}</small>
         </article>
-        <article className="stat">
-          <span>SKALA UMUR BAG</span>
-          <strong>
-            0–900 <small>hari</small>
+        <article className="stat" data-kpi="active-age">
+          <span>UMUR BAG AKTIF</span>
+          <strong data-age-range>
+            {ages.min === null || ages.max === null ? (
+              '—'
+            ) : (
+              <>
+                {ages.min !== ages.max && <>{ages.min.toLocaleString('id-ID')}–</>}
+                <span data-old={ages.max >= 900}>{ages.max.toLocaleString('id-ID')}</span> <small>hari</small>
+              </>
+            )}
           </strong>
-          <small>Berjalan 24 jam sehari</small>
+          <small>
+            {ages.recorded
+              ? `Termuda–tertua · ${ages.old.toLocaleString('id-ID')} bag ≥900 hari`
+              : 'Belum ada pemasangan tercatat'}
+          </small>
         </article>
         <article className="stat">
           <span>POSISI TERCATAT</span>
@@ -410,10 +431,15 @@ export default function BagMonitor({
                 const local = i + 1,
                   display = displayCompartment({ side: band, compartment: local }, eq);
                 return (
-                  <div className="overview-compartment" key={local}>
+                  <div
+                    className="overview-compartment"
+                    key={local}
+                    data-active={side === band && compartment === local}
+                  >
                     {index === 1 && (
                       <button
                         className="overview-title"
+                        aria-current={side === band && compartment === local ? 'true' : undefined}
                         aria-label={`Buka detail kompartemen ${display}`}
                         onClick={() => showComp(band, local)}
                       >
@@ -483,6 +509,7 @@ export default function BagMonitor({
                     {index === 0 && (
                       <button
                         className="overview-title"
+                        aria-current={side === band && compartment === local ? 'true' : undefined}
                         aria-label={`Buka detail kompartemen ${display}`}
                         onClick={() => showComp(band, local)}
                       >
@@ -506,468 +533,530 @@ export default function BagMonitor({
           pekerjaan.
         </p>
       </section>
-      <div className="bag-layout">
-        <section className="panel" id="bag-detail">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">PETA BAG CLOTH</p>
-              <h2>Detail Comp. {currentComp}</h2>
-            </div>
-            <span className="badge">{side}</span>
-          </div>
-          <div className="form-grid">
-            <label>
-              Sisi
-              <Select
-                aria-label="Sisi"
-                value={side}
-                onChange={(e) => {
-                  setSide(e.target.value as Position['side']);
-                  setFocused(null);
-                }}
-              >
-                {eq.sides.map((s) => (
-                  <option key={s.name}>{s.name}</option>
-                ))}
-              </Select>
-            </label>
-            <label>
-              Kompartemen
-              <Select
-                aria-label="Kompartemen"
-                value={compartment}
-                onChange={(e) => {
-                  setCompartment(Number(e.target.value));
-                  setFocused(null);
-                }}
-              >
-                {Array.from({ length: eq.perSide }, (_, i) => (
-                  <option key={i} value={i + 1}>
-                    Comp. {displayCompartment({ side, compartment: i + 1 }, eq)}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          </div>
-          <div className="bag-grid-scroll">
-            <div
-              className="bag-grid"
-              role="group"
-              aria-label={`Detail kompartemen ${currentComp}`}
-              onPointerDown={(e) => {
-                if (writable && !busy && e.pointerType === 'mouse' && e.button === 0)
-                  drag.current = { x: e.clientX, y: e.clientY, active: false, base: selected };
-              }}
-              onPointerMove={(e) => {
-                const d = drag.current;
-                if (!d) return;
-                if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5) {
-                  d.active = true;
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                  const rect = {
-                    x: Math.min(d.x, e.clientX),
-                    y: Math.min(d.y, e.clientY),
-                    width: Math.abs(e.clientX - d.x),
-                    height: Math.abs(e.clientY - d.y),
-                  };
-                  setMarquee(rect);
-                  const cells = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('.bag-cell'));
-                  const picked = cells
-                    .filter((el) => {
-                      const r = el.getBoundingClientRect();
-                      return (
-                        r.right >= rect.x &&
-                        r.left <= rect.x + rect.width &&
-                        r.bottom >= rect.y &&
-                        r.top <= rect.y + rect.height
-                      );
-                    })
-                    .map((el) => ({
-                      side,
-                      compartment,
-                      column: Number(el.dataset.column),
-                      row: Number(el.dataset.row),
-                    }));
-                  addPositions(picked, d.base);
-                }
-              }}
-              onPointerUp={(e) => {
-                if (drag.current?.active) {
-                  suppressClick.current = true;
-                  setTimeout(() => {
-                    suppressClick.current = false;
-                  }, 0);
-                }
-                drag.current = null;
-                setMarquee(null);
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-              onPointerCancel={() => {
-                drag.current = null;
-                setMarquee(null);
-              }}
-            >
-              <span />
-              {letters.split('').map((letter) => (
-                <span
-                  className={`grid-label${hovered?.position.column === letters.indexOf(letter) + 1 ? ' is-hovered' : ''}`}
-                  key={letter}
-                >
-                  {letter}
-                </span>
-              ))}
-              {rowOrder(eq, side).map((row) => {
-                return (
-                  <Fragment key={row}>
-                    {rowDividerBefore(eq, side, row) && (
-                      <div
-                        className="bag-stiffener"
-                        role="separator"
-                        aria-label={`Jeda antara baris ${eq.rowDividerAfter} dan ${eq.rowDividerAfter! + 1}`}
-                      />
-                    )}
-                    <span
-                      className={`grid-label row-number${hovered?.position.row === row ? ' is-hovered' : ''}`}
-                    >
-                      {row}
-                    </span>
-                    {Array.from({ length: 8 }, (_, c) => {
-                      const p = { side, compartment, column: c + 1, row },
-                        key = positionKey(p),
-                        age = ageHours(latest.get(key)?.installedAt || null, now),
-                        picked = selectedKeys.has(key);
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          className={`bag-cell${age === null ? ' is-empty' : age >= 21600 ? ' is-old' : ''}`}
-                          data-position-key={key}
-                          data-column={c + 1}
-                          data-row={row}
-                          tabIndex={
-                            focused
-                              ? positionKey(focused) === key
-                                ? 0
-                                : -1
-                              : row === rowOrder(eq, side)[0] && c === 0
-                                ? 0
-                                : -1
-                          }
-                          onKeyDown={(e) => cellKey(e, p)}
-                          onFocus={(e) => hover(p, e.currentTarget)}
-                          onPointerEnter={(e) => hover(p, e.currentTarget)}
-                          onPointerLeave={leaveHover}
-                          onBlur={leaveHover}
-                          style={{
-                            background: bagColor(age),
-                            color:
-                              age === null
-                                ? 'var(--textSecondary)'
-                                : `var(--data-${dataTextTone(bagColor(age))})`,
-                            opacity:
-                              bucket === null ||
-                              (bucket === 'empty' ? age === null : age !== null && ageBucket(age) === bucket)
-                                ? 1
-                                : 0.25,
-                          }}
-                          aria-pressed={picked}
-                          aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
-                          onClick={(event) => toggle(p, event)}
-                        >
-                          {letters[c]}
-                          {row}
-                        </button>
-                      );
-                    })}
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-          <p className="fine" style={{ marginTop: 18 }}>
-            Koordinat bag. Umur tersedia saat diarahkan.{' '}
-            {writable ? 'Klik ulang untuk menghapus pilihan.' : 'Klik posisi untuk membaca riwayat.'}
-          </p>
-        </section>
-        <div>
-          <section className="panel">
-            <p className="eyebrow">PENCATATAN PENGGANTIAN</p>
-            <h2>{selected.length} posisi dipilih</h2>
-            <p className="fine">
-              Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
-            </p>
-            {writable ? (
-              <button type="button" data-sheet-trigger onClick={() => setSheetOpen(true)}>
-                <Icon name="plus" /> Catat penggantian
-              </button>
-            ) : (
-              <p className="read-only">
-                Anda dapat membaca status dan history equipment. Hak pencatatan diberikan oleh admin portal.
-              </p>
-            )}
-          </section>
-          <Overlay
-            open={sheetOpen}
-            onClose={() => {
-              if (!busy) setSheetOpen(false);
-            }}
-            title="Pencatatan penggantian"
-            kind="sheet"
-          >
-            {' '}
-            <section className="installation-form">
-              {error && (
-                <p className="notice error" role="alert">
-                  {error}
-                </p>
-              )}
-              <p className="eyebrow">PENCATATAN PENGGANTIAN</p>
-              <h2>{writable ? `${selected.length} posisi dipilih` : 'Akses baca'}</h2>
-              {writable ? (
-                <>
-                  <div className="selected-list">
-                    {selected.map((p) => (
-                      <button
-                        key={positionKey(p)}
-                        disabled={busy}
-                        onClick={(event) => toggle(p, event)}
-                        aria-label={`Hapus ${positionLabel(p, eq)}`}
-                      >
-                        {positionLabel(p, eq)} ×
-                      </button>
-                    ))}
-                    {selected.length > 0 && (
-                      <button disabled={busy} onClick={() => setSelected([])}>
-                        Bersihkan semua
-                      </button>
-                    )}
-                  </div>
-                  {!selected.length && (
-                    <p className="fine">
-                      Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
-                    </p>
-                  )}
-                  <form className="form-stack" onSubmit={save}>
-                    <label>
-                      Tanggal & jam pemasangan (WIB)
-                      <DateTimeField
-                        type="datetime-local"
-                        value={installedAt}
-                        onChange={(e) => setInstalledAt(e.target.value)}
-                        required
-                        min="2000-01-01T00:00"
-                        max={wibInput(now + 60000)}
-                        disabled={busy}
-                      />
-                    </label>
-                    <label>
-                      Brand/Pabrikan
-                      <Select
-                        aria-label="Brand/Pabrikan"
-                        value={brand}
-                        onChange={(e) => setBrand(e.target.value as BagBrand | '')}
-                        required
-                        disabled={busy}
-                      >
-                        <option value="" disabled>
-                          Pilih Brand/Pabrikan
-                        </option>
-                        {bagBrands.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label>
-                      Alasan penggantian / pemasangan awal
-                      <Textarea
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        required
-                        maxLength={500}
-                        rows={2}
-                        disabled={busy}
-                        placeholder="Contoh: bag bocor atau pemasangan awal"
-                      />
-                    </label>
-                    <label>
-                      WO Number (opsional)
-                      <Input
-                        value={wo}
-                        onChange={(e) => setWo(e.target.value)}
-                        maxLength={100}
-                        disabled={busy}
-                      />
-                    </label>
-                    <Button className="accent" busy={busy} disabled={!selected.length}>
-                      {`Simpan ${selected.length} bag`}
-                    </Button>
-                  </form>
-                  <p className="fine" style={{ marginTop: 15, marginBottom: 0 }}>
-                    Satu tanggal, Brand/Pabrikan, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang
-                    disimpan tidak dapat diubah pada rilis ini.
-                  </p>
-                </>
-              ) : (
-                <p className="read-only">
-                  Anda dapat membaca status dan history equipment. Hak pencatatan diberikan oleh admin portal.
-                </p>
-              )}
-            </section>
-            <div className="batch-capacity">
+      <div className="equipment-workspace">
+        <div className="bag-layout">
+          <section className="panel" id="bag-detail">
+            <div className="section-head">
               <div>
-                <span>Ukuran batch</span>
-                <span>{selected.length} / 500</span>
+                <p className="eyebrow">PETA BAG CLOTH</p>
+                <h2>Detail Comp. {currentComp}</h2>
               </div>
-              <div className="capacity-track">
-                <span
-                  className="hatched"
-                  style={{
-                    transform: `scaleX(${selected.length / 500})`,
-                    background: selected.length >= 450 ? 'var(--secondary-400)' : 'var(--primary-400)',
-                  }}
-                />
-              </div>
+              <span className="badge">{side}</span>
             </div>
-          </Overlay>
-          <section className="panel" id="position-history">
-            <p className="eyebrow">RIWAYAT KOORDINAT</p>
-            <h2>{focused ? `Comp. ${positionLabel(focused, eq)}` : 'Pilih satu posisi'}</h2>
-            {timelineError && (
-              <p className="notice error" role="alert">
-                {timelineError}{' '}
-                <button className="small secondary" onClick={() => setRevision((v) => v + 1)}>
-                  Coba lagi
+            <div className="form-grid">
+              <label>
+                Sisi
+                <Select
+                  aria-label="Sisi"
+                  value={side}
+                  onChange={(e) => {
+                    setSide(e.target.value as Position['side']);
+                    setFocused(null);
+                  }}
+                >
+                  {eq.sides.map((s) => (
+                    <option key={s.name}>{s.name}</option>
+                  ))}
+                </Select>
+              </label>
+              <label>
+                Kompartemen
+                <Select
+                  aria-label="Kompartemen"
+                  value={compartment}
+                  onChange={(e) => {
+                    setCompartment(Number(e.target.value));
+                    setFocused(null);
+                  }}
+                >
+                  {Array.from({ length: eq.perSide }, (_, i) => (
+                    <option key={i} value={i + 1}>
+                      Comp. {displayCompartment({ side, compartment: i + 1 }, eq)}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
+            {writable && (
+              <div className="bulk-selection-tools">
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    leaveHover();
+                    setBulkOpen(true);
+                  }}
+                >
+                  <Icon name="grid" /> Pilih banyak
                 </button>
-              </p>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy || selection.previous === null}
+                  onClick={undoSelection}
+                >
+                  Urungkan pilihan terakhir
+                </button>
+              </div>
             )}
-            {timelineBusy && !timeline.items.length ? (
-              <p className="loading-line">Memuat riwayat…</p>
-            ) : !focused ? (
-              <p className="empty">Pilih bag untuk melihat pemasangan dan masa pakainya.</p>
-            ) : !timeline.items.length ? (
-              <p className="empty">Belum ada catatan untuk posisi ini.</p>
-            ) : (
-              <div className="timeline">
-                {timeline.items.map((item) => {
-                  const hours = Math.max(
-                    0,
-                    Math.floor(
-                      ((item.endedAt ? Date.parse(item.endedAt) : now) - Date.parse(item.installedAt)) /
-                        3600000,
-                    ),
-                  );
+            <div className="bag-grid-scroll">
+              <div
+                className="bag-grid"
+                role="group"
+                aria-label={`Detail kompartemen ${currentComp}`}
+                onPointerDown={(e) => {
+                  if (writable && !busy && e.pointerType === 'mouse' && e.button === 0)
+                    drag.current = { x: e.clientX, y: e.clientY, active: false, base: selected, items: [] };
+                }}
+                onPointerMove={(e) => {
+                  const d = drag.current;
+                  if (!d) return;
+                  if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5) {
+                    d.active = true;
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    const rect = {
+                      x: Math.min(d.x, e.clientX),
+                      y: Math.min(d.y, e.clientY),
+                      width: Math.abs(e.clientX - d.x),
+                      height: Math.abs(e.clientY - d.y),
+                    };
+                    setMarquee(rect);
+                    const cells = Array.from(
+                      e.currentTarget.querySelectorAll<HTMLButtonElement>('.bag-cell'),
+                    );
+                    const picked = cells
+                      .filter((el) => {
+                        const r = el.getBoundingClientRect();
+                        return (
+                          r.right >= rect.x &&
+                          r.left <= rect.x + rect.width &&
+                          r.bottom >= rect.y &&
+                          r.top <= rect.y + rect.height
+                        );
+                      })
+                      .map((el) => ({
+                        side,
+                        compartment,
+                        column: Number(el.dataset.column),
+                        row: Number(el.dataset.row),
+                      }));
+                    d.items = picked;
+                    dispatchSelection({ type: 'preview', positions: picked, base: d.base });
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (drag.current?.active) {
+                    dispatchSelection({
+                      type: 'add',
+                      positions: drag.current.items,
+                      base: drag.current.base,
+                    });
+                    suppressClick.current = true;
+                    setTimeout(() => {
+                      suppressClick.current = false;
+                    }, 0);
+                  }
+                  drag.current = null;
+                  setMarquee(null);
+                  if (e.currentTarget.hasPointerCapture(e.pointerId))
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+                onPointerCancel={() => {
+                  if (drag.current?.active)
+                    dispatchSelection({ type: 'cancel-drag', base: drag.current.base });
+                  drag.current = null;
+                  setMarquee(null);
+                }}
+              >
+                <span />
+                {letters.split('').map((letter) => (
+                  <span
+                    className={`grid-label${hovered?.position.column === letters.indexOf(letter) + 1 ? ' is-hovered' : ''}`}
+                    key={letter}
+                  >
+                    {letter}
+                  </span>
+                ))}
+                {rowOrder(eq, side).map((row) => {
                   return (
-                    <article key={item.id}>
-                      <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
-                      <small>{formatDate(item.installedAt)} WIB</small>
-                      <small>Brand/Pabrikan: {item.brand || 'Belum tercatat'}</small>
-                      <strong className={!item.endedAt ? 'now' : ''}>
-                        {Math.floor(hours / 24).toLocaleString('id-ID')} hari
-                      </strong>
-                      <small>
-                        {item.wo || 'Tanpa WO'} · {item.reason}
-                      </small>
-                      <small>
-                        {item.actorName} · dicatat {formatDate(item.createdAt)} WIB
-                      </small>
-                    </article>
+                    <Fragment key={row}>
+                      {rowDividerBefore(eq, side, row) && (
+                        <div
+                          className="bag-stiffener"
+                          role="separator"
+                          aria-label={`Jeda antara baris ${eq.rowDividerAfter} dan ${eq.rowDividerAfter! + 1}`}
+                        />
+                      )}
+                      <span
+                        className={`grid-label row-number${hovered?.position.row === row ? ' is-hovered' : ''}`}
+                      >
+                        {row}
+                      </span>
+                      {Array.from({ length: 8 }, (_, c) => {
+                        const p = { side, compartment, column: c + 1, row },
+                          key = positionKey(p),
+                          age = ageHours(latest.get(key)?.installedAt || null, now),
+                          picked = selectedKeys.has(key);
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`bag-cell${age === null ? ' is-empty' : age >= 21600 ? ' is-old' : ''}`}
+                            data-position-key={key}
+                            data-column={c + 1}
+                            data-row={row}
+                            tabIndex={
+                              focused
+                                ? positionKey(focused) === key
+                                  ? 0
+                                  : -1
+                                : row === rowOrder(eq, side)[0] && c === 0
+                                  ? 0
+                                  : -1
+                            }
+                            onKeyDown={(e) => cellKey(e, p)}
+                            onFocus={(e) => hover(p, e.currentTarget)}
+                            onPointerEnter={(e) => hover(p, e.currentTarget)}
+                            onPointerLeave={leaveHover}
+                            onBlur={leaveHover}
+                            style={{
+                              background: bagColor(age),
+                              color:
+                                age === null
+                                  ? 'var(--textSecondary)'
+                                  : `var(--data-${dataTextTone(bagColor(age))})`,
+                              opacity:
+                                bucket === null ||
+                                (bucket === 'empty'
+                                  ? age === null
+                                  : age !== null && ageBucket(age) === bucket)
+                                  ? 1
+                                  : 0.25,
+                            }}
+                            aria-pressed={picked}
+                            aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
+                            onClick={(event) => toggle(p, event)}
+                          >
+                            {letters[c]}
+                            {row}
+                          </button>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </div>
-            )}
-            {timeline.nextCursor && focused && (
-              <button
-                className="secondary small"
-                disabled={timelineBusy}
-                onClick={async () => {
-                  setTimelineBusy(true);
-                  try {
-                    const next = await read<Page<TimelineItem>>(timelineUrl(focused, timeline.nextCursor));
-                    setTimeline((old) => ({
-                      items: [...old.items, ...next.items],
-                      nextCursor: next.nextCursor,
-                    }));
-                  } catch (e) {
-                    setTimelineError((e as Error).message);
-                  } finally {
-                    setTimelineBusy(false);
-                  }
-                }}
-              >
-                Riwayat sebelumnya
-              </button>
-            )}
+            </div>
+            <p className="fine" style={{ marginTop: 18 }}>
+              Koordinat bag. Umur tersedia saat diarahkan.{' '}
+              {writable
+                ? 'Gunakan Pilih banyak untuk kompartemen/area, atau klik ulang bag untuk menghapus pilihan. Desktop juga mendukung Shift+klik dan seret mouse.'
+                : 'Klik posisi untuk membaca riwayat.'}
+            </p>
           </section>
-        </div>
-      </div>
-      <section className="panel">
-        <div className="section-head">
-          <div>
-            <p className="eyebrow">RECORD PENGGANTIAN</p>
-            <h2>Riwayat pekerjaan</h2>
-          </div>
-          <span className="badge">{history.items.length} batch</span>
-        </div>
-        <label>
-          Cari WO, alasan, tanggal, atau koordinat
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Contoh: WO-001, 2026-10-01, atau ${positionLabel({ side: eq.sides[0].name, compartment: 1, column: 1, row: eq.rows }, eq)}`}
-            maxLength={200}
-          />
-        </label>
-        {historyError && (
-          <p className="notice error" role="alert">
-            {historyError}{' '}
-            <button className="small secondary" onClick={() => setRevision((v) => v + 1)}>
-              Coba lagi
-            </button>
-          </p>
-        )}
-        {historyBusy && !history.items.length ? (
-          <p className="loading-line">Memuat history…</p>
-        ) : !history.items.length ? (
-          <p className="empty">
-            {search ? 'Tidak ada pekerjaan sesuai pencarian.' : 'Belum ada pemasangan atau penggantian.'}
-          </p>
-        ) : (
-          <div className="history-list">
-            {history.items.map((batch) => (
-              <article className="history-item" key={batch.id}>
-                <span className="history-count">{batch.positionCount}</span>
+          {writable && (
+            <BulkSelection
+              open={bulkOpen}
+              equipment={eq}
+              side={side}
+              compartment={compartment}
+              selected={selected}
+              busy={busy}
+              onClose={() => setBulkOpen(false)}
+              onAdd={(positions) => {
+                addPositions(positions);
+                anchorSelection.current = null;
+              }}
+            />
+          )}
+          <div className="bag-context">
+            <Overlay
+              open={sheetOpen}
+              onClose={() => {
+                if (!busy) setSheetOpen(false);
+              }}
+              title="Pencatatan penggantian"
+              kind="sheet"
+              anchor={recordButton}
+            >
+              {' '}
+              <section className="installation-form">
+                {displayError && (
+                  <p className="notice error" role="alert">
+                    {displayError}
+                  </p>
+                )}
+                <p className="eyebrow">PENCATATAN PENGGANTIAN</p>
+                <h2>{writable ? `${selected.length} posisi dipilih` : 'Akses baca'}</h2>
+                {writable ? (
+                  <>
+                    <div className="selection-summary">
+                      <div className="selection-summary-head">
+                        <p className="fine">
+                          {selectedGroups.length} kompartemen · {selected.length} bag
+                        </p>
+                        <div>
+                          <button
+                            type="button"
+                            className="ghost small"
+                            disabled={busy || selection.previous === null}
+                            onClick={undoSelection}
+                          >
+                            Urungkan pilihan terakhir
+                          </button>
+                          {selected.length > 0 && (
+                            <button
+                              type="button"
+                              className="ghost small"
+                              disabled={busy}
+                              onClick={clearSelection}
+                            >
+                              Bersihkan semua
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {selectedGroups.map((group) => (
+                        <details className="selection-group" key={`${group.side}-${group.compartment}`}>
+                          <summary>
+                            <span>Comp. {displayCompartment(group, eq)}</span>
+                            <strong>{group.positions.length} bag</strong>
+                            <Icon name="chevron" />
+                          </summary>
+                          <div className="selected-list">
+                            {group.positions.map((p) => (
+                              <button
+                                key={positionKey(p)}
+                                type="button"
+                                disabled={busy}
+                                onClick={() => dispatchSelection({ type: 'toggle', position: p })}
+                                aria-label={`Hapus ${positionLabel(p, eq)}`}
+                              >
+                                {letters[p.column - 1]}
+                                {p.row} ×
+                              </button>
+                            ))}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                    {!selected.length && (
+                      <p className="fine">
+                        Pilih bag di peta atau detail kompartemen. Maksimal 500 posisi per penyimpanan.
+                      </p>
+                    )}
+                    <form className="form-stack" onSubmit={save}>
+                      <label>
+                        Tanggal & jam pemasangan (WIB)
+                        <DateTimeField
+                          type="datetime-local"
+                          value={installedAt}
+                          onChange={(e) => setInstalledAt(e.target.value)}
+                          required
+                          min="2000-01-01T00:00"
+                          max={wibInput(now + 60000)}
+                          disabled={busy}
+                        />
+                      </label>
+                      <label>
+                        Brand/Pabrikan
+                        <Select
+                          aria-label="Brand/Pabrikan"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value as BagBrand | '')}
+                          required
+                          disabled={busy}
+                        >
+                          <option value="" disabled>
+                            Pilih Brand/Pabrikan
+                          </option>
+                          {bagBrands.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                      <label>
+                        Alasan penggantian / pemasangan awal
+                        <Textarea
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          required
+                          maxLength={500}
+                          rows={2}
+                          disabled={busy}
+                          placeholder="Contoh: bag bocor atau pemasangan awal"
+                        />
+                      </label>
+                      <label>
+                        WO Number (opsional)
+                        <Input
+                          value={wo}
+                          onChange={(e) => setWo(e.target.value)}
+                          maxLength={100}
+                          disabled={busy}
+                        />
+                      </label>
+                      <Button className="accent" busy={busy} disabled={!selected.length}>
+                        {`Simpan ${selected.length} bag`}
+                      </Button>
+                    </form>
+                    <p className="fine" style={{ marginTop: 15, marginBottom: 0 }}>
+                      Satu tanggal, Brand/Pabrikan, alasan, dan WO berlaku untuk seluruh posisi. Catatan yang
+                      disimpan tidak dapat diubah pada rilis ini.
+                    </p>
+                  </>
+                ) : (
+                  <p className="read-only">
+                    Anda dapat membaca status dan history equipment. Hak pencatatan diberikan oleh admin
+                    portal.
+                  </p>
+                )}
+              </section>
+              <div className="batch-capacity">
                 <div>
-                  <strong>
-                    {batch.wo || 'Tanpa WO'} · {batch.positionCount} bag
-                  </strong>
-                  <small>
-                    {batch.reason} · dipasang {formatDate(batch.installedAt)} WIB
-                  </small>
-                  <small>Brand/Pabrikan: {batch.brand || 'Belum tercatat'}</small>
-                  <small>
-                    {batch.actorName} · dicatat {formatDate(batch.createdAt)} WIB
-                  </small>
-                  <div className="coordinate-links">
-                    {batch.positions.slice(0, 12).map((p) => (
-                      <button
-                        key={positionKey(p)}
-                        onClick={() => {
-                          focus(p);
-                          document.getElementById('position-history')?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                      >
-                        {positionLabel(p, eq)}
-                      </button>
-                    ))}
-                    {batch.positions.length > 12 && (
-                      <details>
-                        <summary>{batch.positions.length - 12} koordinat lainnya</summary>
+                  <span>Ukuran batch</span>
+                  <span>{selected.length} / 500</span>
+                </div>
+                <div className="capacity-track">
+                  <span
+                    className="hatched"
+                    style={{
+                      transform: `scaleX(${selected.length / 500})`,
+                      background: selected.length >= 450 ? 'var(--secondary-400)' : 'var(--primary-400)',
+                    }}
+                  />
+                </div>
+              </div>
+            </Overlay>
+            <section className="panel" id="position-history">
+              <p className="eyebrow">RIWAYAT KOORDINAT</p>
+              <h2>{focused ? `Comp. ${positionLabel(focused, eq)}` : 'Pilih satu posisi'}</h2>
+              {timelineError && (
+                <p className="notice error" role="alert">
+                  {timelineError}{' '}
+                  <button className="small secondary" onClick={() => setRevision((v) => v + 1)}>
+                    Coba lagi
+                  </button>
+                </p>
+              )}
+              {timelineBusy && !timeline.items.length ? (
+                <p className="loading-line">Memuat riwayat…</p>
+              ) : !focused ? (
+                <p className="empty">Pilih bag untuk melihat pemasangan dan masa pakainya.</p>
+              ) : !timeline.items.length ? (
+                <p className="empty">Belum ada catatan untuk posisi ini.</p>
+              ) : (
+                <div className="timeline" role="region" aria-label="Daftar riwayat koordinat" tabIndex={0}>
+                  {timeline.items.map((item) => {
+                    const hours = Math.max(
+                      0,
+                      Math.floor(
+                        ((item.endedAt ? Date.parse(item.endedAt) : now) - Date.parse(item.installedAt)) /
+                          3600000,
+                      ),
+                    );
+                    return (
+                      <article key={item.id}>
+                        <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
+                        <small>{formatDate(item.installedAt)} WIB</small>
+                        <small>Brand/Pabrikan: {item.brand || 'Belum tercatat'}</small>
+                        <strong className={!item.endedAt ? 'now' : ''}>
+                          {Math.floor(hours / 24).toLocaleString('id-ID')} hari
+                        </strong>
+                        <small>
+                          {item.wo || 'Tanpa WO'} · {item.reason}
+                        </small>
+                        <small>
+                          {item.actorName} · dicatat {formatDate(item.createdAt)} WIB
+                        </small>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              {timeline.nextCursor && focused && (
+                <button
+                  className="secondary small"
+                  disabled={timelineBusy}
+                  onClick={async () => {
+                    setTimelineBusy(true);
+                    try {
+                      const next = await read<Page<TimelineItem>>(timelineUrl(focused, timeline.nextCursor));
+                      setTimeline((old) => ({
+                        items: [...old.items, ...next.items],
+                        nextCursor: next.nextCursor,
+                      }));
+                    } catch (e) {
+                      setTimelineError((e as Error).message);
+                    } finally {
+                      setTimelineBusy(false);
+                    }
+                  }}
+                >
+                  Riwayat sebelumnya
+                </button>
+              )}
+            </section>
+            <section className="panel" id="work-history">
+              <div className="section-head">
+                <div>
+                  <p className="eyebrow">RECORD PENGGANTIAN</p>
+                  <h2>Riwayat pekerjaan</h2>
+                </div>
+                <span className="badge">{history.items.length} batch</span>
+              </div>
+              <label>
+                Cari WO, alasan, tanggal, atau koordinat
+                <Input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={`Contoh: WO-001, 2026-10-01, atau ${positionLabel({ side: eq.sides[0].name, compartment: 1, column: 1, row: eq.rows }, eq)}`}
+                  maxLength={200}
+                />
+              </label>
+              {historyError && (
+                <p className="notice error" role="alert">
+                  {historyError}{' '}
+                  <button className="small secondary" onClick={() => setRevision((v) => v + 1)}>
+                    Coba lagi
+                  </button>
+                </p>
+              )}
+              {historyBusy && !history.items.length ? (
+                <p className="loading-line">Memuat history…</p>
+              ) : !history.items.length ? (
+                <p className="empty">
+                  {search
+                    ? 'Tidak ada pekerjaan sesuai pencarian.'
+                    : 'Belum ada pemasangan atau penggantian.'}
+                </p>
+              ) : (
+                <div
+                  className="history-list"
+                  role="region"
+                  aria-label="Daftar riwayat pekerjaan"
+                  tabIndex={0}
+                >
+                  {history.items.map((batch) => (
+                    <article className="history-item" key={batch.id}>
+                      <span className="history-count">{batch.positionCount}</span>
+                      <div>
+                        <strong>
+                          {batch.wo || 'Tanpa WO'} · {batch.positionCount} bag
+                        </strong>
+                        <small>
+                          {batch.reason} · dipasang {formatDate(batch.installedAt)} WIB
+                        </small>
+                        <small>Brand/Pabrikan: {batch.brand || 'Belum tercatat'}</small>
+                        <small>
+                          {batch.actorName} · dicatat {formatDate(batch.createdAt)} WIB
+                        </small>
                         <div className="coordinate-links">
-                          {batch.positions.slice(12).map((p) => (
+                          {batch.positions.slice(0, 12).map((p) => (
                             <button
                               key={positionKey(p)}
                               onClick={() => {
@@ -980,44 +1069,77 @@ export default function BagMonitor({
                               {positionLabel(p, eq)}
                             </button>
                           ))}
+                          {batch.positions.length > 12 && (
+                            <details>
+                              <summary>{batch.positions.length - 12} koordinat lainnya</summary>
+                              <div className="coordinate-links">
+                                {batch.positions.slice(12).map((p) => (
+                                  <button
+                                    key={positionKey(p)}
+                                    onClick={() => {
+                                      focus(p);
+                                      document
+                                        .getElementById('position-history')
+                                        ?.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                  >
+                                    {positionLabel(p, eq)}
+                                  </button>
+                                ))}
+                              </div>
+                            </details>
+                          )}
                         </div>
-                      </details>
-                    )}
-                  </div>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-              </article>
-            ))}
+              )}
+              {history.nextCursor && (
+                <button
+                  className="secondary"
+                  disabled={historyBusy}
+                  onClick={async () => {
+                    setHistoryBusy(true);
+                    try {
+                      const next = await read<Page<Batch>>(
+                        `${base}/batches?q=${encodeURIComponent(search)}&cursor=${history.nextCursor}`,
+                      );
+                      setHistory((old) => ({
+                        items: [...old.items, ...next.items],
+                        nextCursor: next.nextCursor,
+                      }));
+                    } catch (e) {
+                      setHistoryError((e as Error).message);
+                    } finally {
+                      setHistoryBusy(false);
+                    }
+                  }}
+                >
+                  Muat 50 batch berikutnya
+                </button>
+              )}
+            </section>
           </div>
-        )}
-        {history.nextCursor && (
-          <button
-            className="secondary"
-            disabled={historyBusy}
-            onClick={async () => {
-              setHistoryBusy(true);
-              try {
-                const next = await read<Page<Batch>>(
-                  `${base}/batches?q=${encodeURIComponent(search)}&cursor=${history.nextCursor}`,
-                );
-                setHistory((old) => ({ items: [...old.items, ...next.items], nextCursor: next.nextCursor }));
-              } catch (e) {
-                setHistoryError((e as Error).message);
-              } finally {
-                setHistoryBusy(false);
-              }
-            }}
-          >
-            Muat 50 batch berikutnya
-          </button>
-        )}
-      </section>
+        </div>
+      </div>
+      {writable && selected.length > 0 && <div className="selection-spacer" aria-hidden="true" />}
       {writable && selected.length > 0 && (
-        <div className="selection-bar" role="region" aria-label="Pilihan bag">
+        <div className="selection-bar" role="region" aria-label="Pilihan bag" hidden={sheetOpen || bulkOpen}>
           <strong>{selected.length} posisi dipilih</strong>
-          <button type="button" className="ghost" disabled={busy} onClick={() => setSelected([])}>
+          <button type="button" className="ghost" disabled={busy} onClick={clearSelection}>
             Bersihkan semua
           </button>
-          <button type="button" disabled={busy} onClick={() => setSheetOpen(true)}>
+          <button
+            type="button"
+            data-sheet-trigger
+            ref={recordButton}
+            disabled={busy}
+            onClick={() => {
+              leaveHover();
+              setSheetOpen(true);
+            }}
+          >
             Catat penggantian
           </button>
         </div>

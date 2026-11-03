@@ -1,5 +1,9 @@
 # Operasional pilot
 
+Logout tersedia melalui **Menu akun → Keluar akun** atau halaman **Profil** di Portal, Bag Filter, dan Consumable Room. Sidebar tidak lagi menampilkan sesi/countdown atau tombol logout. Sesi tetap absolut delapan jam; sign-out, reset dan pencabutan sesi tetap ditangani Auth. Smoke test pengakhiran sesi memakai menu akun dan memeriksa API menolak cookie yang sudah logout.
+
+Penyempurnaan halaman equipment 4 November 2026 mengubah komponen bersama `@plant/ui`: rilis memakai build empat aplikasi (`auth portal bag-filter consumables`) melalui runbook aktif. Perubahan ini tidak memerlukan migrasi database atau impor data. Periksa KPI umur aktual, penanda kompartemen aktif, pemilihan massal, riwayat kanan/vertikal, dan tombol pencatatan yang hanya muncul setelah ada pilihan.
+
 Untuk revisi Consumable Room v1.1, gunakan [upgrade R22](deployment/R22-UPGRADE.md): preflight stok tunggal, migrasi 0002/0003, CLI penamaan dan checkpoint OpenClaw.
 
 Untuk VPS pengguna dengan Nginx existing di host dan domain `tq-cmms.com`, ikuti [runbook VPS](deployment/VPS-TQ-CMMS.md) serta [handover OpenClaw](deployment/OPENCLAW-HANDOVER.md). Perintah Compose di bawah adalah baseline umum; pada VPS tersebut gunakan fungsi `dc` dengan `infra/deploy/compose.vps.yaml` agar binding, budget resource, dan logging sesuai topologi host.
@@ -99,7 +103,7 @@ docker compose up -d --no-deps --wait auth portal bag-filter
 docker compose restart nginx
 ```
 
-Periksa login, dashboard sesuai scope, pencatatan, dan logout. Preferensi tema/sidebar tersimpan per browser; riwayat pencarian dan penanda aktivitas dibaca dipisahkan menurut ID pengguna. Dashboard menghitung tanggal pemasangan WIB; notifikasi berdasarkan waktu pencatatan batch, sehingga transaksi bertanggal mundur tetap muncul sebagai aktivitas terbaru. Timer sesi hanya indikator, bukan perpanjangan sesi. Rollback memakai ketiga image sebelumnya; tidak perlu membatalkan migrasi UI.
+Periksa login, dashboard sesuai scope, pencatatan, dan logout. Preferensi tema/sidebar tersimpan per browser; riwayat pencarian dan penanda aktivitas dibaca dipisahkan menurut ID pengguna. Dashboard menghitung tanggal pemasangan WIB; notifikasi berdasarkan waktu pencatatan batch, sehingga transaksi bertanggal mundur tetap muncul sebagai aktivitas terbaru. Timer UI dari rilis ini telah dihapus pada penyempurnaan 4 November 2026; batas sesi server tetap berlaku. Perintah di atas merupakan baseline tiga aplikasi; instalasi dengan Consumables membangun/memperbarui keempat image mengikuti runbook deployment aktif. Tidak perlu membatalkan migrasi UI ketika rollback image.
 
 ### Upgrade katalog equipment v2.1
 

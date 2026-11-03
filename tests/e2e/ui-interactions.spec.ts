@@ -58,6 +58,34 @@ async function start(page: Page, theme = 'light') {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript((value) => localStorage.setItem('plant-ui-theme', value), theme);
 }
+
+test('account-menu logout revokes access from Portal, Bag Filter and Consumables without sidebar session UI', async ({
+  page,
+}) => {
+  for (const [index, path] of ['/', '/bag-filter', '/consumables'].entries()) {
+    expect(
+      (
+        await page.request.post('/auth/api/sign-in/email', {
+          headers: { origin: process.env.PUBLIC_ORIGIN! },
+          data: { email, password },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.setViewportSize({ width: index === 1 ? 390 : 1440, height: 900 });
+    await page.goto(path);
+    await expect(
+      page.locator('.session-card, .session-compact, .session-rail, .session-summary'),
+    ).toHaveCount(0);
+    await expect(page.locator('.sidebar .logout')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Menu akun', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: actor.name, exact: true });
+    await expect(menu.getByRole('link', { name: 'Profil saya' })).toBeVisible();
+    await menu.getByRole('button', { name: /^Keluar akun/ }).click();
+    await page.waitForURL('**/auth/login');
+    expect((await page.request.get('/bag-filter/api/equipment')).status()).toBe(401);
+    expect((await page.request.get('/consumables/api/inventory')).status()).toBe(401);
+  }
+});
 async function outside(page: Page, menu: Locator) {
   const r = (await menu.boundingBox())!,
     viewport = page.viewportSize()!;
@@ -111,12 +139,7 @@ for (const theme of ['light', 'dark'])
   test(`hover contrast remains readable in ${theme}`, async ({ page }) => {
     await start(page, theme);
     await page.goto('/consumables');
-    for (const selector of [
-      '.user-menu-trigger',
-      '.session-summary',
-      '.sidebar .logout',
-      '.application-toggle',
-    ])
+    for (const selector of ['.user-menu-trigger', '.application-toggle'])
       await readable(page.locator(selector).first());
     await page.getByRole('combobox', { name: 'Tahun transaksi stok' }).click();
     for (const option of await page.getByRole('option').all()) await readable(option);
@@ -133,6 +156,7 @@ for (const theme of ['light', 'dark'])
     for (const tab of await tabs.all()) await readable(tab);
     await page.mouse.move(0, 0);
     await page.getByRole('button', { name: 'Menu akun', exact: true }).click();
+    await readable(page.getByRole('button', { name: /^Keluar akun/ }));
     await outside(page, page.getByRole('dialog', { name: actor.name, exact: true }));
     await expect(page.getByRole('button', { name: 'Menu akun', exact: true })).toBeFocused();
   });
@@ -190,6 +214,7 @@ test('nested manufacturer menu dismisses without closing or losing the replaceme
 }) => {
   await start(page, 'dark');
   await page.goto('/bag-filter/equipment/L61-BF1');
+  await page.locator('.bag-cell').first().click();
   await page.getByRole('button', { name: 'Catat penggantian', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Pencatatan penggantian', exact: true });
   const reason = sheet.getByPlaceholder('Contoh: bag bocor atau pemasangan awal');

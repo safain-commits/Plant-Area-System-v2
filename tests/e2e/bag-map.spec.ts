@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { authSchema, getAuthDb, closeAuthDb, createUser, setGrant, changePassword } from '@plant/auth-core';
+import { getBagDb, closeBagDb, bagSchema } from '@plant/bag-core';
 import { equipmentCodes, type Identity } from '@plant/contracts';
 
 const origin = process.env.PUBLIC_ORIGIN!;
@@ -23,6 +24,19 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   try {
+    if (userId) {
+      const batches = await getBagDb()
+        .select({ id: bagSchema.batches.id })
+        .from(bagSchema.batches)
+        .where(eq(bagSchema.batches.actorId, userId));
+      if (batches.length)
+        await getBagDb().transaction(async (tx) => {
+          const ids = batches.map((b) => b.id);
+          await tx.delete(bagSchema.bagAudit).where(inArray(bagSchema.bagAudit.batchId, ids));
+          await tx.delete(bagSchema.installations).where(inArray(bagSchema.installations.batchId, ids));
+          await tx.delete(bagSchema.batches).where(inArray(bagSchema.batches.id, ids));
+        });
+    }
     if (userId)
       await getAuthDb().transaction(async (tx) => {
         await tx.delete(authSchema.session).where(eq(authSchema.session.userId, userId));
@@ -32,6 +46,7 @@ test.afterAll(async () => {
       });
   } finally {
     await closeAuthDb();
+    await closeBagDb();
   }
 });
 
@@ -71,7 +86,117 @@ const layouts = [
   },
 ];
 
-test('all six maps remain readable and physically aligned at five widths in both themes', async ({
+test('active ages, compact detail workspace, inset selection and one recording action', async ({ page }) => {
+  test.setTimeout(120000);
+  await login(page);
+  await page.goto('/bag-filter/equipment/422-bf1');
+  const kpi = page.getByRole('main').locator('[data-kpi="active-age"]');
+  await expect(kpi.locator('[data-age-range]')).toHaveText('—');
+  await expect(kpi).toContainText('Belum ada pemasangan tercatat');
+  await expect(page.getByRole('button', { name: 'Catat penggantian', exact: true })).toHaveCount(0);
+  const now = Date.now(),
+    day = 86400000;
+  const positions = [
+    { side: 'A', compartment: 1, column: 1, row: 17 },
+    { side: 'B', compartment: 15, column: 8, row: 1 },
+  ];
+  async function batch(items: typeof positions, days: number) {
+    const response = await page.request.post('/bag-filter/api/equipment/422-BF1/batches', {
+      headers: { origin, 'Idempotency-Key': randomUUID() },
+      data: {
+        equipmentCode: '422-BF1',
+        positions: items,
+        installedAt: new Date(now - days * day).toISOString(),
+        reason: `Age UI ${userId}`,
+        brand: 'Filtras',
+      },
+    });
+    expect(response.status(), await response.text()).toBe(201);
+  }
+  await batch(positions, 1678);
+  // Replacing a very old bag must remove its former installation from the KPI.
+  await batch([positions[1]], 7 + 86370 / 86400);
+  await page.clock.install({ time: new Date(now) });
+  await page.reload();
+  await expect(kpi.locator('[data-age-range]')).toHaveText('7–1.678 hari');
+  await expect(kpi).toContainText('1 bag ≥900 hari');
+  const legend = page.locator('.age-buckets button').first();
+  await legend.click();
+  await expect(legend).toHaveAttribute('aria-pressed', 'true');
+  await expect(kpi.locator('[data-age-range]')).toHaveText('7–1.678 hari');
+  await legend.click();
+  await page.clock.fastForward(60000);
+  await expect(kpi.locator('[data-age-range]')).toHaveText('8–1.678 hari');
+  await page.clock.resume();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => {
+      localStorage.setItem('plant-ui-theme', value);
+      dispatchEvent(
+        new StorageEvent('storage', { key: 'plant-ui-theme', newValue: value, storageArea: localStorage }),
+      );
+    }, theme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    for (const width of [320, 390, 1280, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const workspace = await page.locator('.equipment-workspace').boundingBox();
+      const grid = await page.locator('#bag-detail').boundingBox();
+      const context = await page.locator('.bag-context').boundingBox();
+      if (workspace!.width >= 960) {
+        expect(grid!.width).toBe(520);
+        expect(context!.x).toBeGreaterThan(grid!.x + grid!.width);
+        expect(Math.abs(context!.y - grid!.y)).toBeLessThan(1);
+      } else {
+        expect(grid!.width).toBeLessThanOrEqual(520);
+        expect(context!.y).toBeGreaterThanOrEqual(grid!.y + grid!.height);
+      }
+      await expect(page.locator('.overview-title[aria-current="true"]')).toHaveCount(1);
+      const cell = page.locator('.overview-cell').first();
+      const before = await cell.boundingBox();
+      await cell.click();
+      const after = await cell.boundingBox();
+      expect(after!.width).toBe(before!.width);
+      expect(after!.height).toBe(before!.height);
+      const style = await cell.evaluate((el) => ({
+        shadow: getComputedStyle(el).boxShadow,
+        transform: getComputedStyle(el).transform,
+      }));
+      expect(style.shadow).toContain('inset');
+      expect(style.transform).toBe('none');
+      await expect(page.getByRole('button', { name: 'Catat penggantian', exact: true })).toHaveCount(1);
+      await page
+        .locator('.selection-bar')
+        .getByRole('button', { name: 'Catat penggantian', exact: true })
+        .click();
+      await expect(page.locator('.selection-bar')).toBeHidden();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('[data-sheet-trigger]')).toBeFocused();
+      await page.getByRole('button', { name: 'Pilih banyak', exact: true }).click();
+      await expect(page.locator('.selection-bar')).toBeHidden();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('button', { name: 'Pilih banyak', exact: true })).toBeFocused();
+      await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+      await page.locator('#bag-detail').scrollIntoViewIfNeeded();
+      if (width >= 1280) await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({
+        path: `test-results/equipment-workspace-${theme}-${width}.png`,
+        fullPage: width >= 1280,
+      });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.locator('.selection-bar').getByRole('button', { name: 'Bersihkan semua' }).click();
+    }
+  }
+  const coordinate = page
+    .locator('#work-history .coordinate-links button')
+    .filter({ hasText: '15B H1' })
+    .first();
+  await coordinate.click();
+  await expect(page.locator('.overview-title[aria-current="true"]')).toHaveText('Comp. 15B');
+  await expect(page.locator('#position-history')).toContainText('Comp. 15B H1');
+  await page.getByRole('button', { name: /900\+ hari/ }).click();
+  await expect(kpi.locator('[data-age-range]')).toHaveText('8–1.678 hari');
+});
+
+test('all six maps keep uniform square cells and aligned labels at seven widths in both themes', async ({
   page,
 }) => {
   test.setTimeout(180000);
@@ -108,7 +233,7 @@ test('all six maps remain readable and physically aligned at five widths in both
           );
           await expect(band.locator('.overview-stiffener')).toHaveCount(layout.perSide);
         }
-        for (const width of [320, 390, 768, 1024, 1440]) {
+        for (const width of [320, 390, 768, 1024, 1440, 1920, 2552]) {
           await page.setViewportSize({ width, height: 1000 });
           const narrow = await page.locator('.overview-map').evaluate((el) => el.clientWidth < 960);
           await expect(page.locator('.overview-scroll-tools')).toBeVisible({ visible: narrow });
@@ -116,10 +241,52 @@ test('all six maps remain readable and physically aligned at five widths in both
           if (narrow) {
             await expect(compartment).toHaveCSS('width', '140px');
             await expect(compartment.locator('.overview-row-number').first()).toHaveCSS('font-size', '10px');
-            await expect(compartment.locator('.overview-labels')).toHaveCSS('font-size', '8px');
+            await expect(compartment.locator('.overview-labels')).toHaveCSS('font-size', '9px');
             await expect(compartment.locator('.overview-title')).toHaveCSS('font-size', '10px');
             await expect(compartment.locator('.overview-title-full')).toBeVisible();
           }
+          const gridIssues = await page.locator('.overview-compartment').evaluateAll((compartments) => {
+            const issues: string[] = [];
+            for (const [index, compartment] of compartments.entries()) {
+              const rows = Array.from(compartment.querySelectorAll<HTMLElement>('.overview-line'));
+              const reference = Array.from(rows[0].querySelectorAll('.overview-cell')).map((cell) =>
+                cell.getBoundingClientRect(),
+              );
+              const gaps: number[] = [];
+              let previous: DOMRect | undefined;
+              for (const row of rows) {
+                const cells = Array.from(row.querySelectorAll('.overview-cell')).map((cell) =>
+                  cell.getBoundingClientRect(),
+                );
+                for (const [column, cell] of cells.entries()) {
+                  const expected = reference[column];
+                  if (
+                    Math.abs(cell.width - expected.width) > 0.05 ||
+                    Math.abs(cell.height - expected.height) > 0.05 ||
+                    Math.abs(cell.left - expected.left) > 0.05 ||
+                    Math.abs(cell.width - cell.height) > 0.05
+                  )
+                    issues.push(
+                      `Compartment ${index}, row ${row.firstElementChild!.textContent}, column ${column}: unequal cell geometry`,
+                    );
+                }
+                if (previous)
+                  gaps.push(cells[0].top - previous.bottom - parseFloat(getComputedStyle(row).marginTop));
+                previous = cells[0];
+              }
+              if (Math.max(...gaps) - Math.min(...gaps) > 0.05)
+                issues.push(`Compartment ${index}: inconsistent vertical spacing`);
+              const labels = Array.from(compartment.querySelector('.overview-labels')!.children).slice(1);
+              for (const [column, label] of labels.entries()) {
+                const box = label.getBoundingClientRect(),
+                  expected = reference[column];
+                if (Math.abs(box.left + box.width / 2 - expected.left - expected.width / 2) > 0.05)
+                  issues.push(`Compartment ${index}, column ${column}: column label is misaligned`);
+              }
+            }
+            return issues;
+          });
+          expect(gridIssues, `${code} ${width} ${theme}`).toEqual([]);
           expect(
             await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
             `${code} ${width} ${theme}`,
@@ -164,7 +331,7 @@ test('all six maps remain readable and physically aligned at five widths in both
             expect(cell!.width).toBeGreaterThanOrEqual(44);
             expect(cell!.height).toBeGreaterThanOrEqual(44);
           }
-          if ([390, 1440].includes(width))
+          if ([390, 1440, 1920, 2552].includes(width))
             await page
               .locator('.overview-panel')
               .screenshot({ path: `test-results/map-${code}-${theme}-${width}.png` });

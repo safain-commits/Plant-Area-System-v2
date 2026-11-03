@@ -63,14 +63,10 @@ export function Workspace({
     [items, setItems] = useState<Activity[]>([]),
     [noticeError, setNoticeError] = useState(''),
     [unread, setUnread] = useState(false);
-  const [account, setAccount] = useState(false),
-    [sessionOpen, setSessionOpen] = useState(false),
-    [remaining, setRemaining] = useState<number | null>(null);
+  const [account, setAccount] = useState(false);
   const sidebar = useRef<HTMLElement>(null),
     notificationButton = useRef<HTMLButtonElement>(null),
     accountButton = useRef<HTMLButtonElement>(null),
-    sessionButton = useRef<HTMLButtonElement>(null),
-    sessionSummaryButton = useRef<HTMLButtonElement>(null),
     commandInput = useRef<HTMLInputElement>(null),
     list = useRef<HTMLDivElement>(null);
   const grant = identity.grants.find((g) => g.appId === 'bag-filter');
@@ -232,15 +228,6 @@ export function Workspace({
       document.removeEventListener('touchend', touchEnd);
     };
   }, [identity.id, toggleSidebar]);
-  useEffect(() => {
-    const update = () =>
-      setRemaining(
-        identity.sessionExpiresAt ? Math.max(0, Date.parse(identity.sessionExpiresAt) - Date.now()) : null,
-      );
-    update();
-    const timer = setInterval(update, 1000);
-    return () => clearInterval(timer);
-  }, [identity.sessionExpiresAt]);
   const loadActivity = useCallback(async () => {
     const sources = [...(grant ? ['bag-filter'] : []), ...(stockGrant ? ['consumables'] : [])];
     const results = await Promise.allSettled(
@@ -367,27 +354,6 @@ export function Workspace({
       detail: `${item.reason} · ${item.positionCount} ${item.unit || 'bag'}`,
     })),
   ];
-  const sessionCard = (
-    <>
-      <div className="session-heading">
-        <Icon name="clock" />
-        <span>Sesi aktif</span>
-      </div>
-      <strong>
-        {remaining === null
-          ? 'Memuat sesi…'
-          : remaining === 0
-            ? 'Sesi berakhir'
-            : `${Math.floor(remaining / 3600000)}j ${Math.floor(remaining / 60000) % 60}m`}
-      </strong>
-      <p>
-        {identity.sessionExpiresAt
-          ? `Berakhir ${formatDate(identity.sessionExpiresAt)} WIB.`
-          : 'Sesi berakhir otomatis setelah delapan jam.'}
-      </p>
-      <LogoutButton />
-    </>
-  );
   const side = (
     <aside ref={sidebar} className="sidebar" aria-label="Sidebar">
       <a href="/" className="brand" aria-label="TQ-CMMS — Kembali ke portal">
@@ -403,45 +369,6 @@ export function Workspace({
         stockLinks={stockLinks}
       />
       <div className="sidebar-bottom">
-        <div className="session-compact sidebar-label">
-          <button
-            type="button"
-            ref={sessionSummaryButton}
-            className="session-summary"
-            aria-label="Detail sesi aktif"
-            onClick={() => setSessionOpen(true)}
-          >
-            <Icon name="clock" />
-            <span>Sesi aktif</span>
-            <strong>
-              {remaining === null
-                ? '…'
-                : remaining === 0
-                  ? 'Berakhir'
-                  : `${Math.floor(remaining / 3600000)}j ${Math.floor(remaining / 60000) % 60}m`}
-            </strong>
-          </button>
-          <LogoutButton />
-        </div>
-        <button
-          ref={sessionButton}
-          type="button"
-          className="session-mini icon-button"
-          aria-label="Sisa waktu sesi"
-          title="Sisa waktu sesi"
-          onClick={() => setSessionOpen(true)}
-        >
-          <svg viewBox="0 0 40 40" className="session-ring" aria-hidden="true">
-            <circle cx="20" cy="20" r="17" />
-            <circle
-              cx="20"
-              cy="20"
-              r="17"
-              style={{ strokeDasharray: `${(107 * (remaining ?? 0)) / 28800000} 107` }}
-            />
-          </svg>
-          <Icon name="clock" />
-        </button>
         <button
           type="button"
           className="collapse-row"
@@ -541,7 +468,7 @@ export function Workspace({
               </span>
               <Icon name="chevron" />
             </button>
-            <a
+            {/* <a
               className="header-action"
               href={
                 active === 'consumables'
@@ -563,7 +490,7 @@ export function Workspace({
                       ? 'Consumable Room'
                       : 'Profil saya'}
               </span>
-            </a>
+            </a> */}
           </div>
         </header>
         <main className="page-content">{children}</main>
@@ -713,15 +640,6 @@ export function Workspace({
           Ganti password
         </a>
         <LogoutButton />
-      </Overlay>
-      <Overlay
-        open={sessionOpen}
-        onClose={() => setSessionOpen(false)}
-        title="Sesi aktif"
-        kind="menu"
-        anchor={collapsed && !mobile ? sessionButton : sessionSummaryButton}
-      >
-        <div className="session-card">{sessionCard}</div>
       </Overlay>
     </div>
   );
