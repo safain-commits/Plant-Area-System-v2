@@ -1,5 +1,31 @@
 # Hasil validasi implementasi v2
 
+## Penyempurnaan ukuran peta mobile — 3 November 2026
+
+Menindaklanjuti tinjauan pengguna, kompartemen pada mode scroll diperkecil dari 176 menjadi **140 px** (sekitar 20%), dengan jarak 10 px dan gutter nomor baris 16 px. Font nomor baris **10 px**, identitas kolom **8 px**, serta judul kompartemen **10 px**. Tombol navigasi dan judul kompartemen tetap memiliki tinggi target sentuh 44 px; detail bag serta susunan desktop pada kontainer luas tidak diubah. Langkah tombol/keyboard mengikuti ukuran aktual menjadi 150 px per kolom.
+
+Pemeriksaan sesudah tuning:
+
+- **3/3 tes browser peta melalui HTTPS lulus** pada build produksi terisolasi, meliputi 60 kombinasi enam equipment × lima viewport × dua tema, keterjangkauan kompartemen terakhir, orientasi, kesejajaran kedua sisi, font baru dan tidak ada overflow halaman.
+- Swipe horizontal/vertikal, pencegahan pilihan tidak disengaja, keyboard, pilihan lintas kompartemen, pergantian tema/filter serta perubahan sidebar/orientasi tetap lulus. Target detail mobile tetap minimal 44 px.
+- Build standalone Bag Filter pada Node.js 26.12.1 / Next.js 16.4.2, termasuk pemeriksaan TypeScript bawaan build, pemeriksaan format dan whitespace lulus. Screenshot development dan produksi terang/gelap 390 px ditinjau secara visual. Desktop 1440 px tetap mengikuti ukuran sebelumnya.
+
+Bukti privat baru berada pada `.deploy/map-mobile/compact-*.png`, `compact.json`, `build-compact.log` dan subfolder `compact-qa/` (hasil, log, screenshot serta laporan browser). Fixture/container/network QA telah dibersihkan. Tidak mengulang 22 tes regresi lengkap atau unit test untuk tuning ukuran CSS ini; hasil sebelumnya tercatat di bawah. Tidak ada perubahan database, API atau deployment VPS.
+
+## Perbaikan peta kompartemen mobile — 3 November 2026
+
+Bug direproduksi pada development lokal: overview 422-BF1 di viewport 390 px merapatkan setiap kompartemen menjadi sekitar 17,7 px dan nomor baris 6 px. Kedua sisi kini memakai satu kanvas scroll horizontal pada kontainer di bawah 960 px, dengan lebar kompartemen 176 px, jarak 12 px, dan nomor baris 12 px. Judul serta legenda tetap di luar scroll. Tombol navigasi, indikator tepi, keyboard, reduced motion dan pencegahan pilihan saat pan ditambahkan. Statistik equipment ditumpuk pada mobile. Koordinat, orientasi, warna umur dan jeda stiffener dipertahankan.
+
+Pemeriksaan aktual:
+
+- **22/22 tes browser Chromium melalui HTTPS lulus** pada deployment produksi terisolasi, termasuk tiga tes peta baru dan seluruh 19 tes regresi existing: SSO, izin, pencatatan Bag Filter/R22, tema, drawer, hover dan dropdown.
+- **60 kombinasi** enam equipment × viewport 320/390/768/1024/1440 px × terang/gelap lulus: jumlah posisi, penomoran dan orientasi kedua sisi, stiffener, ukuran label, keterjangkauan kompartemen terakhir, kesejajaran atas–bawah dan tidak ada overflow horizontal halaman. Target detail mobile tetap minimal 44 px; kartu statistik tersusun vertikal pada 320/390 px.
+- Gesture sentuh native diuji melalui Chromium CDP: swipe horizontal menggeser kanvas, swipe vertikal menggulir halaman, keduanya tidak memilih bag. Tombol menggeser 188 px per kolom; Home/End dan panah bekerja. Aktivasi judul melalui keyboard setelah pan tetap bekerja. Pilihan lintas kompartemen serta posisi scroll bertahan saat tema/filter berubah; membuka equipment berbeda kembali ke kiri. Resize, rotasi viewport dan sidebar diperluas/diciutkan memperbarui mode serta status tombol.
+- Typecheck root dan aplikasi Bag Filter, **16/16 unit test**, build standalone Bag Filter pada Node.js **26.12.1** / Next.js **16.4.2**, pemeriksaan format file perubahan dan whitespace lulus. Aplikasi lain pada pengujian browser memakai image baseline UI sebelumnya; tidak dibangun ulang untuk perubahan peta ini.
+- Screenshot sebelum/sesudah development 1440/390 px dan 24 screenshot overview enam equipment × dua tema × desktop/mobile disimpan. Tampilan perwakilan ketiga jenis peta pada terang/gelap ditinjau secara visual. Run pertama tes baru menemukan assertion yang keliru menganggap abu-abu bag kosong tetap sama setelah berganti tema; assertion diperbaiki agar memeriksa pilihan dan definisi warna data tetap utuh. Hasil di atas adalah run final sesudah koreksi.
+
+Bukti privat: `.deploy/map-mobile/before.json`, `before-*.png`, `after-*.png`, `build.log`, `browser.log`, `result.json`, serta screenshot/laporan di subfolder `browser` dan `report`. Database MySQL fixture, network dan container QA bernama unik telah dibersihkan; tidak membuka port host. Tidak ada migrasi atau perubahan API; arsip database nyata, VPS dan data perusahaan tidak disentuh. Pengujian ini tidak menyatakan verifikasi fisik Safari/iPhone/Android atau deployment VPS.
+
 ## Penyempurnaan garis submenu sidebar — 2 November 2026
 
 Struktur submenu Consumables dan Bag Filter diganti menjadi `NavigationTree` dengan `ul/li` bersarang. Garis kontainer dan pseudo-element tautan yang bertumpuk diganti segmen per item: batang/cabang 1 px, sudut 6 px, indentasi seragam dan titik cabang di tengah baris. Item terakhir mengakhiri batang pada cabangnya; subgrup Equipment tidak menimbulkan celah pada batang induk. Penanda aktif, hover dan focus mengikuti token tema. Tinggi baris tetap 36 px desktop dan 44 px mobile.

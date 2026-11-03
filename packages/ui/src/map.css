@@ -52,6 +52,7 @@
   margin-right: 4px;
 }
 .overview-band {
+  grid-template-columns: repeat(var(--overview-compartments), minmax(0, 1fr));
   gap: 8px;
 }
 .overview-band + .overview-band {
@@ -412,4 +413,127 @@
 }
 .installation-form > .notice {
   margin-bottom: 16px;
+}
+
+/* One canvas keeps the two physical sides aligned, even on a narrow workspace. */
+.overview-map {
+  container: bag-overview / inline-size;
+  min-width: 0;
+}
+.overview-scroll-tools {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.overview-scroll-tools p {
+  flex: 1;
+  margin: 0;
+  color: var(--textSecondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.overview-scroll-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.overview-scroll-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+}
+.overview-scroll-frame {
+  position: relative;
+  min-width: 0;
+}
+.overview-scroll-frame::before,
+.overview-scroll-frame::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 14px;
+  width: 6px;
+  pointer-events: none;
+  opacity: 0;
+}
+.overview-scroll-frame::before {
+  left: -6px;
+  background: linear-gradient(to left, var(--divider), transparent);
+}
+.overview-scroll-frame::after {
+  right: -6px;
+  background: linear-gradient(to right, var(--divider), transparent);
+}
+.overview-scroll-frame[data-scroll-previous='true']::before,
+.overview-scroll-frame[data-scroll-next='true']::after {
+  opacity: 1;
+}
+.overview-viewport {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  padding: 6px 4px 12px;
+  border-radius: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--borderStrong) var(--surface);
+}
+.overview-viewport:focus-visible {
+  outline: 2px solid var(--focusBorder);
+  outline-offset: 2px;
+}
+
+@container bag-overview (width < 960px) {
+  .overview-scroll-tools {
+    display: flex;
+  }
+  .overview-canvas {
+    width: calc(var(--overview-compartments) * 150px - 10px);
+  }
+  .overview-band {
+    grid-template-columns: repeat(var(--overview-compartments), 140px);
+    gap: 10px;
+  }
+  .overview-line,
+  .overview-labels {
+    grid-template-columns: 16px repeat(8, minmax(0, 1fr));
+    gap: 2px;
+  }
+  .overview-matrix {
+    gap: 2px;
+  }
+  .overview-row-number {
+    font-size: 10px;
+    line-height: 12px;
+  }
+  .overview-labels {
+    font-size: 9px;
+    line-height: 12px;
+    padding: 4px 0;
+  }
+  .overview-title {
+    min-height: 40px;
+    font-size: 10px;
+    line-height: 12px;
+  }
+  .overview-title-full {
+    display: inline;
+  }
+}
+
+@media (max-width: 767px) {
+  .equipment-stats {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+    padding-bottom: 0;
+  }
 }

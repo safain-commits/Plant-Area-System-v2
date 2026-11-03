@@ -29,10 +29,18 @@ Seleksi mempertahankan fill umur, memakai double ring dan centang. Mendukung kli
 - Gray-500 di atas canvas gray-100 hanya 4,27:1. Caption pada canvas memakai gray-600/700; gray-500 digunakan pada surface putih. Dark mode memakai tingkat yang lebih terang.
 - Putih di atas danger light hanya 3,91:1; tombol danger memakai teks ink yang memenuhi kontras. Pesan error mempertahankan penanda error dan teks gelap/terang yang terbaca.
 - Gray-950 tidak mencapai 4,5:1 dekat ujung merah skala continuous. Teks sel dipilih dari luminansi aktual, memakai gray-1000 atau putih; switch terjadi ketika pasangan lain lebih terbaca, bukan batas umur 900 yang kaku. Sel tua tetap ditandai notch.
-- Ukuran sel overview menyesuaikan lebar/jumlah kompartemen agar peta keseluruhan tetap muat; detail menyediakan target sentuh 44 px. Nilai 10–12 px overview dalam brief adalah target pada ruang yang cukup.
+- Ukuran sel overview menyesuaikan lebar/jumlah kompartemen pada kontainer luas. Pada kontainer di bawah 960 px, peta memakai satu kanvas scroll horizontal dengan kompartemen berukuran tetap; detail menyediakan target sentuh 44 px. Tidak menimbulkan scroll horizontal pada halaman.
 - Reduced motion mematikan reveal, count-up, shimmer, tilt, dan gerak; konten dan fungsi tetap tersedia.
 
 Hasil pemeriksaan aktual dicatat di [VALIDATION.md](VALIDATION.md). Referensi primitive: [HTML dialog](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDialogElement), [View Transitions](https://developer.mozilla.org/en-US/docs/Web/API/Document/startViewTransition), dan [React flushSync](https://react.dev/reference/react-dom/flushSync).
+
+### Overview kompartemen pada ruang sempit
+
+Kedua sisi equipment berada pada satu kanvas agar posisi atas–bawah selalu sejajar saat digeser. Container query membaca lebar area peta, termasuk perubahan saat sidebar diciutkan: di bawah 960 px setiap kompartemen berukuran 140 px dengan jarak 10 px. Ukuran ini sekitar 20% lebih ringkas dari iterasi awal 176 px. Nomor baris memakai 10 px, identitas kolom 8 px, dan judul lengkap kompartemen 10 px dengan target sentuh minimal 44 px. Pada kontainer yang lebih luas, peta tetap mengikuti susunan desktop. Kartu statistik equipment disusun vertikal di bawah viewport 768 px, tanpa memengaruhi statistik halaman lain.
+
+Judul dan legenda berada di luar area scroll. Petunjuk geser dan tombol sebelumnya/berikutnya tersedia pada mode scroll; setiap klik menggeser satu kolom. Tombol dinonaktifkan pada ujung peta, dan indikator tepi hanya muncul pada arah yang masih memiliki konten tersembunyi. Indikator berada di luar kanvas sehingga tidak menutupi label. Region peta dapat difokuskan: panah kiri/kanan menggeser satu kolom dan Home/End menuju ujung; tombol kompartemen tetap membuka detail. Reduced motion menonaktifkan animasi scroll.
+
+Scroll sentuh memakai perilaku native browser, mendukung geser horizontal, gulir vertikal halaman dan pinch zoom. Gerakan pan tidak mengaktifkan bag atau judul kompartemen. Pergantian tema, filter umur dan pilihan bag mempertahankan posisi scroll; membuka equipment berbeda memulai peta dari kiri. Observer ukuran dan posisi scroll menjaga tombol tetap sesuai setelah resize, rotasi perangkat atau perubahan sidebar. Orientasi, koordinat, warna data dan jeda stiffener tetap mengikuti konfigurasi equipment.
 
 # Perluasan Consumable Room
 

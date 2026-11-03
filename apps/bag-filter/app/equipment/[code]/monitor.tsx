@@ -1,5 +1,6 @@
 'use client';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { OverviewMap } from './overview-map';
 import {
   ageHours,
   ageStops,
@@ -264,7 +265,10 @@ export default function BagMonitor({
     setSide(nextSide);
     setCompartment(nextComp);
     setFocused(null);
-    document.getElementById('bag-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('bag-detail')?.scrollIntoView({
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'start',
+    });
   }
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -345,7 +349,7 @@ export default function BagMonitor({
         </div>
       )}
       <Toast message={notice} onDismiss={() => setNotice('')} />
-      <div className="stats">
+      <div className="stats equipment-stats">
         <article className="stat">
           <span>KOMPARTEMEN</span>
           <strong>{eq.compartments}</strong>
@@ -399,105 +403,104 @@ export default function BagMonitor({
             </button>
           </div>
         </div>
-        {eq.sides.map(({ name: band }, index) => (
-          <div
-            className="overview-band"
-            aria-label={`Sisi ${band}`}
-            key={band}
-            style={{ gridTemplateColumns: `repeat(${eq.perSide},minmax(0,1fr))` }}
-          >
-            {Array.from({ length: eq.perSide }, (_, i) => {
-              const local = i + 1,
-                display = displayCompartment({ side: band, compartment: local }, eq);
-              return (
-                <div className="overview-compartment" key={local}>
-                  {index === 1 && (
-                    <button
-                      className="overview-title"
-                      aria-label={`Buka detail kompartemen ${display}`}
-                      onClick={() => showComp(band, local)}
-                    >
-                      <span className="overview-title-full">Comp. </span>
-                      {display}
-                    </button>
-                  )}
-                  {eq.centeredLabels && index === 1 && (
-                    <div className="overview-labels">
-                      <span />
-                      {letters.split('').map((letter) => (
-                        <span key={letter}>{letter}</span>
-                      ))}
+        <OverviewMap equipmentCode={eq.code} perSide={eq.perSide} onScroll={leaveHover}>
+          {eq.sides.map(({ name: band }, index) => (
+            <div className="overview-band" aria-label={`Sisi ${band}`} key={band}>
+              {Array.from({ length: eq.perSide }, (_, i) => {
+                const local = i + 1,
+                  display = displayCompartment({ side: band, compartment: local }, eq);
+                return (
+                  <div className="overview-compartment" key={local}>
+                    {index === 1 && (
+                      <button
+                        className="overview-title"
+                        aria-label={`Buka detail kompartemen ${display}`}
+                        onClick={() => showComp(band, local)}
+                      >
+                        <span className="overview-title-full">Comp. </span>
+                        {display}
+                      </button>
+                    )}
+                    {eq.centeredLabels && index === 1 && (
+                      <div className="overview-labels">
+                        <span />
+                        {letters.split('').map((letter) => (
+                          <span key={letter}>{letter}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="overview-matrix">
+                      {rowOrder(eq, band).map((row) => {
+                        return (
+                          <div
+                            className={`overview-line${rowDividerBefore(eq, band, row) ? ' overview-stiffener' : ''}`}
+                            key={row}
+                          >
+                            <span className="overview-row-number">{row}</span>
+                            {Array.from({ length: 8 }, (_, c) => {
+                              const p = { side: band, compartment: local, column: c + 1, row },
+                                key = positionKey(p),
+                                age = ageHours(latest.get(key)?.installedAt || null, now),
+                                picked = selectedKeys.has(key);
+                              return (
+                                <button
+                                  key={c}
+                                  className={`overview-cell${age !== null && age >= 21600 ? ' is-old' : ''}`}
+                                  data-position-key={key}
+                                  tabIndex={-1}
+                                  style={{
+                                    background: bagColor(age),
+                                    opacity:
+                                      bucket === null ||
+                                      (bucket === 'empty'
+                                        ? age === null
+                                        : age !== null && ageBucket(age) === bucket)
+                                        ? 1
+                                        : 0.25,
+                                  }}
+                                  aria-label={`${display} ${letters[c]}${row}`}
+                                  onPointerEnter={(e) => {
+                                    if (e.pointerType !== 'touch') hover(p, e.currentTarget);
+                                  }}
+                                  onPointerLeave={leaveHover}
+                                  aria-pressed={picked}
+                                  onClick={(event) => toggle(p, event)}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  <div className="overview-matrix">
-                    {rowOrder(eq, band).map((row) => {
-                      return (
-                        <div
-                          className={`overview-line${rowDividerBefore(eq, band, row) ? ' overview-stiffener' : ''}`}
-                          key={row}
-                        >
-                          <span className="overview-row-number">{row}</span>
-                          {Array.from({ length: 8 }, (_, c) => {
-                            const p = { side: band, compartment: local, column: c + 1, row },
-                              key = positionKey(p),
-                              age = ageHours(latest.get(key)?.installedAt || null, now),
-                              picked = selectedKeys.has(key);
-                            return (
-                              <button
-                                key={c}
-                                className={`overview-cell${age !== null && age >= 21600 ? ' is-old' : ''}`}
-                                data-position-key={key}
-                                tabIndex={-1}
-                                style={{
-                                  background: bagColor(age),
-                                  opacity:
-                                    bucket === null ||
-                                    (bucket === 'empty'
-                                      ? age === null
-                                      : age !== null && ageBucket(age) === bucket)
-                                      ? 1
-                                      : 0.25,
-                                }}
-                                aria-label={`${display} ${letters[c]}${row}`}
-                                onPointerEnter={(e) => hover(p, e.currentTarget)}
-                                onPointerLeave={leaveHover}
-                                aria-pressed={picked}
-                                onClick={(event) => toggle(p, event)}
-                              />
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
+                    {(!eq.centeredLabels || index === 0) && (
+                      <div className="overview-labels">
+                        <span />
+                        {letters.split('').map((letter) => (
+                          <span key={letter}>{letter}</span>
+                        ))}
+                      </div>
+                    )}
+                    {index === 0 && (
+                      <button
+                        className="overview-title"
+                        aria-label={`Buka detail kompartemen ${display}`}
+                        onClick={() => showComp(band, local)}
+                      >
+                        <span className="overview-title-full">Comp. </span>
+                        {display}
+                      </button>
+                    )}
                   </div>
-                  {(!eq.centeredLabels || index === 0) && (
-                    <div className="overview-labels">
-                      <span />
-                      {letters.split('').map((letter) => (
-                        <span key={letter}>{letter}</span>
-                      ))}
-                    </div>
-                  )}
-                  {index === 0 && (
-                    <button
-                      className="overview-title"
-                      aria-label={`Buka detail kompartemen ${display}`}
-                      onClick={() => showComp(band, local)}
-                    >
-                      <span className="overview-title-full">Comp. </span>
-                      {display}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        {eq.rowDividerAfter !== null && (
+                );
+              })}
+            </div>
+          ))}
+        </OverviewMap>
+        {/* {eq.rowDividerAfter !== null && (
           <p className="fine">
             Jeda visual antara baris {eq.rowDividerAfter} dan {eq.rowDividerAfter + 1}.
           </p>
-        )}
+        )} */}
         <p className="fine">
           Pilih nomor kompartemen untuk membuka detail. Pilihan lintas kompartemen tersimpan dalam satu
           pekerjaan.
