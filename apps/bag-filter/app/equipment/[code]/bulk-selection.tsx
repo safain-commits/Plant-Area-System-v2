@@ -4,6 +4,7 @@ import { displayCompartment, type Equipment, type Position } from '@plant/contra
 import { Overlay, Select } from '@plant/ui';
 import {
   areaPositions,
+  compartmentOptions,
   compartmentPositions,
   selectionPreview,
   selectionLimit,
@@ -64,6 +65,7 @@ function BulkSelectionForm({
   );
   const preview = useMemo(() => selectionPreview(selected, items), [selected, items]);
   const choices = useMemo(() => compartmentChoices(eq, selected, compartments), [eq, selected, compartments]);
+  const options = useMemo(() => compartmentOptions(eq), [eq]);
   const remaining = Math.max(0, selectionLimit - preview.total);
   const quotaId = useId();
   const scroll = useRef<HTMLDivElement>(null),
@@ -172,33 +174,23 @@ function BulkSelectionForm({
             ) : (
               <>
                 <div className="form-grid bulk-area">
-                  <label>
-                    Sisi
-                    <Select
-                      aria-label="Sisi area"
-                      value={side}
-                      disabled={busy}
-                      onChange={(event) => {
-                        setSide(event.target.value as Position['side']);
-                        setCompartment(1);
-                      }}
-                    >
-                      {eq.sides.map((s) => (
-                        <option key={s.name}>{s.name}</option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label>
+                  <label className="full">
                     Kompartemen
                     <Select
+                      searchable={false}
                       aria-label="Kompartemen area"
-                      value={compartment}
+                      value={`${side}:${compartment}`}
                       disabled={busy}
-                      onChange={(event) => setCompartment(Number(event.target.value))}
+                      onChange={(event) => {
+                        const next = options.find((c) => c.value === event.target.value);
+                        if (!next) return;
+                        setSide(next.side);
+                        setCompartment(next.compartment);
+                      }}
                     >
-                      {Array.from({ length: eq.perSide }, (_, i) => (
-                        <option key={i} value={i + 1}>
-                          Comp. {displayCompartment({ side, compartment: i + 1 }, eq)}
+                      {options.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          Comp. {c.label}
                         </option>
                       ))}
                     </Select>
@@ -206,6 +198,7 @@ function BulkSelectionForm({
                   <label>
                     Kolom dari
                     <Select
+                      searchable={false}
                       aria-label="Kolom dari"
                       value={columnFrom}
                       disabled={busy}
@@ -221,6 +214,7 @@ function BulkSelectionForm({
                   <label>
                     Kolom sampai
                     <Select
+                      searchable={false}
                       aria-label="Kolom sampai"
                       value={columnTo}
                       disabled={busy}
@@ -236,6 +230,7 @@ function BulkSelectionForm({
                   <label>
                     Baris dari
                     <Select
+                      searchable={false}
                       aria-label="Baris dari"
                       value={rowFrom}
                       disabled={busy}
@@ -249,6 +244,7 @@ function BulkSelectionForm({
                   <label>
                     Baris sampai
                     <Select
+                      searchable={false}
                       aria-label="Baris sampai"
                       value={rowTo}
                       disabled={busy}

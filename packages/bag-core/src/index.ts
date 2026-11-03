@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   AppError,
   replacementSchema,
@@ -129,9 +129,13 @@ export type SnapshotPosition = Position & {
   installedAt: string;
   brand: string | null;
 };
-export async function snapshot(code: string) {
-  const eq = getEquipment(code);
-  if (!eq) throw new AppError(404, 'Equipment tidak ditemukan.');
+export async function snapshot(code: string, now = Date.now()) {
+  const config = getEquipment(code);
+  if (!config) throw new AppError(404, 'Equipment tidak ditemukan.');
+  const year = new Date(now + 7 * 3600000).getUTCFullYear();
+  const previousStart = new Date(`${year - 1}-01-01T00:00:00+07:00`);
+  const currentStart = new Date(`${year}-01-01T00:00:00+07:00`);
+  const nextStart = new Date(`${year + 1}-01-01T00:00:00+07:00`);
   const [result] = await getBagDb().execute(sql`
     SELECT CAST(r.id AS CHAR) AS id, r.batch_id AS batchId, r.side, r.compartment, r.col AS \`column\`, r.row_no AS \`row\`, r.installed_at AS installedAt, b.brand
     FROM (SELECT i.*, ROW_NUMBER() OVER (PARTITION BY side,compartment,col,row_no ORDER BY installed_at DESC,id DESC) AS rn
@@ -144,12 +148,35 @@ export async function snapshot(code: string) {
       brand: string | null;
     })[]
   ).map((p) => ({ ...p, installedAt: dateString(p.installedAt) }));
+  // Count every recorded bag replacement, not just each position's current installation.
+  // Keep the year boundaries and future tolerance identical to the dashboard (WIB).
+  const [totals] = await getBagDb().execute(sql`
+    SELECT
+      COALESCE(SUM(CASE WHEN installed_at>=${currentStart} THEN position_count ELSE 0 END),0) AS total,
+      COALESCE(SUM(CASE WHEN installed_at<${currentStart} THEN position_count ELSE 0 END),0) AS previousTotal
+    FROM replacement_batches
+    WHERE equipment_code=${code} AND installed_at>=${previousStart} AND installed_at<${nextStart}
+      AND installed_at<=${new Date(now + 60000)}`);
+  const [counts] = totals as unknown as { total: number | string; previousTotal: number | string }[];
+  const [lastBatch] = await getBagDb()
+    .select({ createdAt: batches.createdAt })
+    .from(batches)
+    .where(eq(batches.equipmentCode, code))
+    .orderBy(desc(batches.createdAt))
+    .limit(1);
   return {
-    equipment: eq,
+    equipment: config,
     positions,
     recorded: positions.length,
-    total: eq.compartments * eq.bagsPerCompartment,
-    serverTime: new Date().toISOString(),
+    total: config.compartments * config.bagsPerCompartment,
+    serverTime: new Date(now).toISOString(),
+    updatedAt: lastBatch ? dateString(lastBatch.createdAt) : null,
+    yearlyReplacements: {
+      year,
+      total: Number(counts?.total || 0),
+      previousYear: year - 1,
+      previousTotal: Number(counts?.previousTotal || 0),
+    },
   };
 }
 type Cursor = { at: string; id: string };

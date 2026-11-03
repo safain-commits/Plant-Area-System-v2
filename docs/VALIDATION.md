@@ -1,5 +1,68 @@
 # Hasil validasi implementasi v2
 
+## Tanggal pembaruan ringkas pada header equipment — 4 November 2026
+
+Badge cakupan diganti menjadi **Diperbarui 4 Nov 2026**, berdasarkan waktu pencatatan batch terakhir pada equipment. Waktu simpan disediakan sebagai `updatedAt` (ISO UTC atau `null`) pada snapshot, terpisah dari tanggal pemasangan dan waktu halaman dimuat. Tanggal tampil dalam WIB; jam lengkap hanya pada tooltip. Tanpa batch tampil **Belum ada pembaruan**. Mobile tetap satu baris di bawah deskripsi, desktop di kanan; catatan KPI yang sebelumnya dihapus tetap tidak ditampilkan.
+
+Typecheck root dan Bag Filter, build produksi Bag Filter, format serta whitespace lulus. Tes integrasi MySQL **1/1 lulus**, termasuk kondisi kosong, pencatatan terbaru bertanggal pemasangan lama di luar tahun KPI, serta pencatatan lebih baru pada equipment lain yang tidak mengubah timestamp equipment ini. Tes browser HTTPS terfokus **1/1 lulus** pada build baru dan database disposable: kondisi kosong/terisi, tanggal WIB, atribut `datetime`, header dan kartu pada 320/390/1280/1440/1920 px dalam kedua tema, serta regresi pemilihan/riwayat/CTA existing. Screenshot mobile gelap dan desktop terang ditinjau. Bukti privat: `.deploy/map-mobile/build-updated-at-bag-filter.log` dan `equipment-updated-at-qa/`. Resource QA dibersihkan. Tidak ada migrasi, perubahan data perusahaan atau pembaruan VPS; suite browser lengkap dan build tiga aplikasi lain tidak diulang untuk perubahan ini.
+
+## Badge cakupan dan peringkasan KPI equipment — 4 November 2026
+
+Label header equipment **Data aktual** diganti menjadi **{tercatat} / {total} bag tercatat**, memakai jumlah posisi dengan catatan pemasangan aktif pada snapshot. Angka ini berbeda dari jumlah kejadian penggantian tahunan. Catatan rincian sisi dan **Tanggal pemasangan · WIB** dihapus dari KPI; aturan perhitungan dan pembanding tahun sebelumnya tetap berlaku. Badge berada di kanan pada desktop dan di bawah deskripsi pada mobile agar judul tidak terhimpit. CSS catatan KPI yang tidak lagi digunakan ikut dihapus.
+
+Typecheck root dan Bag Filter, format serta whitespace lulus. Verifikasi browser read-only lokal **18 kombinasi** (561/422/L62 × terang/gelap × lebar 320/390/1440 px) memeriksa kecocokan badge dengan snapshot, hilangnya catatan, kapasitas per kompartemen, tinggi kartu desktop sejajar, header mobile vertikal dan tidak ada overflow halaman. Screenshot desktop terang serta mobile terang/gelap ditinjau. Bukti privat: `.deploy/dev/equipment-header/`. Tidak membuat transaksi atau mengubah API/database/VPS. Build produksi dan suite browser lengkap tidak diulang untuk perubahan teks/CSS ini.
+
+## Kapasitas dan penggantian tahunan pada KPI equipment — 4 November 2026
+
+Kartu **Kompartemen** mempertahankan jumlah kompartemen sebagai angka utama dan menambahkan total bag, bag per kompartemen serta rincian sisi. Kartu **Posisi tercatat** diganti menjadi **Penggantian bag {tahun berjalan}**, dengan total tahun sebelumnya berlabel **Jan–Des**. Angka berasal dari seluruh pencatatan pemasangan/penggantian equipment menurut `installedAt` dalam WIB, termasuk pemasangan awal dan penggantian berulang pada posisi yang sama; bukan jumlah batch atau posisi aktif. Tahun berjalan mengikuti waktu server dengan toleransi input 60 detik. Respons snapshot mendapat field aditif `yearlyReplacements`; `recorded` tetap tersedia. Tidak ada migrasi database atau perubahan payload tulis.
+
+Pemeriksaan aktual yang lulus:
+
+- **29/29 unit test**, typecheck root dan keempat aplikasi, serta build standalone **Auth, Portal, Bag Filter dan Consumables** pada Node.js 26.12.1 dengan dependency yang dipin.
+- Tes integrasi MySQL baru memverifikasi jumlah per bag, penggantian berulang, pembatasan equipment, batas tahun WIB, toleransi 60 detik, replay idempoten dan kesesuaian total dengan grafik dashboard. Fixture memakai database disposable dan dibersihkan berdasarkan actor pengujian.
+- **29/29 tes browser HTTPS** pada build produksi dan MySQL terisolasi. Kapasitas enam equipment, total tahunan dan pembanding diperiksa bersama regresi peta, seleksi 450/500/501, Undo, retry, SSO, izin, R22, tema serta dropdown.
+- Tinjauan visual menemukan aturan mobile lama yang menimpa `display: flex` metadata sehingga teks kapasitas terlalu rapat. Prioritas selector diperbaiki. Sesudah perubahan CSS tersebut, keempat image dibangun ulang dan tes browser terfokus **1/1 lulus** pada build final: kartu diperiksa pada lebar 320/390/1280/1440/1920 px dalam kedua tema, termasuk jarak metadata, keselarasan desktop dan tidak adanya overflow. Tes integrasi MySQL juga lulus pada putaran final. Suite lengkap 29 tes tidak diulang setelah perbaikan CSS kecil ini.
+- Verifikasi visual read-only development **18 kombinasi**: tiga konfigurasi peta (561, 422, L61) × terang/gelap × 320/390/1440 px. Metadata membungkus dengan jarak konsisten; screenshot mobile gelap dan desktop terang ditinjau.
+
+Bukti privat: `.deploy/map-mobile/build-kpi-*.log`, `equipment-kpi-qa/` (29 tes), `equipment-kpi-focused-qa/` (integrasi dan browser final), serta `.deploy/dev/equipment-kpi/` (hasil geometri dan screenshot). Seluruh container, volume dan network QA sementara telah dibersihkan. Pengujian memakai Chromium dengan emulasi viewport. Tidak mengubah data perusahaan, database arsip sumber atau deployment VPS; perubahan masih lokal.
+
+## Header sidebar mobile — 4 November 2026
+
+Judul visual “Navigasi” dan baris latar overlay terpisah dihapus dari drawer. Logo TQ-CMMS dan tombol X berada pada satu baris teratas dengan latar sidebar yang sama; logo 160 px dan tombol 44 × 44 px. Nama aksesibel dialog tetap Navigasi. Sidebar mengisi tinggi drawer, sementara daftar menu tetap dapat digulir.
+
+Typecheck root, format dan whitespace lulus. Verifikasi browser read-only pada development lokal mencakup **18 kombinasi**: Portal/Bag Filter/Consumables × terang/gelap × lebar 320/390/767 px. Posisi tengah logo/tombol sejajar (<1 px), logo berada sekitar 21 px dari atas drawer, tidak ada overflow halaman, serta tombol X/Escape/backdrop menutup drawer dan mengembalikan fokus. Sidebar desktop 1440 px diperiksa pada expanded/collapsed. Screenshot mobile terang/gelap ditinjau; hasil dan gambar privat berada di `.deploy/dev/sidebar-header/`. Tidak membuat transaksi, mengubah API/schema atau memperbarui VPS. Build produksi dan suite browser lengkap tidak diulang untuk perubahan struktur/CSS kecil ini.
+
+## Pemulihan pnpm Windows dan koneksi development — 4 November 2026
+
+Perintah `pnpm -v` pada terminal pengguna menghasilkan `error: CommandNotFound` dari proxy NVM; PATH juga memilih Node 25.7.0. pnpm 12.14.0 dipasang privat pada `.tools/pnpm` dan script `scripts/activate-dev.ps1` mendahulukan Node 26.12.1/pnpm lokal untuk terminal aktif. Aktivasi dan `pnpm dev:status` berhasil; pengaturan NVM/Node global tidak diubah. README memuat aktivasi untuk setiap terminal PowerShell baru serta instalasi pnpm lokal sekali jalan.
+
+Kesalahan 503 terpisah berasal dari MySQL development yang mencapai batas 151 koneksi aplikasi: 113 idle Auth, 29 Bag Filter dan 9 Consumables. Variabel pool hanya berada di module scope, sehingga kompilasi ulang development dapat membuat pool baru tanpa melepas socket pool lama. Empat aplikasi development dihentikan sementara untuk melepas koneksi, lalu dinyalakan kembali dengan perbaikan cache pool pada `globalThis` khusus development. Wrapper Drizzle tetap dibuat dari schema module saat ini; Auth management dan adapter login memakai pool terpisah. Pool development membatasi idle pada dua koneksi; batas sepuluh koneksi per pool dipertahankan. Jalur produksi tidak memakai cache development ini.
+
+Pemeriksaan aktual:
+
+- `pnpm --version` menghasilkan **12.14.0**, `node --version` menghasilkan **v26.12.1**, dan parser PowerShell menerima script aktivasi.
+- **29/29 unit test**, typecheck root dan keempat aplikasi lulus.
+- Tes integrasi baru pada MySQL disposable **lulus**: setiap module database diimpor ulang 12 kali, wrapper Drizzle berbeda pada setiap reload, dan masing-masing getter tetap memakai satu koneksi yang sama. Koneksi Auth adapter berbeda dari koneksi management. Penutupan pool menghapus cache sehingga impor baru membuka koneksi baru. Pengujian hanya menjalankan SELECT; resource Docker sementara dibersihkan. Bukti privat: `.deploy/dev/pool-regression/result.log`.
+- **`pnpm dev:smoke` lulus** pada project `plant-v2-dev`, origin `https://localhost:9443`: login existing/SSO, enam equipment/18.784 koordinat, alur Consumables, logout, tema/mobile serta HMR. Password existing tidak diganti. Screenshot dan hasil verifikasi berada pada `.deploy/dev/verification`.
+- Keempat aplikasi dan MySQL development kembali **healthy**. Setelah smoke test, koneksi aplikasi idle tercatat Auth satu, Bag Filter satu, dan Consumables satu; root diagnostik/event scheduler tidak dihitung sebagai koneksi aplikasi.
+
+Tidak mereset database, mengubah batas koneksi server, menjalankan migrasi atau mengubah VPS/database arsip sumber. Build produksi dan suite browser QA lengkap dari perubahan dropdown tercatat di bagian berikut; pada perbaikan khusus development ini dilakukan typecheck, unit, integrasi reload pool dan smoke runtime lokal.
+
+## Dropdown kompartemen gabungan dan tanpa pencarian — 4 November 2026
+
+Dropdown **Sisi** dihapus dari detail equipment dan **Pilih banyak → Area bag**. Satu kontrol Kompartemen selebar form mencakup kedua sisi: 1–24 pada 561/562, 1A–15A lalu 1B–15B pada 421/422, dan 1–16 pada L61/L62. Nama lapangan tetap terikat ke sisi/nomor lokal fisik, termasuk Selatan yang terbalik pada 561/562 dan Barat pada L61/L62. Pemilihan kompartemen memperbarui orientasi/penanda aktif tanpa menghapus pilihan bag sebelumnya.
+
+`Select` bersama mendapat opsi `searchable` dengan default aktif. Dropdown Bag Filter (kompartemen, kolom/baris area, Brand/Pabrikan dan tahun grafik, termasuk ringkasan Bag Filter di Portal) menonaktifkannya. Opsi terpilih menerima fokus dan digulir ke area terlihat saat dibuka; highlight mengikuti fokus keyboard. Pencarian dropdown aplikasi lain tetap tersedia.
+
+Pemeriksaan aktual yang lulus:
+
+- **29/29 unit test**, termasuk kelengkapan/keunikan opsi seluruh equipment, urutan nomor lapangan serta pemetaan Comp. 13 → Selatan lokal 12 dan Comp. 9 → Barat lokal 8. Regresi geometri/koordinat, presisi, akses dan pemilihan 450/500/501 tetap lulus.
+- **Typecheck root dan empat aplikasi**, build standalone Auth/Portal/Bag Filter/Consumables, format dan pemeriksaan whitespace, memakai Node.js 26.12.1 serta versi dependency yang dipin.
+- **29/29 tes browser HTTPS dalam satu putaran** pada empat image baru dengan MySQL QA terisolasi. Tes baru memeriksa enam equipment × dua tema × desktop 1440/mobile 390 px: dropdown mencakup 24/30/16 kompartemen, Sisi/search tidak ada, End/Enter mencapai sisi kedua, opsi aktif menerima fokus saat dibuka kembali, orientasi dan `aria-current` tepat, serta pilihan bag lintas sisi tetap tersimpan. Area bag juga dapat beralih sisi dari satu kontrol, mempertahankan deduplikasi dan menampilkan opsi kolom/baris tanpa pencarian.
+- Regresi meliputi penyimpanan 450 bag dan retry, batas 500/501, Undo/draft, peta/resize/touch/keyboard, SSO/logout/scope, R22, kedua tema serta hover/dropdown. Klik luar/Escape menutup dropdown dan mengembalikan fokus tanpa mengubah nilai. Pencarian pada dropdown Consumables tetap bekerja.
+
+Bukti privat: `.deploy/map-mobile/build-dropdown-*.log` dan `dropdown-qa/` (hasil, browser log, laporan HTML, screenshot `compartment-select-*` serta peta/workspace). Screenshot Area bag mobile terang dan desktop gelap ditinjau visual. QA memakai network internal tanpa port host; container, volume dan network sementara dibersihkan. Pengujian memakai Chromium dengan emulasi viewport. Tidak ada perubahan API/schema atau deployment VPS; validasi persistence memakai database QA, tanpa mengulang suite integrasi backend terpisah.
+
 ## Halaman equipment Bag Filter dan sidebar bersama — 4 November 2026
 
 Halaman memakai satu CTA **Catat penggantian** pada bilah pilihan; kartu pencatatan duplikat dihapus. Bilah tersembunyi saat sheet pemilihan/pencatatan terbuka, dengan fokus dikembalikan ke pemicu dan pilihan/draft dipertahankan. Pilih banyak memakai tombol sekunder; Undo/Clear memakai aksi ringan. Pada kontainer kerja minimal 960 px, kartu grid selebar 520 px berada di kiri dan kedua riwayat di kanan; di bawahnya susunan vertikal maksimal 520 px. Timeline/daftar pekerjaan dibatasi 320/560 px, dapat difokuskan dengan keyboard, dan pesan kosong diringkas.

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { authSchema, getAuthDb, closeAuthDb, createUser, setGrant, changePassword } from '@plant/auth-core';
 import { getBagDb, closeBagDb, bagSchema } from '@plant/bag-core';
-import { equipmentCodes, type Identity } from '@plant/contracts';
+import { equipmentCodes, getEquipment, type Identity } from '@plant/contracts';
 
 const origin = process.env.PUBLIC_ORIGIN!;
 const email = `map-${randomUUID()}@example.test`;
@@ -90,9 +90,16 @@ test('active ages, compact detail workspace, inset selection and one recording a
   test.setTimeout(120000);
   await login(page);
   await page.goto('/bag-filter/equipment/422-bf1');
+  const updatedBadge = page.getByRole('main').locator('[data-equipment-updated]');
+  await expect(updatedBadge).toHaveText('Belum ada pembaruan');
   const kpi = page.getByRole('main').locator('[data-kpi="active-age"]');
   await expect(kpi.locator('[data-age-range]')).toHaveText('—');
   await expect(kpi).toContainText('Belum ada pemasangan tercatat');
+  const annual = page.getByRole('main').locator('[data-kpi="replacements"]');
+  const year = new Date(Date.now() + 7 * 3600000).getUTCFullYear();
+  await expect(annual).toContainText(`PENGGANTIAN BAG ${year}`);
+  await expect(annual.locator('[data-replacement-total]')).toHaveText('0 bag');
+  await expect(annual.locator('[data-previous-replacements]')).toContainText(`${year - 1}: 0 bag`);
   await expect(page.getByRole('button', { name: 'Catat penggantian', exact: true })).toHaveCount(0);
   const now = Date.now(),
     day = 86400000;
@@ -116,10 +123,32 @@ test('active ages, compact detail workspace, inset selection and one recording a
   await batch(positions, 1678);
   // Replacing a very old bag must remove its former installation from the KPI.
   await batch([positions[1]], 7 + 86370 / 86400);
+  await batch(
+    [
+      { side: 'A', compartment: 2, column: 1, row: 17 },
+      { side: 'B', compartment: 14, column: 8, row: 1 },
+    ],
+    (now - Date.parse(`${year - 1}-07-01T00:00:00+07:00`)) / day,
+  );
   await page.clock.install({ time: new Date(now) });
   await page.reload();
+  const state = await (await page.request.get('/bag-filter/api/equipment/422-BF1/state')).json();
+  await expect(updatedBadge.locator('time')).toHaveAttribute('datetime', state.updatedAt);
+  await expect(updatedBadge).toHaveText(
+    `Diperbarui ${new Date(state.updatedAt).toLocaleDateString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })}`,
+  );
   await expect(kpi.locator('[data-age-range]')).toHaveText('7–1.678 hari');
   await expect(kpi).toContainText('1 bag ≥900 hari');
+  const latestYear = new Date(now - (7 + 86370 / 86400) * day + 7 * 3600000).getUTCFullYear();
+  await expect(annual.locator('[data-replacement-total]')).toHaveText(`${latestYear === year ? 1 : 0} bag`);
+  await expect(annual.locator('[data-previous-replacements]')).toContainText(
+    `${year - 1}: ${latestYear === year - 1 ? 3 : 2} bag`,
+  );
   const legend = page.locator('.age-buckets button').first();
   await legend.click();
   await expect(legend).toHaveAttribute('aria-pressed', 'true');
@@ -138,7 +167,33 @@ test('active ages, compact detail workspace, inset selection and one recording a
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     for (const width of [320, 390, 1280, 1440, 1920]) {
       await page.setViewportSize({ width, height: 1000 });
+      await expect(page.getByRole('main').locator('.heading')).toHaveCSS(
+        'flex-direction',
+        width < 768 ? 'column' : 'row',
+      );
+      if (width === 320 || width === 1440)
+        await page
+          .getByRole('main')
+          .locator('.heading')
+          .screenshot({
+            path: `test-results/equipment-updated-${theme}-${width}.png`,
+          });
+      await expect(page.locator('.equipment-stat-meta').first()).toHaveCSS('display', 'flex');
+      await expect(page.locator('.equipment-stat-meta').first()).toHaveCSS('column-gap', '12px');
       const workspace = await page.locator('.equipment-workspace').boundingBox();
+      const stats = await page.locator('.equipment-stats .stat').evaluateAll((items) =>
+        items.map((item) => {
+          const rect = item.getBoundingClientRect();
+          return { top: rect.top, height: rect.height, overflow: item.scrollWidth > item.clientWidth };
+        }),
+      );
+      expect(stats.every((s) => !s.overflow)).toBe(true);
+      if (width >= 1280) {
+        expect(
+          Math.max(...stats.map((s) => s.height)) - Math.min(...stats.map((s) => s.height)),
+        ).toBeLessThan(1);
+        expect(Math.max(...stats.map((s) => s.top)) - Math.min(...stats.map((s) => s.top))).toBeLessThan(1);
+      }
       const grid = await page.locator('#bag-detail').boundingBox();
       const context = await page.locator('.bag-context').boundingBox();
       if (workspace!.width >= 960) {
@@ -208,6 +263,11 @@ test('all six maps keep uniform square cells and aligned labels at seven widths 
     for (const layout of layouts)
       for (const code of layout.codes) {
         await page.goto(`/bag-filter/equipment/${code.toLowerCase()}`);
+        const capacity = page.getByRole('main').locator('[data-kpi="capacity"]');
+        await expect(capacity).toContainText(
+          `${(layout.perSide * 2 * layout.rows * 8).toLocaleString('id-ID')} bag total`,
+        );
+        await expect(capacity).toContainText(`${layout.rows * 8} bag/kompartemen`);
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
         await expect(page.locator('.overview-cell')).toHaveCount(layout.perSide * 2 * layout.rows * 8);
         const bands = page.locator('.overview-band');
@@ -426,6 +486,81 @@ test('touch panning, keyboard and detail navigation preserve deliberate bag sele
   await expect(page.locator('.selection-bar strong')).toHaveText('2 posisi dipilih');
   await page.goto('/bag-filter/equipment/l61-bf1');
   await expect.poll(() => page.locator('.overview-viewport').evaluate((el) => el.scrollLeft)).toBe(0);
+});
+
+test('one compartment selector covers both sides without search and keeps selection across six equipment', async ({
+  page,
+}) => {
+  test.setTimeout(180000);
+  await login(page);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  for (const theme of ['light', 'dark']) {
+    await page.addInitScript((value) => localStorage.setItem('plant-ui-theme', value), theme);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      for (const code of equipmentCodes) {
+        const eq = getEquipment(code)!;
+        const labels = eq.sides.flatMap((s) =>
+          [...s.labels].sort((a, b) => a.localeCompare(b, 'id', { numeric: true })),
+        );
+        await page.goto(`/bag-filter/equipment/${code.toLowerCase()}`);
+        await expect(page.getByRole('combobox', { name: 'Sisi', exact: true })).toHaveCount(0);
+        await page.locator('.bag-cell').first().click();
+        const trigger = page.getByRole('combobox', { name: 'Kompartemen', exact: true });
+        await trigger.click();
+        const menu = page.getByRole('dialog', { name: 'Kompartemen', exact: true });
+        await expect(menu.getByRole('textbox')).toHaveCount(0);
+        await expect(menu.getByRole('option')).toHaveText(labels.map((label) => `Comp. ${label}`));
+        await expect(menu.getByRole('option', { selected: true })).toBeFocused();
+        await page.keyboard.press('End');
+        await expect(menu.getByRole('option').last()).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(menu).toBeHidden();
+        await expect(trigger).toBeFocused();
+        await expect(
+          page.getByRole('heading', { name: `Detail Comp. ${labels.at(-1)}`, exact: true }),
+        ).toBeVisible();
+        await expect(page.locator('.overview-title[aria-current="true"]')).toHaveText(
+          `Comp. ${labels.at(-1)}`,
+        );
+        await expect(page.locator('.bag-grid .row-number').first()).toHaveText('1');
+        await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+        await page.locator('.bag-cell').first().click();
+        await expect(page.locator('.selection-bar strong')).toHaveText('2 posisi dipilih');
+        await trigger.click();
+        await expect(menu.getByRole('option').last()).toBeFocused();
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Pilih banyak', exact: true }).click();
+        const sheet = page.getByRole('dialog', { name: 'Pilih banyak bag', exact: true });
+        await sheet.getByRole('button', { name: 'Area bag', exact: true }).click();
+        await expect(sheet.getByRole('combobox', { name: 'Sisi area', exact: true })).toHaveCount(0);
+        const area = sheet.getByRole('combobox', { name: 'Kompartemen area', exact: true });
+        await expect(area).toHaveText(`Comp. ${labels.at(-1)}`);
+        await area.click();
+        const areaMenu = page.getByRole('dialog', { name: 'Kompartemen area', exact: true });
+        await expect(areaMenu.getByRole('textbox')).toHaveCount(0);
+        await expect(areaMenu.getByRole('option')).toHaveCount(eq.compartments);
+        await areaMenu.getByRole('option', { name: `Comp. ${labels[0]}`, exact: true }).click();
+        await expect(sheet.locator('[data-preview="total"]')).toHaveText(String(eq.bagsPerCompartment + 1));
+        for (const name of ['Kolom dari', 'Kolom sampai', 'Baris dari', 'Baris sampai']) {
+          await sheet.getByRole('combobox', { name, exact: true }).click();
+          const options = page.getByRole('dialog', { name, exact: true });
+          await expect(options.getByRole('textbox')).toHaveCount(0);
+          await expect(options.getByRole('option', { selected: true })).toBeFocused();
+          await page.keyboard.press('Escape');
+          await expect(sheet).toBeVisible();
+        }
+        await sheet.screenshot({ path: `test-results/compartment-select-${code}-${theme}-${width}.png` });
+        await sheet.getByRole('button', { name: 'Tambahkan pilihan', exact: true }).click();
+        await expect(page.locator('.selection-bar strong')).toHaveText(
+          `${eq.bagsPerCompartment + 1} posisi dipilih`,
+        );
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+    }
+  }
+  expect(errors).toEqual([]);
 });
 
 test('map adapts to sidebar width and orientation changes without stale scroll controls', async ({

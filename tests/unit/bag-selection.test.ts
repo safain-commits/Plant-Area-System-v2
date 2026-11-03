@@ -17,7 +17,44 @@ import {
   groupSelection,
   compartmentChoices,
   toggleCompartment,
+  compartmentOptions,
 } from '../../apps/bag-filter/app/equipment/[code]/selection';
+
+test('one compartment dropdown covers both sides in field-number order without changing physical identity', () => {
+  for (const eq of equipment) {
+    const options = compartmentOptions(eq);
+    assert.equal(options.length, eq.compartments);
+    assert.equal(new Set(options.map((c) => c.value)).size, eq.compartments);
+    for (const option of options) {
+      assert.equal(
+        eq.sides.find((s) => s.name === option.side)!.labels[option.compartment - 1],
+        option.label,
+      );
+      assert.ok(validPosition({ ...option, column: 1, row: eq.rows }, eq));
+    }
+  }
+  for (const code of ['561-BF1', '562-BF1']) {
+    const options = compartmentOptions(getEquipment(code)!);
+    assert.deepEqual(
+      options.map((c) => c.label),
+      Array.from({ length: 24 }, (_, i) => String(i + 1)),
+    );
+    assert.equal(options.find((c) => c.label === '13')!.value, 'Selatan:12');
+  }
+  for (const code of ['421-BF1', '422-BF1'])
+    assert.deepEqual(
+      compartmentOptions(getEquipment(code)!).map((c) => c.label),
+      ['A', 'B'].flatMap((side) => Array.from({ length: 15 }, (_, i) => `${i + 1}${side}`)),
+    );
+  for (const code of ['L61-BF1', 'L62-BF1']) {
+    const options = compartmentOptions(getEquipment(code)!);
+    assert.deepEqual(
+      options.map((c) => c.label),
+      Array.from({ length: 16 }, (_, i) => String(i + 1)),
+    );
+    assert.equal(options.find((c) => c.label === '9')!.value, 'Barat:8');
+  }
+});
 
 test('compartment quota is proactive on every equipment while checked items can always be removed', () => {
   for (const eq of equipment) {

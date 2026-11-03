@@ -8,13 +8,15 @@ Identitas produk memakai [artwork TQ-CMMS](../brand/README.md): logo penuh pada 
 
 Sidebar 248 px / rail 76 px mengikuti tema dan mengingat pilihan browser. Ctrl/Cmd+B mengubah sidebar; Ctrl/Cmd+K membuka command palette. Tablet memakai rail dan ekspansi overlay; mobile memakai drawer. Equipment mengikuti grant; link halaman admin mengikuti role. Header berisi pencarian, menu tema, aktivitas batch, akun, dan aksi aplikasi.
 
+Header drawer mobile memakai satu baris logo TQ-CMMS 160 px dan tombol tutup di kanan dengan target 44 × 44 px. Judul “Navigasi” hanya menjadi nama aksesibel dialog; tidak ada baris judul atau blok abu-abu terpisah. Sidebar mengisi tinggi drawer dan navigasi tetap mempunyai scroll sendiri. Escape, klik backdrop serta tombol X menutup drawer dan mengembalikan fokus ke pembukanya.
+
 Dashboard membaca endpoint Bag Filter dengan sesi pengguna: grafik pemasangan Q1–Q4 per tahun (per brand, batas tanggal WIB), KPI total/terpasang/kosong/≥900 hari, distribusi umur aktif, gauge cakupan, progress equipment, dan aktivitas terbaru. Tahun default mengikuti waktu server WIB; pilihan tahun 2000 sampai tahun berjalan. Q1 Januari–Maret, Q2 April–Juni, Q3 Juli–September, Q4 Oktober–Desember. Tahun berjalan diberi keterangan bahwa datanya belum satu tahun penuh; pembanding adalah total tahun sebelumnya. KPI dan distribusi tetap menunjukkan kondisi terkini, tidak mengikuti filter tahun grafik. Tidak membuat tren atau notifikasi dummy. Data pemasangan tidak mempunyai nilai negatif; pola bar negatif tidak digunakan. Peringatan kapasitas batch memakai ambang 450 dari batas 500, bukan target operasional yang dibuat-buat.
 
 Notifikasi berarti aktivitas batch dalam scope. Penanda dibaca, riwayat halaman terbaru, preferensi tema, dan sidebar disimpan pada browser, dipisahkan per pengguna untuk aktivitas/riwayat. Tidak ada timer sesi pada UI; masa berlaku sesi ditentukan Auth.
 
 ## Komponen
 
-Menu/select memakai panel frosted dengan keyboard dan pencarian; di bawah 640 px menjadi bottom sheet. Input berlabel memakai focus halo, clear, textarea auto-grow/counter, serta kalender WIB dan shortcut Sekarang. Pencatatan penggantian memakai sheet kanan desktop/bottom mobile; draft dipertahankan ketika sheet atau tema berganti. Aksi destruktif mempunyai konfirmasi. Pesan berhasil memakai toast.
+Menu/select memakai panel frosted dengan keyboard dan pencarian opsional; di bawah 640 px menjadi bottom sheet. Dropdown Bag Filter (kompartemen, area kolom/baris, Brand/Pabrikan, tahun grafik termasuk ringkasan di Portal) tidak memakai kolom pencarian. Saat dibuka, opsi terpilih menerima fokus dan digulir ke area terlihat; panah, Home/End, Enter/Space, Escape dan klik luar tetap tersedia. `Select` bersama memakai `searchable=true` secara default, sehingga dropdown aplikasi lain tetap mempunyai pencarian. Input berlabel memakai focus halo, clear, textarea auto-grow/counter, serta kalender WIB dan shortcut Sekarang. Pencatatan penggantian memakai sheet kanan desktop/bottom mobile; draft dipertahankan ketika sheet atau tema berganti. Aksi destruktif mempunyai konfirmasi. Pesan berhasil memakai toast.
 
 Tema tersedia melalui menu ikon Terang/Gelap/Sistem; Sistem tetap default. Pilihan tersimpan lintas aplikasi dan tab. Inisialisasi di head mencegah kilatan tema; perubahan memakai circular view transition jika didukung dan tanpa reduced motion. Storage yang diblokir, sessionStorage, dan pemulihan halaman dari cache ditangani provider.
 
@@ -26,7 +28,9 @@ Seleksi mempertahankan fill umur: overview memakai garis inset dua warna, sedang
 
 ### Pemilihan banyak bag
 
-Operator/admin dapat membuka sheet **Pilih banyak** setelah kontrol Sisi/Kompartemen. Mode **Kompartemen penuh** memakai checkbox berkelompok menurut sisi dan nama lapangan; kartu cukup menampilkan `1A`, `2A`, dan seterusnya, dengan nama aksesibel tetap `Comp. 1A`. Header menampilkan **1 kompartemen = 136/128 bag** sesuai equipment dan batas 500. Mode **Area bag** memakai satu kompartemen, rentang kolom dan rentang baris inklusif. Titik awal/akhir yang terbalik dinormalisasi. Keduanya menambah pilihan sebelumnya tanpa duplikasi. Contoh 421/422: tiga kompartemen penuh 408 bag ditambah area A–G/baris 1–6 pada kompartemen keempat 42 bag menjadi 450.
+Detail dan **Area bag** menggunakan satu dropdown **Kompartemen** yang mencakup kedua sisi, tanpa dropdown Sisi terpisah. Urutannya 1–24 pada 561/562, 1A–15A lalu 1B–15B pada 421/422, dan 1–16 pada L61/L62. Pilihan tetap menunjuk sisi/nomor lokal fisik; misalnya Comp. 13 pada 561/562 adalah Selatan lokal 12, dan Comp. 9 pada L61/L62 adalah Barat lokal 8. Badge sisi dan orientasi peta mengikuti kompartemen yang dipilih. Pilihan bag sebelumnya tetap tersimpan.
+
+Operator/admin dapat membuka sheet **Pilih banyak** setelah kontrol Kompartemen. Mode **Kompartemen penuh** memakai checkbox berkelompok menurut sisi dan nama lapangan; kartu cukup menampilkan `1A`, `2A`, dan seterusnya, dengan nama aksesibel tetap `Comp. 1A`. Header menampilkan **1 kompartemen = 136/128 bag** sesuai equipment dan batas 500. Mode **Area bag** memakai satu kompartemen, rentang kolom dan rentang baris inklusif. Titik awal/akhir yang terbalik dinormalisasi. Keduanya menambah pilihan sebelumnya tanpa duplikasi. Contoh 421/422: tiga kompartemen penuh 408 bag ditambah area A–G/baris 1–6 pada kompartemen keempat 42 bag menjadi 450.
 
 Kuota kompartemen diperiksa sebelum checkbox dapat dipilih. Item yang tidak muat dinonaktifkan, tetapi checkbox draft yang sudah dicentang tetap dapat dibatalkan. Kompartemen parsial dihitung dari bag unik yang belum ada, bukan selalu membebankan 136/128 bag penuh. Sisa kuota kecil mengarahkan pengguna ke Area bag. Validasi final 500 posisi tetap berlaku; area yang berlebih memperlihatkan angka total merah dan pesan singkat **Lebih N bag. Perkecil area.**, tanpa banner besar atau pemilihan sebagian otomatis.
 
@@ -77,6 +81,12 @@ Overlay dirender melalui portal ke `document.body` setelah mount agar tidak bera
 ## Halaman equipment Bag Filter
 
 KPI umur memakai pemasangan aktif pada snapshot, bukan nilai konstanta palet. Rentang hari tidak dibatasi 900; nilai tertua ≥900 memakai token `--danger` dan disertai jumlah posisi tua. Posisi tanpa pemasangan tidak dihitung sebagai umur nol.
+
+KPI Kompartemen mempertahankan angka jumlah kompartemen sebagai nilai utama; di bawahnya terdapat total bag dan bag per kompartemen. Metadata memakai angka tabular, bobot medium, dan token teks utama/sekunder, tanpa badge dekoratif tambahan. Kartu kanan **Penggantian bag {tahun}** memakai total bag yang dicatat menurut tanggal pemasangan WIB, dengan pembanding tahun sebelumnya berlabel **Jan–Des**. Rincian sisi dan catatan tanggal/WIB tidak ditampilkan di bawah kartu agar tetap ringkas. Penggantian berulang ikut terhitung setiap kejadian; total tahunan berbeda dari posisi terpasang aktif. Tidak memakai warna sukses/error atau persentase naik/turun untuk menilai frekuensi penggantian. Ketiga kartu mempunyai hierarki label/angka yang sama, tinggi sejajar pada desktop dan metadata membungkus pada mobile.
+
+Header equipment memakai teks ringkas **Diperbarui 4 Nov 2026**, berdasarkan waktu pencatatan batch terbaru (`updatedAt`), dengan tanggal WIB dan jam lengkap pada tooltip. Tanpa batch tampil **Belum ada pembaruan**. Tanggal pemasangan mundur dan filter riwayat tidak memengaruhi penentuan waktu pembaruan.
+
+Pada mobile teks pembaruan berada di bawah deskripsi, satu baris tanpa rincian jam; pada desktop tetap di kanan.
 
 Sel overview terpilih memakai dua garis inset tipis (`--selectionGap`/`--selectionRing`) tanpa mengubah ukuran atau jarak. Hover tidak memperbesar sel. Penanda bag tua maksimal sepertiga sel dan maksimal 3 px. Kompartemen aktif memakai bingkai luar tipis dan garis pada judul dengan `aria-current`; statusnya terpisah dari pilihan posisi.
 

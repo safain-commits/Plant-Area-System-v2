@@ -178,6 +178,22 @@
 .equipment-stats [data-old='true'] {
   color: var(--danger);
 }
+.equipment-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.equipment-stats .equipment-stat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-variant-numeric: tabular-nums;
+}
+.equipment-stat-meta b {
+  color: var(--textPrimary);
+  font-weight: 500;
+}
 @container bag-workspace (min-width: 960px) {
   .bag-layout {
     grid-template-columns: 520px minmax(0, 1fr);
@@ -907,6 +923,10 @@
 }
 
 @media (max-width: 767px) {
+  .heading:has(> [data-equipment-updated]) {
+    flex-direction: column;
+    gap: 12px;
+  }
   .equipment-stats {
     grid-template-columns: minmax(0, 1fr);
     overflow: visible;

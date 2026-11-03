@@ -356,9 +356,21 @@ export function Workspace({
   ];
   const side = (
     <aside ref={sidebar} className="sidebar" aria-label="Sidebar">
-      <a href="/" className="brand" aria-label="TQ-CMMS — Kembali ke portal">
-        <BrandLogo compact={collapsed && !mobile} />
-      </a>
+      <div className="sidebar-brand-row">
+        <a href="/" className="brand" aria-label="TQ-CMMS — Kembali ke portal">
+          <BrandLogo compact={collapsed && !mobile} />
+        </a>
+        {mobile && (
+          <button
+            type="button"
+            className="icon-button ghost sidebar-close"
+            aria-label="Tutup Navigasi"
+            onClick={() => setDrawer(false)}
+          >
+            <Icon name="x" />
+          </button>
+        )}
+      </div>
       <p className="nav-label sidebar-label">WORKSPACE</p>
       <SidebarNavigation
         identity={identity}
@@ -401,7 +413,7 @@ export function Workspace({
       {!mobile ? (
         side
       ) : (
-        <Overlay open={drawer} onClose={() => setDrawer(false)} title="Navigasi" kind="drawer">
+        <Overlay open={drawer} onClose={() => setDrawer(false)} title="Navigasi" kind="drawer" hideTitle>
           {side}
         </Overlay>
       )}

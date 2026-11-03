@@ -142,6 +142,7 @@ export function Dashboard() {
               <label className="sr-label">
                 Tahun grafik
                 <Select
+                  searchable={false}
                   aria-label="Tahun grafik"
                   value={year ?? data.year}
                   onChange={(e) => setYear(Number(e.target.value))}

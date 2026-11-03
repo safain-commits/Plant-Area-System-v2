@@ -25,14 +25,18 @@ Internal saja: `/auth/internal/session` mengembalikan `{identity}`, `/auth/inter
 
 ## Bag Filter
 
-| Method | Path setelah `/bag-filter/api`                                       | Respons                                           |
-| ------ | -------------------------------------------------------------------- | ------------------------------------------------- |
-| GET    | `/equipment`                                                         | Equipment dalam scope                             |
-| GET    | `/equipment/:code/state`                                             | `{equipment,positions,recorded,total,serverTime}` |
-| GET    | `/equipment/:code/batches?q=&cursor=`                                | `{items,nextCursor}`; 50 batch                    |
-| POST   | `/equipment/:code/batches`                                           | 201 baru, 200 replay; `{batchId,count,replayed}`  |
-| GET    | `/equipment/:code/positions?side=&compartment=&column=&row=&cursor=` | Timeline 50; `endedAt:null` berarti terkini       |
-| GET    | `/audit?cursor=`                                                     | Admin Bag Filter; hanya equipment dalam scope     |
+| Method | Path setelah `/bag-filter/api`                                       | Respons                                                                        |
+| ------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| GET    | `/equipment`                                                         | Equipment dalam scope                                                          |
+| GET    | `/equipment/:code/state`                                             | `{equipment,positions,recorded,total,serverTime,updatedAt,yearlyReplacements}` |
+| GET    | `/equipment/:code/batches?q=&cursor=`                                | `{items,nextCursor}`; 50 batch                                                 |
+| POST   | `/equipment/:code/batches`                                           | 201 baru, 200 replay; `{batchId,count,replayed}`                               |
+| GET    | `/equipment/:code/positions?side=&compartment=&column=&row=&cursor=` | Timeline 50; `endedAt:null` berarti terkini                                    |
+| GET    | `/audit?cursor=`                                                     | Admin Bag Filter; hanya equipment dalam scope                                  |
+
+`yearlyReplacements` berisi `{year,total,previousYear,previousTotal}`. Tahun ditentukan server dalam Asia/Jakarta; total menjumlahkan `position_count` seluruh batch equipment menurut tanggal pemasangan, bukan waktu pencatatan atau jumlah posisi aktif. Tahun berjalan dihitung sampai waktu server (dengan toleransi input 60 detik), dan tahun sebelumnya mencakup Januari–Desember. Seluruh pemasangan/penggantian yang tercatat termasuk pemasangan awal ikut dihitung, sesuai grafik Bag Filter. Posisi yang diganti beberapa kali dihitung pada setiap kejadian; replay idempoten tidak menambah total. Field `recorded`/`total` tetap tersedia untuk cakupan posisi, terpisah dari jumlah penggantian tahunan. Tidak ada perubahan payload tulis atau migrasi database.
+
+`updatedAt` adalah waktu pencatatan batch terakhir pada equipment, dalam ISO UTC, atau `null` bila belum ada batch. Nilai berasal dari `createdAt` seluruh riwayat, termasuk pemasangan bertanggal mundur; bukan waktu halaman dimuat, tanggal pemasangan, atau hasil filter riwayat. Header menampilkan tanggal ringkas dalam WIB, dengan jam lengkap tersedia pada tooltip.
 
 Contoh payload batch:
 

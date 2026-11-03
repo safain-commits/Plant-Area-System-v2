@@ -54,6 +54,10 @@ Untuk menjalankan seluruh suite lokal dengan identitas baru, script dan guard pe
 
 `pnpm dev:up` menjalankan empat Next.js development server melalui gateway HTTPS dengan prefix/origin yang sama. Source app dan package bersama dipasang sebagai bind mount baca saja, sedangkan dependency Linux tetap di image. Hot reload app dan UI bersama telah diuji. Setelah perubahan dependency, konfigurasi build yang tidak terpasang, atau migrasi, jalankan `dev:up` lagi. Perintah lama `pnpm dev` menjalankan app pada host port `3000`–`3003` dan tetap memerlukan pengaturan environment/gateway manual.
 
+Pada PC Windows, setiap terminal PowerShell baru menjalankan `. .\scripts\activate-dev.ps1` agar Node 26.12.1 dan pnpm 12.14.0 lokal didahulukan terhadap launcher NVM. Jika `pnpm -v` saja menghasilkan `error: CommandNotFound`, perintah development belum sempat berjalan; periksa aktivasi/instalasi pnpm pada README.
+
+Pool MySQL development dipertahankan pada `globalThis` selama hot reload, sedangkan wrapper Drizzle mengikuti schema module terbaru. Pool Auth administratif dan adapter login tetap terpisah. Jika runtime lama sudah mencapai `Too many connections`, restart hanya empat aplikasi `plant-v2-dev` untuk melepaskan socket lama. Setelah readiness pulih, periksa login dan jumlah koneksi; tidak perlu mereset database atau menaikkan batas koneksi MySQL.
+
 ## 2. Kerjakan satu perubahan pada branch fitur
 
 Mulai dari `main` terbaru pada checkout development, lalu gunakan branch seperti `feat/consumables-export` atau `fix/bag-tooltip`. Untuk satu pekerjaan, kumpulkan implementasi, migrasi bila diperlukan, pengujian yang relevan, serta dokumentasi dalam perubahan yang dapat direview.

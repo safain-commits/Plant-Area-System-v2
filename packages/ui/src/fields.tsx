@@ -14,9 +14,14 @@ import { Icon } from './icon';
 import { Overlay } from './overlay';
 import { wibInput } from '@plant/contracts';
 
-export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({
+  children,
+  searchable = true,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { searchable?: boolean }) {
   const ref = useRef<HTMLSelectElement>(null),
     button = useRef<HTMLButtonElement>(null),
+    list = useRef<HTMLDivElement>(null),
     id = useId();
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState(''),
@@ -33,7 +38,9 @@ export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
         disabled: !!p.disabled,
       };
     });
-  const filtered = options.filter((o) => !o.disabled && o.label.toLowerCase().includes(query.toLowerCase()));
+  const filtered = options.filter(
+    (o) => !o.disabled && (!searchable || o.label.toLowerCase().includes(query.toLowerCase())),
+  );
   const choose = (v: string) => {
     if (!ref.current) return;
     ref.current.value = v;
@@ -45,6 +52,17 @@ export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
     const label = button.current?.closest('label');
     if (label) label.htmlFor = id + '-trigger';
   }, [id]);
+  useEffect(() => {
+    if (!open || searchable) return;
+    const frame = requestAnimationFrame(() => {
+      const option =
+        list.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]') ??
+        list.current?.querySelector<HTMLButtonElement>('[role="option"]');
+      option?.focus({ preventScroll: true });
+      option?.scrollIntoView({ block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, searchable]);
 
   return (
     <span className="select-control">
@@ -102,33 +120,36 @@ export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
         anchor={button}
         hideTitle
       >
-        <div className="select-search">
-          <Icon name="search" />
-          <input
-            autoFocus
-            aria-label="Cari opsi"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setIndex(0);
-            }}
-            placeholder="Cari…"
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                setIndex(
-                  (i) =>
-                    (i + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) % Math.max(1, filtered.length),
-                );
-              }
-              if (e.key === 'Enter' && filtered[index]) {
-                e.preventDefault();
-                choose(filtered[index].value);
-              }
-            }}
-          />
-        </div>
+        {searchable && (
+          <div className="select-search">
+            <Icon name="search" />
+            <input
+              autoFocus
+              aria-label="Cari opsi"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setIndex(0);
+              }}
+              placeholder="Cari…"
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setIndex(
+                    (i) =>
+                      (i + (e.key === 'ArrowDown' ? 1 : -1) + filtered.length) % Math.max(1, filtered.length),
+                  );
+                }
+                if (e.key === 'Enter' && filtered[index]) {
+                  e.preventDefault();
+                  choose(filtered[index].value);
+                }
+              }}
+            />
+          </div>
+        )}
         <div
+          ref={list}
           id={id}
           role="listbox"
           className="menu-list scroll-fade"
@@ -148,6 +169,7 @@ export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
               aria-selected={o.value === value}
               className="menu-item"
               onPointerMove={() => setIndex(i)}
+              onFocus={() => setIndex(i)}
               onClick={() => choose(o.value)}
               onKeyDown={(e) => {
                 if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {

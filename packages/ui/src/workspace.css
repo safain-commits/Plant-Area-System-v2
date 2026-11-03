@@ -31,6 +31,17 @@
   margin-bottom: 12px;
   white-space: nowrap;
 }
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.sidebar-brand-row .brand {
+  flex: 1;
+  min-width: 0;
+}
 .brand-monogram {
   display: grid !important;
   place-items: center;
@@ -502,20 +513,26 @@
   .overlay-drawer > .overlay-content {
     padding: 0;
     height: 100%;
-    overflow: auto;
-  }
-  .overlay-drawer > .overlay-content > .overlay-heading {
-    padding: 12px;
-    margin: 0;
+    overflow: hidden;
   }
   .overlay-drawer .sidebar {
     position: relative;
     top: auto;
     width: 100%;
-    height: calc(100dvh - 70px);
+    height: 100%;
     padding: 16px;
     border: 0;
     overflow: auto;
+  }
+  .overlay-drawer .sidebar-brand-row .brand {
+    margin-bottom: 0;
+  }
+  .overlay-drawer .sidebar-close {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    flex: 0 0 44px;
+    padding: 0;
   }
   .overlay-drawer .sidebar .sidebar-label {
     position: static;

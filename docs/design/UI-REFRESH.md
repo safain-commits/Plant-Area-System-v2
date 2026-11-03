@@ -43,7 +43,7 @@ The app should feel calm, airy, data-first and expensive. Pages sit on a light-g
   - **Structure:** groups have small gray labels and hairline separators.
   - **Long lists:** fade at the scroll edges.
   - **Animation:** panels scale and fade in from the trigger's side in under 200ms and close even faster. The trigger's chevron rotates.
-- **Searchable selects.** Equipment, brand and user lists have a search row pinned at the top, highlight the matched characters and show a clear "No results" state. Multi-select shows chips inside the trigger that animate in and out and collapse to "+3".
+- **Searchable selects.** Where enabled, equipment, brand and user lists have a search row pinned at the top, highlight the matched characters and show a clear "No results" state. Bag Filter uses compact selects without search for compartment, area ranges, manufacturer and chart year; its compartment select includes both sides. Other applications retain searchable selects by default. Multi-select shows chips inside the trigger that animate in and out and collapse to "+3".
 - **Command palette.** A centered frosted dialog with a large search field. Results are grouped (Recent, Pages, Equipment, Batches) and a hint row at the bottom shows the keys.
 - **Checkbox, radio and switch.** Checked states use ink in light mode and lime in dark mode. Checkmarks draw in. Switch thumbs slide with a firm spring.
 - **Segmented controls.** The active pill slides between options.

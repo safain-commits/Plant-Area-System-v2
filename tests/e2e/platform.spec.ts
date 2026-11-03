@@ -135,8 +135,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     await expect(top.locator('.overview-line').first().locator(':scope > :first-child')).toHaveClass(
       'overview-row-number',
     );
-    await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'B');
-    await choose(page.getByRole('combobox', { name: /^Kompartemen/ }), '15');
+    await choose(page.getByRole('combobox', { name: /^Kompartemen/ }), 'B:15');
     await expect(
       page.getByRole('group', { name: 'Detail kompartemen 15B', exact: true }).getByRole('button').first(),
     ).toHaveAttribute('aria-label', /Kolom A, baris 1:/);
@@ -175,7 +174,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
       .getByRole('group', { name: 'Detail kompartemen 1', exact: true })
       .getByRole('button', { name: /Kolom A, baris 16:/ })
       .click();
-    await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'Barat');
+    await choose(page.getByRole('combobox', { name: /^Kompartemen/ }), 'Barat:1');
     await page
       .getByRole('group', { name: 'Detail kompartemen 16', exact: true })
       .getByRole('button', { name: /Kolom H, baris 1:/ })
@@ -246,7 +245,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     .getByRole('group', { name: 'Detail kompartemen 1', exact: true })
     .getByRole('button', { name: /Kolom H, baris 17:/ })
     .click();
-  await choose(page.getByRole('combobox', { name: /^Sisi/ }), 'Selatan');
+  await choose(page.getByRole('combobox', { name: /^Kompartemen/ }), 'Selatan:1');
   await page
     .getByRole('group', { name: 'Detail kompartemen 24', exact: true })
     .getByRole('button', { name: /Kolom A, baris 1:/ })

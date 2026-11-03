@@ -4,6 +4,15 @@ export const selectionLimit = 500;
 export type Compartment = Pick<Position, 'side' | 'compartment'>;
 export type BagArea = Compartment & { columnFrom: number; columnTo: number; rowFrom: number; rowTo: number };
 
+/** Field-number order within each side; values retain the physical local coordinates. */
+export function compartmentOptions(eq: Equipment) {
+  return eq.sides.flatMap(({ name: side, labels }) =>
+    labels
+      .map((label, i) => ({ side, compartment: i + 1, label, value: `${side}:${i + 1}` }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'id', { numeric: true })),
+  );
+}
+
 export function areaPositions(eq: Equipment, area: BagArea): Position[] {
   const from = { side: area.side, compartment: area.compartment, column: area.columnFrom, row: area.rowFrom };
   const to = { ...from, column: area.columnTo, row: area.rowTo };

@@ -245,7 +245,7 @@ test('mobile bulk picker handles every equipment, side labels, reversed areas, c
         sheet.getByText(`1 kompartemen = ${eq.bagsPerCompartment} bag`, { exact: true }),
       ).toBeVisible();
       await sheet.getByRole('button', { name: 'Area bag', exact: true }).click();
-      await choose(page, 'Sisi area', eq.sides[1].name);
+      await expect(sheet.getByRole('combobox', { name: 'Sisi area', exact: true })).toHaveCount(0);
       await choose(page, 'Kompartemen area', `Comp. ${eq.sides[1].labels[1]}`);
       await choose(page, 'Kolom dari', eq.columns[7]);
       await choose(page, 'Kolom sampai', eq.columns[0]);

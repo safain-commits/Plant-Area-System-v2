@@ -18,11 +18,22 @@ Ikon Tema di topbar dan form Auth membuka pilihan **Terang/Gelap/Sistem**. Defau
 
 Gunakan Node **26.12.1**, pnpm **12.14.0**, dan Docker dengan Linux containers/Compose. Instal pnpm memakai `npm install --global pnpm@12.14.0`, lalu `pnpm install --frozen-lockfile`.
 
-Pada workspace Windows ini tersedia runtime lokal `.tools/node-v26.12.1-win-x64/node.exe` (diabaikan version control). Aktifkan untuk terminal PowerShell:
+Pada workspace Windows ini tersedia runtime lokal `.tools/node-v26.12.1-win-x64/node.exe` (diabaikan version control). Launcher pnpm milik NVM dapat menghasilkan `error: CommandNotFound` jika pnpm belum tersedia pada versi Node yang aktif. Workspace ini menyediakan aktivasi Node/pnpm sendiri; jalankan pada setiap terminal PowerShell baru:
 
 ```powershell
-$env:PATH = "$PWD\.tools\node-v26.12.1-win-x64;$env:PATH"
+. .\scripts\activate-dev.ps1
+node --version
+pnpm --version
 ```
+
+Hasilnya harus Node `v26.12.1` dan pnpm `12.14.0`. Jika pnpm lokal belum terpasang, instal sekali dengan runtime lokal lalu ulangi aktivasi:
+
+```powershell
+& .\.tools\node-v26.12.1-win-x64\node.exe .\.tools\node-v26.12.1-win-x64\node_modules\npm\bin\npm-cli.js install --global --prefix .tools/pnpm pnpm@12.14.0 --allow-scripts=pnpm
+. .\scripts\activate-dev.ps1
+```
+
+Aktivasi hanya mengubah PATH terminal tersebut dan mendahulukan runtime project; instalasi Node/NVM global tetap dapat dipakai oleh project lain.
 
 Jangan mengedit package di `node_modules/@plant/*`; pnpm menghubungkannya ke source workspace. Edit `packages/contracts`, `packages/auth-core`, `packages/bag-core`, `packages/consumables-core`, `packages/server`, atau `packages/ui` secara langsung.
 
@@ -48,6 +59,8 @@ Hapus `BOOTSTRAP_PASSWORD` dari `.env` setelah digunakan dan simpan password bar
 ## Development lokal PC/Mac
 
 Dengan Node/pnpm yang dipin dan Docker Engine lokal aktif, jalankan dari root workspace:
+
+Khusus PowerShell pada PC ini, aktifkan terminal terlebih dahulu dengan `. .\scripts\activate-dev.ps1`.
 
 ```sh
 pnpm dev:setup

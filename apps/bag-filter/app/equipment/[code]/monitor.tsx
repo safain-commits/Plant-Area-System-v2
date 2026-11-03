@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState
 import { OverviewMap } from './overview-map';
 import { activeAgeSummary } from './age-summary';
 import { BulkSelection } from './bulk-selection';
-import { groupSelection, initialSelection, selectionReducer } from './selection';
+import { compartmentOptions, groupSelection, initialSelection, selectionReducer } from './selection';
 import {
   ageHours,
   ageStops,
@@ -12,7 +12,6 @@ import {
   bagBrands,
   type BagBrand,
   displayCompartment,
-  equipmentSideSummary,
   rowOrder,
   rowDividerBefore,
   formatDate,
@@ -42,6 +41,8 @@ type Snapshot = {
   recorded: number;
   total: number;
   serverTime: string;
+  updatedAt: string | null;
+  yearlyReplacements: { year: number; total: number; previousYear: number; previousTotal: number };
 };
 type Batch = {
   brand: BagBrand | null;
@@ -121,6 +122,7 @@ export default function BagMonitor({
   const ages = useMemo(() => activeAgeSummary(latest.values(), now), [latest, now]);
   const selectedKeys = useMemo(() => new Set(selected.map(positionKey)), [selected]);
   const selectedGroups = useMemo(() => groupSelection(eq, selected), [eq, selected]);
+  const compartments = useMemo(() => compartmentOptions(eq), [eq]);
   const displayError = error || selection.error;
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
@@ -339,7 +341,27 @@ export default function BagMonitor({
         title={eq.code}
         description="Peta umur bag cloth, penggantian, dan riwayat per posisi."
       >
-        <span className="badge">Data aktual</span>
+        <span
+          className="badge"
+          data-equipment-updated
+          title={data.updatedAt ? `Pencatatan terakhir: ${formatDate(data.updatedAt)} WIB` : undefined}
+        >
+          {data.updatedAt ? (
+            <>
+              Diperbarui{' '}
+              <time dateTime={data.updatedAt}>
+                {new Date(data.updatedAt).toLocaleDateString('id-ID', {
+                  timeZone: 'Asia/Jakarta',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </time>
+            </>
+          ) : (
+            'Belum ada pembaruan'
+          )}
+        </span>
       </Heading>
       {displayError && (
         <div className="notice error" role="alert">
@@ -360,10 +382,17 @@ export default function BagMonitor({
       )}
       <Toast message={notice} onDismiss={() => setNotice('')} />
       <div className="stats equipment-stats">
-        <article className="stat">
+        <article className="stat" data-kpi="capacity">
           <span>KOMPARTEMEN</span>
           <strong>{eq.compartments}</strong>
-          <small>{equipmentSideSummary(eq)}</small>
+          <small className="equipment-stat-meta">
+            <span>
+              <b>{data.total.toLocaleString('id-ID')}</b> bag total
+            </span>
+            <span>
+              <b>{eq.bagsPerCompartment.toLocaleString('id-ID')}</b> bag/kompartemen
+            </span>
+          </small>
         </article>
         <article className="stat" data-kpi="active-age">
           <span>UMUR BAG AKTIF</span>
@@ -383,12 +412,18 @@ export default function BagMonitor({
               : 'Belum ada pemasangan tercatat'}
           </small>
         </article>
-        <article className="stat">
-          <span>POSISI TERCATAT</span>
-          <strong>
-            {data.recorded.toLocaleString('id-ID')} <small>/ {data.total.toLocaleString('id-ID')}</small>
+        <article className="stat" data-kpi="replacements">
+          <span>PENGGANTIAN BAG {data.yearlyReplacements.year}</span>
+          <strong data-replacement-total>
+            {data.yearlyReplacements.total.toLocaleString('id-ID')} <small>bag</small>
           </strong>
-          <small>Bag dengan data pemasangan</small>
+          <small className="equipment-stat-meta" data-previous-replacements>
+            <span>
+              {data.yearlyReplacements.previousYear}:{' '}
+              <b>{data.yearlyReplacements.previousTotal.toLocaleString('id-ID')}</b> bag
+            </span>
+            <span>Jan–Des</span>
+          </small>
         </article>
       </div>
       <section className="panel overview-panel">
@@ -544,34 +579,23 @@ export default function BagMonitor({
               <span className="badge">{side}</span>
             </div>
             <div className="form-grid">
-              <label>
-                Sisi
-                <Select
-                  aria-label="Sisi"
-                  value={side}
-                  onChange={(e) => {
-                    setSide(e.target.value as Position['side']);
-                    setFocused(null);
-                  }}
-                >
-                  {eq.sides.map((s) => (
-                    <option key={s.name}>{s.name}</option>
-                  ))}
-                </Select>
-              </label>
-              <label>
+              <label className="full">
                 Kompartemen
                 <Select
+                  searchable={false}
                   aria-label="Kompartemen"
-                  value={compartment}
+                  value={`${side}:${compartment}`}
                   onChange={(e) => {
-                    setCompartment(Number(e.target.value));
+                    const next = compartments.find((c) => c.value === e.target.value);
+                    if (!next) return;
+                    setSide(next.side);
+                    setCompartment(next.compartment);
                     setFocused(null);
                   }}
                 >
-                  {Array.from({ length: eq.perSide }, (_, i) => (
-                    <option key={i} value={i + 1}>
-                      Comp. {displayCompartment({ side, compartment: i + 1 }, eq)}
+                  {compartments.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      Comp. {c.label}
                     </option>
                   ))}
                 </Select>
@@ -862,6 +886,7 @@ export default function BagMonitor({
                       <label>
                         Brand/Pabrikan
                         <Select
+                          searchable={false}
                           aria-label="Brand/Pabrikan"
                           value={brand}
                           onChange={(e) => setBrand(e.target.value as BagBrand | '')}

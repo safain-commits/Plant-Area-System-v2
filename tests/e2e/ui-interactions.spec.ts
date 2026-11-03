@@ -179,7 +179,9 @@ for (const width of [1440, 390])
       const value = await trigger.textContent();
       await trigger.click();
       await expect(menu).toBeVisible();
-      await menu.getByRole('textbox', { name: 'Cari opsi' }).fill('2');
+      const search = menu.getByRole('textbox', { name: 'Cari opsi' });
+      if (route === '/bag-filter') await expect(search).toHaveCount(0);
+      else await search.fill('2');
       await expect(menu).toBeVisible();
       await outside(page, menu);
       await expect(menu).not.toBeVisible();
@@ -197,8 +199,8 @@ for (const width of [1440, 390])
       await expect(menu).not.toBeVisible();
       await expect(trigger).toHaveText(selected!);
       await trigger.click();
-      const input = menu.getByRole('textbox', { name: 'Cari opsi' }),
-        box = (await input.boundingBox())!;
+      const target = route === '/bag-filter' ? menu.getByRole('option').first() : search,
+        box = (await target.boundingBox())!;
       await page.mouse.move(box.x + 20, box.y + box.height / 2);
       await page.mouse.down();
       await page.mouse.move(8, 40);
