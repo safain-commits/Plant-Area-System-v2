@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   AppError,
   replacementSchema,
@@ -12,7 +12,9 @@ import {
   type Position,
 } from '@plant/contracts';
 import { getBagDb } from './database';
-import { equipmentTable, coordinates, batches, installations, bagAudit } from './schema';
+import { equipmentTable, coordinates, batches, installations, bagAudit, batchCancellations } from './schema';
+import { cancellationMetadata, type CancellationColumns } from './cancellation';
+export { cancelReplacement } from './cancellation';
 export { getBagDb, closeBagDb } from './database';
 export * as bagSchema from './schema';
 export { dashboard, activity } from './insights';
@@ -50,16 +52,28 @@ export async function createReplacement(
     db = getBagDb();
   const hash = createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const match = and(eq(batches.actorId, actor.id), eq(batches.idempotencyKey, key));
-  const replay = (record: typeof batches.$inferSelect) => {
+  const replay = (record: typeof batches.$inferSelect, cancelled: boolean) => {
     if (record.requestHash !== hash)
       throw new AppError(409, 'Idempotency-Key sudah digunakan untuk data berbeda.');
+    if (cancelled)
+      throw new AppError(
+        409,
+        'Batch pencatatan ini sudah dibatalkan. Gunakan pencatatan baru bila diperlukan.',
+        'BATCH_CANCELLED',
+      );
     return { batchId: record.id, count: record.positionCount, replayed: true };
   };
   try {
     return await db.transaction(
       async (tx) => {
         const [existing] = await tx.select().from(batches).where(match);
-        if (existing) return replay(existing);
+        if (existing) {
+          const [cancelled] = await tx
+            .select({ batchId: batchCancellations.batchId })
+            .from(batchCancellations)
+            .where(eq(batchCancellations.batchId, existing.id));
+          return replay(existing, !!cancelled);
+        }
         if (!value.brand) throw new AppError(400, 'Brand/Pabrikan wajib dipilih.');
         const id = randomUUID(),
           now = new Date(),
@@ -103,7 +117,13 @@ export async function createReplacement(
   } catch (e) {
     if (codeOf(e) === 'ER_DUP_ENTRY') {
       const [existing] = await db.select().from(batches).where(match);
-      if (existing) return replay(existing);
+      if (existing) {
+        const [cancelled] = await db
+          .select({ batchId: batchCancellations.batchId })
+          .from(batchCancellations)
+          .where(eq(batchCancellations.batchId, existing.id));
+        return replay(existing, !!cancelled);
+      }
     }
     throw e;
   }
@@ -139,7 +159,8 @@ export async function snapshot(code: string, now = Date.now()) {
   const [result] = await getBagDb().execute(sql`
     SELECT CAST(r.id AS CHAR) AS id, r.batch_id AS batchId, r.side, r.compartment, r.col AS \`column\`, r.row_no AS \`row\`, r.installed_at AS installedAt, b.brand
     FROM (SELECT i.*, ROW_NUMBER() OVER (PARTITION BY side,compartment,col,row_no ORDER BY installed_at DESC,id DESC) AS rn
-      FROM installations i WHERE equipment_code=${code}) r INNER JOIN replacement_batches b ON b.id=r.batch_id WHERE r.rn=1`);
+      FROM installations i WHERE equipment_code=${code}
+      AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=i.batch_id)) r INNER JOIN replacement_batches b ON b.id=r.batch_id WHERE r.rn=1`);
   const positions = (
     result as unknown as (Position & {
       id: string;
@@ -154,23 +175,23 @@ export async function snapshot(code: string, now = Date.now()) {
     SELECT
       COALESCE(SUM(CASE WHEN installed_at>=${currentStart} THEN position_count ELSE 0 END),0) AS total,
       COALESCE(SUM(CASE WHEN installed_at<${currentStart} THEN position_count ELSE 0 END),0) AS previousTotal
-    FROM replacement_batches
+    FROM replacement_batches b
     WHERE equipment_code=${code} AND installed_at>=${previousStart} AND installed_at<${nextStart}
-      AND installed_at<=${new Date(now + 60000)}`);
+      AND installed_at<=${new Date(now + 60000)}
+      AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=b.id)`);
   const [counts] = totals as unknown as { total: number | string; previousTotal: number | string }[];
-  const [lastBatch] = await getBagDb()
-    .select({ createdAt: batches.createdAt })
-    .from(batches)
-    .where(eq(batches.equipmentCode, code))
-    .orderBy(desc(batches.createdAt))
-    .limit(1);
+  const [updates] = await getBagDb().execute(sql`SELECT MAX(changed_at) AS updatedAt FROM (
+    SELECT created_at AS changed_at FROM replacement_batches WHERE equipment_code=${code}
+    UNION ALL SELECT c.cancelled_at FROM batch_cancellations c JOIN replacement_batches b ON b.id=c.batch_id WHERE b.equipment_code=${code}
+  ) changes`);
+  const [lastUpdate] = updates as unknown as { updatedAt: Date | string | null }[];
   return {
     equipment: config,
     positions,
     recorded: positions.length,
     total: config.compartments * config.bagsPerCompartment,
     serverTime: new Date(now).toISOString(),
-    updatedAt: lastBatch ? dateString(lastBatch.createdAt) : null,
+    updatedAt: lastUpdate?.updatedAt ? dateString(lastUpdate.updatedAt) : null,
     yearlyReplacements: {
       year,
       total: Number(counts?.total || 0),
@@ -231,7 +252,9 @@ export async function batchHistory(code: string, query = '', after: string | nul
     : sql``;
   const [raw] = await getBagDb()
     .execute(sql`SELECT b.id,b.equipment_code AS equipmentCode,b.installed_at AS installedAt,b.created_at AS createdAt,
-    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.position_count AS positionCount FROM replacement_batches b WHERE b.equipment_code=${code}
+    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.position_count AS positionCount,
+    c.cancelled_at AS cancelledAt,c.actor_id AS cancelledById,c.actor_name AS cancelledByName,c.reason AS cancellationReason
+    FROM replacement_batches b LEFT JOIN batch_cancellations c ON c.batch_id=b.id WHERE b.equipment_code=${code}
     ${filter} ${boundary} ORDER BY b.created_at DESC,b.id DESC LIMIT 51`);
   type Row = {
     id: string;
@@ -244,7 +267,7 @@ export async function batchHistory(code: string, query = '', after: string | nul
     actorName: string;
     positionCount: number;
   };
-  const rows = raw as unknown as Row[],
+  const rows = raw as unknown as (Row & CancellationColumns)[],
     page = rows.slice(0, 50);
   const positions = page.length
     ? await getBagDb()
@@ -264,8 +287,10 @@ export async function batchHistory(code: string, query = '', after: string | nul
         )
     : [];
   return {
-    items: page.map((b) => ({
+    items: page.map(({ cancelledAt, cancelledById, cancelledByName, cancellationReason, ...b }) => ({
       ...b,
+      status: cancelledAt ? ('cancelled' as const) : ('active' as const),
+      cancellation: cancellationMetadata({ cancelledAt, cancelledById, cancelledByName, cancellationReason }),
       installedAt: dateString(b.installedAt),
       createdAt: dateString(b.createdAt),
       positions: positions.filter((p) => p.batchId === b.id) as (Position & { batchId: string })[],
@@ -281,12 +306,18 @@ export async function positionHistory(code: string, p: Position, after: string |
   const boundary = c
     ? sql`WHERE (r.installed_at < ${new Date(c.at)} OR (r.installed_at=${new Date(c.at)} AND r.id < ${c.id}))`
     : sql``;
-  const [raw] = await getBagDb()
-    .execute(sql`SELECT CAST(r.id AS CHAR) AS id,r.batch_id AS batchId,r.installed_at AS installedAt,r.endedAt,
-    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.created_at AS createdAt FROM
-    (SELECT i.*,LEAD(installed_at) OVER (ORDER BY installed_at,id) AS endedAt FROM installations i
-      WHERE equipment_code=${code} AND side=${p.side} AND compartment=${p.compartment} AND col=${p.column} AND row_no=${p.row}) r
-    JOIN replacement_batches b ON b.id=r.batch_id ${boundary} ORDER BY r.installed_at DESC,r.id DESC LIMIT 51`);
+  const [raw] = await getBagDb().execute(sql`WITH coordinate AS (
+      SELECT i.* FROM installations i WHERE equipment_code=${code} AND side=${p.side} AND compartment=${p.compartment} AND col=${p.column} AND row_no=${p.row}
+    ), valid AS (
+      SELECT i.id,LEAD(i.installed_at) OVER (ORDER BY i.installed_at,i.id) AS endedAt FROM coordinate i
+      WHERE NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=i.batch_id)
+    )
+    SELECT CAST(r.id AS CHAR) AS id,r.batch_id AS batchId,r.installed_at AS installedAt,v.endedAt,
+    b.reason,b.wo,b.brand,b.actor_name AS actorName,b.created_at AS createdAt,
+    c.cancelled_at AS cancelledAt,c.actor_id AS cancelledById,c.actor_name AS cancelledByName,c.reason AS cancellationReason
+    FROM coordinate r JOIN replacement_batches b ON b.id=r.batch_id
+    LEFT JOIN valid v ON v.id=r.id LEFT JOIN batch_cancellations c ON c.batch_id=b.id
+    ${boundary} ORDER BY r.installed_at DESC,r.id DESC LIMIT 51`);
   type Row = {
     id: string;
     batchId: string;
@@ -298,11 +329,13 @@ export async function positionHistory(code: string, p: Position, after: string |
     actorName: string;
     createdAt: Date;
   };
-  const rows = raw as unknown as Row[],
+  const rows = raw as unknown as (Row & CancellationColumns)[],
     page = rows.slice(0, 50);
   return {
-    items: page.map((r) => ({
+    items: page.map(({ cancelledAt, cancelledById, cancelledByName, cancellationReason, ...r }) => ({
       ...r,
+      status: cancelledAt ? ('cancelled' as const) : ('active' as const),
+      cancellation: cancellationMetadata({ cancelledAt, cancelledById, cancelledByName, cancellationReason }),
       installedAt: dateString(r.installedAt),
       endedAt: r.endedAt ? dateString(r.endedAt) : null,
       createdAt: dateString(r.createdAt),
@@ -323,7 +356,16 @@ export async function auditHistory(codes: string[], after: string | null = null)
   const [raw] = await getBagDb().execute(
     sql`SELECT id,batch_id AS batchId,equipment_code AS equipmentCode,actor_id AS actorId,actor_name AS actorName,action,details,created_at AS createdAt FROM bag_audit WHERE equipment_code IN (${list}) ${boundary} ORDER BY created_at DESC,id DESC LIMIT 51`,
   );
-  const rows = raw as unknown as { id: string; createdAt: Date; details: string }[],
+  const rows = raw as unknown as {
+      id: string;
+      batchId: string;
+      equipmentCode: string;
+      actorId: string;
+      actorName: string;
+      action: string;
+      createdAt: Date;
+      details: string;
+    }[],
     page = rows.slice(0, 50);
   return {
     items: page.map((r) => ({ ...r, createdAt: dateString(r.createdAt), details: JSON.parse(r.details) })),

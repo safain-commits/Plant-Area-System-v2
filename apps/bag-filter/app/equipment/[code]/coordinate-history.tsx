@@ -1,14 +1,18 @@
-import { formatDate } from '@plant/contracts';
+import { formatDate, type BatchCancellation, type BatchStatus } from '@plant/contracts';
+import { CancellationNotice } from './batch-cancellation';
 
 export type TimelineItem = {
   brand: string | null;
   id: string;
+  batchId: string;
   installedAt: string;
   endedAt: string | null;
   createdAt: string;
   reason: string;
   wo: string;
   actorName: string;
+  status: BatchStatus;
+  cancellation: BatchCancellation | null;
 };
 
 export function CoordinateHistory({
@@ -57,12 +61,17 @@ export function CoordinateHistory({
             );
             return (
               <article key={item.id}>
-                <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
+                {!item.cancellation && (
+                  <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
+                )}
                 <small>{formatDate(item.installedAt)} WIB</small>
                 <small>Brand/Pabrikan: {item.brand || 'Belum tercatat'}</small>
-                <strong className={!item.endedAt ? 'now' : ''}>
-                  {Math.floor(hours / 24).toLocaleString('id-ID')} hari
-                </strong>
+                {!item.cancellation && (
+                  <strong className={!item.endedAt ? 'now' : ''}>
+                    {Math.floor(hours / 24).toLocaleString('id-ID')} hari
+                  </strong>
+                )}
+                {item.cancellation && <CancellationNotice cancellation={item.cancellation} />}
                 <small>
                   {item.wo || 'Tanpa WO'} · {item.reason}
                 </small>

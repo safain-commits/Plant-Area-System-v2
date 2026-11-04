@@ -12,12 +12,12 @@
   background: linear-gradient(
     90deg,
     var(--age-0),
-    var(--age-150),
-    var(--age-300),
-    var(--age-450),
-    var(--age-600),
-    var(--age-750),
-    var(--age-900)
+    var(--age-210),
+    var(--age-420),
+    var(--age-630),
+    var(--age-840),
+    var(--age-1050),
+    var(--age-1260)
   );
 }
 .age-buckets {
@@ -27,6 +27,10 @@
   margin-top: 8px;
 }
 .age-buckets button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 4px 2px;
   min-height: 28px;
   border: 0;
@@ -45,11 +49,15 @@
   background: var(--surfaceMuted);
 }
 .age-buckets i {
+  flex-shrink: 0;
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  margin-right: 4px;
+  margin-right: 0;
+}
+.age-range-label {
+  white-space: nowrap;
 }
 .overview-band {
   grid-template-columns: repeat(var(--overview-compartments), minmax(0, 1fr));
@@ -497,7 +505,7 @@
     min-height: 44px;
   }
   .age-buckets {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
     gap: 4px;
   }
   .age-buckets button {
@@ -807,6 +815,105 @@
 }
 
 /* One canvas keeps the two physical sides aligned, even on a narrow workspace. */
+.cancel-record-action {
+  color: var(--danger-text);
+  margin: 6px 0;
+}
+.cancellation-notice {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--danger-border);
+  border-radius: 6px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  overflow-wrap: anywhere;
+}
+.cancellation-notice small {
+  color: inherit;
+}
+.cancellation-badge {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
+.batch-cancellation-dialog {
+  width: min(540px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+}
+.cancellation-form {
+  padding: 0;
+}
+.batch-cancellation-dialog > .overlay-content {
+  padding: 24px;
+}
+.batch-cancellation-dialog .overlay-heading .icon-button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+.cancellation-explanation {
+  margin: 0;
+}
+.cancellation-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--surfaceMuted);
+  font-size: 13px;
+}
+.cancellation-summary > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+}
+.cancellation-summary dt {
+  color: var(--textSecondary);
+}
+.cancellation-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cancellation-coordinates {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cancellation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.cancellation-actions > button {
+  min-height: 44px;
+}
+.audit-reason {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 639px) {
+  .cancellation-form {
+    padding: 0;
+  }
+  .batch-cancellation-dialog > .overlay-content {
+    padding: 16px;
+  }
+  .cancellation-summary {
+    padding: 12px;
+  }
+  .cancellation-summary > div {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+  .cancellation-actions {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
 .overview-map {
   --overview-row-gutter: clamp(12px, 0.75vw, 16px);
   container: bag-overview / inline-size;

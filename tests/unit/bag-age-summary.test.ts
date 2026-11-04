@@ -25,12 +25,12 @@ test('one age and equal ages keep a single range value', () => {
   });
 });
 
-test('active range is uncapped, counts the 900-day boundary and accepts current records only', () => {
+test('active range is uncapped, counts the 1260-day boundary and accepts current records only', () => {
   const latest = new Map([
     ['replaced', installed(1678)],
     ['still-old', installed(1678)],
-    ['boundary', installed(900)],
-    ['younger', installed(899)],
+    ['boundary', installed(1260)],
+    ['younger', installed(1259)],
   ]);
   latest.set('replaced', installed(7));
   assert.deepEqual(activeAgeSummary(latest.values(), now), { min: 7, max: 1678, old: 2, recorded: 4 });

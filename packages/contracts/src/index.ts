@@ -4,6 +4,8 @@ export const equipmentCodes = ['561-BF1', '562-BF1', '421-BF1', '422-BF1', 'L61-
 export type EquipmentCode = (typeof equipmentCodes)[number];
 export const bagBrands = ['Intensiv filter (Original)', 'Filtras', 'Cipta Medya', 'Other'] as const;
 export type BagBrand = (typeof bagBrands)[number];
+export const bagAgeIntervalDays = 210;
+export const bagAgeScaleDays = 6 * bagAgeIntervalDays;
 export const bagRoles = ['viewer', 'operator', 'admin'] as const;
 export type BagRole = (typeof bagRoles)[number];
 export type BagGrant = { appId: 'bag-filter'; role: BagRole; equipment: EquipmentCode[] };
@@ -47,7 +49,7 @@ export const equipment: Equipment[] = equipmentCodes.map((code) => {
     rows,
     columns: is56 ? 'HGFEDCBA' : 'ABCDEFGH',
     bagsPerCompartment: rows * 8,
-    colorScaleDays: 900,
+    colorScaleDays: bagAgeScaleDays,
     rowDividerAfter: isL6 ? 8 : 9,
     centeredLabels: true,
     sides: [
@@ -111,21 +113,22 @@ export const ageHours = (installedAt: string | null, now = Date.now()) =>
   installedAt === null ? null : Math.max(0, Math.floor((now - Date.parse(installedAt)) / 3_600_000));
 export const ageStops = [
   { days: 0, color: '#8FCB2F' },
-  { days: 150, color: '#BDD62E' },
-  { days: 300, color: '#EBD52F' },
-  { days: 450, color: '#F7B32B' },
-  { days: 600, color: '#F4862A' },
-  { days: 750, color: '#E65A2A' },
-  { days: 900, color: '#CF2E2E' },
+  { days: bagAgeIntervalDays, color: '#BDD62E' },
+  { days: 2 * bagAgeIntervalDays, color: '#EBD52F' },
+  { days: 3 * bagAgeIntervalDays, color: '#F7B32B' },
+  { days: 4 * bagAgeIntervalDays, color: '#F4862A' },
+  { days: 5 * bagAgeIntervalDays, color: '#E65A2A' },
+  { days: bagAgeScaleDays, color: '#CF2E2E' },
 ] as const;
-export const ageBucket = (hours: number) => Math.min(6, Math.floor(Math.max(0, hours) / (150 * 24)));
+export const ageBucket = (hours: number) =>
+  Math.min(ageStops.length - 1, Math.floor(Math.max(0, hours) / (bagAgeIntervalDays * 24)));
 export function bagColor(hours: number | null) {
   if (hours === null) return 'var(--empty-bag)';
-  const days = Math.min(900, Math.max(0, hours / 24));
-  const index = Math.min(5, Math.floor(days / 150));
+  const days = Math.min(bagAgeScaleDays, Math.max(0, hours / 24));
+  const index = Math.min(ageStops.length - 2, Math.floor(days / bagAgeIntervalDays));
   const a = ageStops[index],
     b = ageStops[index + 1],
-    f = (days - a.days) / 150;
+    f = (days - a.days) / (b.days - a.days);
   const rgb = [1, 3, 5].map((i) =>
     Math.round(parseInt(a.color.slice(i, i + 2), 16) * (1 - f) + parseInt(b.color.slice(i, i + 2), 16) * f),
   );
@@ -169,18 +172,30 @@ export const replacementSchema = z
       ctx.addIssue({ code: 'custom', message: 'Posisi tidak boleh duplikat.' });
   });
 export type ReplacementInput = z.infer<typeof replacementSchema>;
+export const cancellationSchema = z.object({ reason: z.string().trim().min(1).max(500) }).strict();
+export type BatchCancellation = {
+  reason: string;
+  actorId: string;
+  actorName: string;
+  cancelledAt: string;
+};
+export type BatchStatus = 'active' | 'cancelled';
 export function validateInstallationDate(value: string, now = Date.now()) {
   const time = Date.parse(value);
   return Number.isFinite(time) && time >= Date.UTC(2000, 0, 1) && time <= now + 60_000;
 }
-export function hasPermission(identity: Identity, action: 'read' | 'write' | 'audit', code?: string) {
+export function hasPermission(
+  identity: Identity,
+  action: 'read' | 'write' | 'audit' | 'cancel',
+  code?: string,
+) {
   if (identity.mustChangePassword) return false;
   const grant = identity.grants.find((g) => g.appId === 'bag-filter');
   if (!grant || !grant.equipment.length || (code && !grant.equipment.includes(code as EquipmentCode)))
     return false;
   if (action === 'read') return bagRoles.includes(grant.role);
   if (action === 'write') return grant.role === 'operator' || grant.role === 'admin';
-  return action === 'audit' && grant.role === 'admin';
+  return (action === 'audit' || action === 'cancel') && grant.role === 'admin';
 }
 export function safeReturnTo(value: string | null | undefined) {
   if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\r\n]/.test(value)) return '/';

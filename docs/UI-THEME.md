@@ -4,13 +4,17 @@ Acuan aktif: [brief visual](design/UI-REFRESH.md) dan [token sheet](design/ui-br
 
 ## Shell dan data aktual
 
+Label legenda umur pada peta dan distribusi ditulis ringkas: **0–209**, **210–419**, **420–629**, **630–839**, **840–1049**, **1050–1259**, **≥ 1260 hari**, kemudian **Belum tercatat** pada peta. Satuan hanya tampil di kategori terakhir; nama aksesibel filter tetap menyebut hari pada setiap kategori. Batas, warna dan logika filter tidak berubah.
+
+Pembatalan Bag Filter memakai dialog konfirmasi dengan ringkasan equipment/batch, alasan wajib dan tombol destruktif merah. Aksi pemicu di riwayat tetap ringan. Badge **Dibatalkan** serta panel alasan menggunakan token danger light/dark dengan teks terbaca; record tidak diredupkan sampai kehilangan kontras. Dialog responsif, mendukung Escape/pengembalian fokus, dan menahan penutupan selama pengiriman. Bilah pemilihan halaman disembunyikan selama dialog terbuka; pilihan dan draft tidak dibersihkan. Riwayat koordinat mempertahankan record batal tanpa label pemasangan aktif atau umur.
+
 Identitas produk memakai [artwork TQ-CMMS](../brand/README.md): logo penuh pada sidebar expanded/form login/ganti password, serta simbol ringkas pada sidebar collapsed dan favicon. Komponen bersama memakai token teks dan aksen primary agar mengikuti tema tanpa mengubah proporsi artwork. Hero login memakai logo satu warna gelap di atas lime. Favicon masing-masing aplikasi tersedia tanpa login pada prefix aplikasinya, mengikuti preferensi warna browser/OS dan memakai revision hash untuk cache.
 
 Sidebar 248 px / rail 76 px mengikuti tema dan mengingat pilihan browser. Ctrl/Cmd+B mengubah sidebar; Ctrl/Cmd+K membuka command palette. Tablet memakai rail dan ekspansi overlay; mobile memakai drawer. Equipment mengikuti grant; link halaman admin mengikuti role. Header berisi pencarian, menu tema, aktivitas batch, akun, dan aksi aplikasi.
 
 Header drawer mobile memakai satu baris logo TQ-CMMS 160 px dan tombol tutup di kanan dengan target 44 × 44 px. Judul “Navigasi” hanya menjadi nama aksesibel dialog; tidak ada baris judul atau blok abu-abu terpisah. Sidebar mengisi tinggi drawer dan navigasi tetap mempunyai scroll sendiri. Escape, klik backdrop serta tombol X menutup drawer dan mengembalikan fokus ke pembukanya.
 
-Dashboard membaca endpoint Bag Filter dengan sesi pengguna: grafik pemasangan Q1–Q4 per tahun (per brand, batas tanggal WIB), KPI total/terpasang/kosong/≥900 hari, distribusi umur aktif, gauge cakupan, progress equipment, dan aktivitas terbaru. Tahun default mengikuti waktu server WIB; pilihan tahun 2000 sampai tahun berjalan. Q1 Januari–Maret, Q2 April–Juni, Q3 Juli–September, Q4 Oktober–Desember. Tahun berjalan diberi keterangan bahwa datanya belum satu tahun penuh; pembanding adalah total tahun sebelumnya. KPI dan distribusi tetap menunjukkan kondisi terkini, tidak mengikuti filter tahun grafik. Tidak membuat tren atau notifikasi dummy. Data pemasangan tidak mempunyai nilai negatif; pola bar negatif tidak digunakan. Peringatan kapasitas batch memakai ambang 450 dari batas 500, bukan target operasional yang dibuat-buat.
+Dashboard membaca endpoint Bag Filter dengan sesi pengguna: grafik pemasangan Q1–Q4 per tahun (per brand, batas tanggal WIB), KPI total/terpasang/kosong/≥1.260 hari, distribusi umur aktif, gauge cakupan, progress equipment, dan aktivitas terbaru. Tahun default mengikuti waktu server WIB; pilihan tahun 2000 sampai tahun berjalan. Q1 Januari–Maret, Q2 April–Juni, Q3 Juli–September, Q4 Oktober–Desember. Tahun berjalan diberi keterangan bahwa datanya belum satu tahun penuh; pembanding adalah total tahun sebelumnya. KPI dan distribusi tetap menunjukkan kondisi terkini, tidak mengikuti filter tahun grafik. Tidak membuat tren atau notifikasi dummy. Data pemasangan tidak mempunyai nilai negatif; pola bar negatif tidak digunakan. Peringatan kapasitas batch memakai ambang 450 dari batas 500, bukan target operasional yang dibuat-buat.
 
 Notifikasi berarti aktivitas batch dalam scope. Penanda dibaca, riwayat halaman terbaru, preferensi tema, dan sidebar disimpan pada browser, dipisahkan per pengguna untuk aktivitas/riwayat. Tidak ada timer sesi pada UI; masa berlaku sesi ditentukan Auth.
 
@@ -22,7 +26,7 @@ Tema tersedia melalui menu ikon Terang/Gelap/Sistem; Sistem tetap default. Pilih
 
 ## Peta bag
 
-Enam equipment tetap memakai 18.784 identitas koordinat, orientasi, label, dan jeda stiffener yang sudah dikoreksi. Skala continuous dari stop 0/150/300/450/600/750/900 hari: #8FCB2F, #BDD62E, #EBD52F, #F7B32B, #F4862A, #E65A2A, #CF2E2E. Umur ≥900 menetap merah dan mendapat notch. Posisi kosong mengikuti gray-150 / gray-800, dengan border putus-putus di detail. Umur tidak memakai hatch.
+Enam equipment tetap memakai 18.784 identitas koordinat, orientasi, label, dan jeda stiffener yang sudah dikoreksi. Skala continuous dari stop 0/210/420/630/840/1050/1260 hari: #8FCB2F, #BDD62E, #EBD52F, #F7B32B, #F4862A, #E65A2A, #CF2E2E. Tujuh kategori: 0–209, 210–419, 420–629, 630–839, 840–1049, 1050–1259, dan 1260+ hari. Umur ≥1.260 menetap merah dan mendapat notch; KPI perhatian mengikuti ambang yang sama. Posisi kosong mengikuti gray-150 / gray-800, dengan border putus-putus di detail. Umur tidak memakai hatch.
 
 Seleksi mempertahankan fill umur: overview memakai garis inset dua warna, sedangkan detail memakai double ring dan centang. Mendukung klik, Shift-click rentang dalam kompartemen, marquee mouse, arrows/Space, dan Shift+arrows; seluruh cara tetap dibatasi 500 posisi unik. Filter legenda hanya meredupkan tampilan, tidak menghapus pilihan. Hover menyajikan koordinat, umur, tanggal WIB, dan brand. Detail mobile menggunakan sel ≥44 px dalam area scroll internal dengan label baris di kiri; overview tetap muat tanpa scroll horizontal halaman.
 
@@ -80,7 +84,7 @@ Overlay dirender melalui portal ke `document.body` setelah mount agar tidak bera
 
 ## Halaman equipment Bag Filter
 
-KPI umur memakai pemasangan aktif pada snapshot, bukan nilai konstanta palet. Rentang hari tidak dibatasi 900; nilai tertua ≥900 memakai token `--danger` dan disertai jumlah posisi tua. Posisi tanpa pemasangan tidak dihitung sebagai umur nol.
+KPI umur memakai pemasangan aktif pada snapshot, bukan nilai konstanta palet. Rentang hari tidak dibatasi; nilai tertua ≥1.260 memakai token `--danger` dan disertai jumlah posisi tua. Posisi tanpa pemasangan tidak dihitung sebagai umur nol.
 
 KPI Kompartemen mempertahankan angka jumlah kompartemen sebagai nilai utama; di bawahnya terdapat total bag dan bag per kompartemen. Metadata memakai angka tabular, bobot medium, dan token teks utama/sekunder, tanpa badge dekoratif tambahan. Kartu kanan **Penggantian bag {tahun}** memakai total bag yang dicatat menurut tanggal pemasangan WIB, dengan pembanding tahun sebelumnya berlabel **Jan–Des**. Rincian sisi dan catatan tanggal/WIB tidak ditampilkan di bawah kartu agar tetap ringkas. Penggantian berulang ikut terhitung setiap kejadian; total tahunan berbeda dari posisi terpasang aktif. Tidak memakai warna sukses/error atau persentase naik/turun untuk menilai frekuensi penggantian. Ketiga kartu mempunyai hierarki label/angka yang sama, tinggi sejajar pada desktop dan metadata membungkus pada mobile.
 

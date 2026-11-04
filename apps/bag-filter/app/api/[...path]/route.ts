@@ -4,6 +4,7 @@ import {
   snapshot,
   batchHistory,
   createReplacement,
+  cancelReplacement,
   positionHistory,
   auditHistory,
   dashboard,
@@ -77,6 +78,24 @@ export async function POST(request: Request, context: Context) {
   try {
     verifyOrigin(request);
     const path = (await context.params).path;
+    if (
+      path.length === 5 &&
+      path[0] === 'equipment' &&
+      path[2] === 'batches' &&
+      path[4] === 'cancel' &&
+      getEquipment(path[1])
+    ) {
+      const actor = await apiIdentity(request, 'cancel', path[1]);
+      return json(
+        await cancelReplacement(
+          actor,
+          path[1],
+          path[3],
+          await readJson(request, 8000),
+          request.headers.get('idempotency-key'),
+        ),
+      );
+    }
     if (path.length !== 3 || path[0] !== 'equipment' || path[2] !== 'batches' || !getEquipment(path[1]))
       throw new AppError(404, 'Endpoint tidak ditemukan.');
     const actor = await apiIdentity(request, 'write', path[1]),

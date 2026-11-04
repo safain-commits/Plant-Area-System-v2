@@ -85,7 +85,7 @@ Motion is quick, soft and physical. Things appear from where they came from and 
 
 ## Bag age colors and the bag map
 
-- **Age scale.** It runs from lime (new) through yellow and orange to red (oldest). Stops are at 0, 150, 300, 450, 600, 750 and 900+ days, and the scale stays red from 900 days on.
+- **Age scale.** It runs from lime (new) through yellow and orange to red (oldest). Stops are at 0, 210, 420, 630, 840, 1050 and 1260+ days, and the scale stays red from 1260 days on. Attention KPIs and the corner notch use the same 1260-day threshold.
   - **Values:** #8FCB2F, #BDD62E, #EBD52F, #F7B32B, #F4862A, #E65A2A, #CF2E2E.
   - **Map cells:** blend smoothly along the scale.
   - **Legends and distribution bars:** use 7 buckets.
@@ -93,7 +93,7 @@ Motion is quick, soft and physical. Things appear from where they came from and 
 - **Never-installed positions.** Plain gray (light gray in light mode, dark gray in dark mode). The detail view adds a dashed outline.
 - **Cell details.**
   - In light mode, cells have a faint inner edge so yellow cells don't melt into white.
-  - Cells at 900+ days get a small corner notch, so the oldest bags are recognizable without color.
+  - Cells at 1260+ days get a small corner notch, so the oldest bags are recognizable without color.
   - Text on cells is black, except on red, where it is white.
 - **Selection.** Selection is a double ring (ink ring around a thin surface-colored gap) plus a small check, never a fill color. Selection supports:
   - Click.

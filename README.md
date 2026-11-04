@@ -121,6 +121,8 @@ Build terpisah: `pnpm --filter @plant/portal build`, `pnpm --filter @plant/auth 
 
 Kebutuhan sebelum go-live: hostname dan sertifikat organisasi, rahasia deployment, salinan backup di luar host, uji orientasi oleh operator, serta restore drill pada server tujuan.
 
+Panduan Bag Filter: [membatalkan record penggantian yang salah](docs/BAG-FILTER-CANCELLATION.md). Hak ini hanya untuk admin Bag Filter dalam cakupan equipment dan memerlukan migrasi Bag Filter `0003_batch_cancellations`; baca prosedur upgrade/rollback pada [panduan operasi](docs/OPERATIONS.md).
+
 ## Consumable Room v1.1 — R22
 
 Satu stok R22 pada `/consumables`, tanpa pengelolaan lokasi. Rak tetap opsional. Consume/Return memakai HEC wajib dan keranjang multi-item persisten; Penerimaan Picklist mendukung konversi SAP → satuan terkecil R22 serta bukti cetak bernomor. Role Viewer, Client, R22 Cashier dan Admin mengatur tindakan; semua grant melihat stok/riwayat yang sama.

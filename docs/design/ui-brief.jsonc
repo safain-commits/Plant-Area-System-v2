@@ -16,7 +16,7 @@
       "Sidebar can collapse into a 76px icon rail (see components.sidebar.collapse).",
       "Primary button = ink (reference 'Upgrade now'). Lime = data, focus halo and one optional 'accent' commit button per view.",
       "Inputs, dropdowns, menus and motion follow the 'premium' specs below. shadcn/ui primitives may be used, fully restyled to these tokens.",
-      "Bag-age scale retuned: lime (new) → yellow → orange → red (oldest, ≥ 900 days).",
+      "Bag-age scale retuned: lime (new) → yellow → orange → red (oldest, ≥1260 days).",
       "Bag selection = ink ring (no longer a fill), because orange/red now belong to the age scale.",
     ],
   },
@@ -109,28 +109,28 @@
     },
 
     // ── BAG-AGE SCALE (data-viz, theme-invariant fills) ──
-    // Continuous 0 → 900 days, interpolated in OKLab between stops; saturates at ≥ 900.
+    // Continuous 0 → 1260 days, RGB interpolation in the implementation; saturates at ≥1260.
     // Lightness peaks at yellow then drops steadily to red, so the order still reads in grayscale / color-blind views.
     "ageScale": {
       "stops": [
         { "days": 0, "token": "age-0", "value": "#8FCB2F", "name": "Fresh lime", "onText": "gray-950" },
-        { "days": 150, "token": "age-150", "value": "#BDD62E", "name": "Lime-yellow", "onText": "gray-950" },
-        { "days": 300, "token": "age-300", "value": "#EBD52F", "name": "Yellow", "onText": "gray-950" },
-        { "days": 450, "token": "age-450", "value": "#F7B32B", "name": "Amber", "onText": "gray-950" },
-        { "days": 600, "token": "age-600", "value": "#F4862A", "name": "Orange", "onText": "gray-950" },
-        { "days": 750, "token": "age-750", "value": "#E65A2A", "name": "Red-orange", "onText": "gray-950" },
-        { "days": 900, "token": "age-900", "value": "#CF2E2E", "name": "Red (≥ 900)", "onText": "gray-0" },
+        { "days": 210, "token": "age-210", "value": "#BDD62E", "name": "Lime-yellow", "onText": "gray-950" },
+        { "days": 420, "token": "age-420", "value": "#EBD52F", "name": "Yellow", "onText": "gray-950" },
+        { "days": 630, "token": "age-630", "value": "#F7B32B", "name": "Amber", "onText": "gray-950" },
+        { "days": 840, "token": "age-840", "value": "#F4862A", "name": "Orange", "onText": "gray-950" },
+        { "days": 1050, "token": "age-1050", "value": "#E65A2A", "name": "Red-orange", "onText": "gray-950" },
+        { "days": 1260, "token": "age-1260", "value": "#CF2E2E", "name": "Red (≥1260)", "onText": "gray-0" },
       ],
-      "mode": "Map cells = continuous interpolation. Legends, distribution bars and filters = 7 discrete buckets (0–149, 150–299, 300–449, 450–599, 600–749, 750–899, ≥ 900) using the stop color of each bucket.",
+      "mode": "Map cells = continuous interpolation. Legends, distribution bars and filters = 7 discrete buckets (0–209, 210–419, 420–629, 630–839, 840–1049, 1050–1259, ≥1260) using the stop color of each bucket.",
       "cellEdge": "Light: inset 1px rgba(11,11,11,0.06) so yellow cells hold their shape on white. Dark: none.",
-      "saturatedCue": "Cells ≥ 900 days get a 3px ink notch (light) / white notch (dark) in the top-right corner (non-color cue).",
+      "saturatedCue": "Cells ≥1260 days get a bounded ink notch (light) / white notch (dark) in the top-right corner (non-color cue).",
       "empty": {
         "light": "gray-150",
         "dark": "gray-800",
         "detailView": "+ 1px dashed gray-300 / gray-700 border",
         "label": "Never installed",
       },
-      "legend": "Horizontal gradient bar, height 8, radius 4, ticks at 0 · 150 · 300 · 450 · 600 · 750 · 900+ days (micro textMuted), plus an 'empty' swatch at the end",
+      "legend": "Horizontal gradient bar, height 8, radius 4, ticks at 0 · 210 · 420 · 630 · 840 · 1050 · 1260+ days (micro textMuted), plus an 'empty' swatch at the end",
       "rules": [
         "Fills are identical in light and dark themes.",
         "Never apply hatch to age cells.",
@@ -710,9 +710,9 @@
       "Lime is a FILL only; text on lime is always gray-950 (≥ 9:1)",
       "Trend/status text: primary-700 / secondary-700 (light), primary-300 / secondary-300 (dark)",
       "Captions: gray-500 on light (4.7:1), gray-400 on dark",
-      "Age cells: onText gray-950 for 0–899 days, gray-0 for ≥ 900 (all ≥ 4.5:1)",
+      "Age cells: choose gray-1000 or white from actual fill luminance (all ≥4.5:1 through 1260+ days)",
     ],
-    "nonColorCues": "Trends = arrows; status = words; selection = double ring + check; ≥ 900 days = corner notch; age always readable in tooltip/detail",
+    "nonColorCues": "Trends = arrows; status = words; selection = double ring + check; ≥1260 days = corner notch; age always readable in tooltip/detail",
     "keyboard": "Full keyboard support for menus, comboboxes, command palette, bag map (arrow keys move, Space toggles, Shift+arrows extend)",
     "targets": "≥ 44px below md",
   },
@@ -727,7 +727,7 @@
   // ──────────────── PATTERN MAPPING → Plant Area System ────────────────
   "patternMapping": {
     "portal.appTiles": "Interactive cards: icon tile + app name + caption. Planned module = surfaceMuted, lavender 'Planned' badge, no link",
-    "bagFilter.kpiRail": "Total positions · Installed · Never installed · ≥ 900 days",
+    "bagFilter.kpiRail": "Total positions · Installed · Never installed · ≥1260 days",
     "bagFilter.heroChart": "Installations per day (7d/30d), stacked by brand or new vs replacement",
     "bagFilter.progressList": "Per-equipment coverage: '2,100 / 3,264 positions'",
     "bagFilter.gauge": "% positions installed within user scope",

@@ -107,7 +107,11 @@ export async function pageIdentity(returnTo: string, allowPasswordChange = false
     throw e;
   }
 }
-export async function apiIdentity(request: Request, action?: 'read' | 'write' | 'audit', equipment?: string) {
+export async function apiIdentity(
+  request: Request,
+  action?: 'read' | 'write' | 'audit' | 'cancel',
+  equipment?: string,
+) {
   const identity = await fetchIdentity(request.headers.get('cookie') || '');
   if (action && !hasPermission(identity, action, equipment))
     throw new AppError(403, 'Akses aplikasi atau equipment belum diberikan.');

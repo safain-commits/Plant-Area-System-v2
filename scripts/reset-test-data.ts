@@ -1,7 +1,10 @@
 import mysql from 'mysql2/promise';
 if (process.env.TEST_DATABASE !== '1') throw Error('Only the isolated test deployment may be reset.');
 for (const [key, tables] of [
-  ['BAG_MIGRATION_DATABASE_URL', ['bag_audit', 'installations', 'replacement_batches']],
+  [
+    'BAG_MIGRATION_DATABASE_URL',
+    ['bag_audit', 'batch_cancellations', 'installations', 'replacement_batches'],
+  ],
   [
     'AUTH_MIGRATION_DATABASE_URL',
     ['auth_audit', 'app_grants', 'sessions', 'accounts', 'verifications', 'login_attempts', 'users'],

@@ -3,7 +3,13 @@ import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { authSchema, getAuthDb, closeAuthDb, createUser, setGrant, changePassword } from '@plant/auth-core';
 import { getBagDb, closeBagDb, bagSchema } from '@plant/bag-core';
-import { equipmentCodes, getEquipment, type Identity } from '@plant/contracts';
+import {
+  equipmentCodes,
+  getEquipment,
+  equipmentPositions,
+  positionKey,
+  type Identity,
+} from '@plant/contracts';
 
 const origin = process.env.PUBLIC_ORIGIN!;
 const email = `map-${randomUUID()}@example.test`;
@@ -143,7 +149,7 @@ test('active ages, compact detail workspace, inset selection and one recording a
     })}`,
   );
   await expect(kpi.locator('[data-age-range]')).toHaveText('7–1.678 hari');
-  await expect(kpi).toContainText('1 bag ≥900 hari');
+  await expect(kpi).toContainText('1 bag ≥1.260 hari');
   const latestYear = new Date(now - (7 + 86370 / 86400) * day + 7 * 3600000).getUTCFullYear();
   await expect(annual.locator('[data-replacement-total]')).toHaveText(`${latestYear === year ? 1 : 0} bag`);
   await expect(annual.locator('[data-previous-replacements]')).toContainText(
@@ -247,7 +253,7 @@ test('active ages, compact detail workspace, inset selection and one recording a
   await coordinate.click();
   await expect(page.locator('.overview-title[aria-current="true"]')).toHaveText('Comp. 15B');
   await expect(page.locator('#position-history')).toContainText('Comp. 15B H1');
-  await page.getByRole('button', { name: /900\+ hari/ }).click();
+  await page.getByRole('button', { name: /≥ 1260 hari/ }).click();
   await expect(kpi.locator('[data-age-range]')).toHaveText('8–1.678 hari');
 });
 
@@ -742,4 +748,115 @@ test('map adapts to sidebar width and orientation changes without stale scroll c
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator('.overview-scroll-tools')).toBeVisible({ visible: width < 1440 });
   }
+});
+
+test('210-day age spectrum keeps seven categories, exact filters and matching dashboard distribution', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  await login(page);
+  const code = 'L62-BF1',
+    config = getEquipment(code)!;
+  const state = await (await page.request.get(`/bag-filter/api/equipment/${code}/state`)).json();
+  const occupied = new Set(state.positions.map(positionKey));
+  const available = equipmentPositions(config).filter((p) => !occupied.has(positionKey(p)));
+  const side = available[0].side,
+    compartment = available[0].compartment;
+  const positions = available.filter((p) => p.side === side && p.compartment === compartment).slice(0, 14);
+  expect(positions).toHaveLength(14);
+  const ages = [
+    0,
+    209 * 24 + 23,
+    210 * 24,
+    419 * 24 + 23,
+    420 * 24,
+    629 * 24 + 23,
+    630 * 24,
+    839 * 24 + 23,
+    840 * 24,
+    1049 * 24 + 23,
+    1050 * 24,
+    1259 * 24 + 23,
+    1260 * 24,
+    1678 * 24,
+  ];
+  const labels = [
+    '0–209 hari',
+    '210–419 hari',
+    '420–629 hari',
+    '630–839 hari',
+    '840–1049 hari',
+    '1050–1259 hari',
+    '≥ 1260 hari',
+  ];
+  const colors = [
+    'rgb(143, 203, 47)',
+    'rgb(189, 214, 46)',
+    'rgb(235, 213, 47)',
+    'rgb(247, 179, 43)',
+    'rgb(244, 134, 42)',
+    'rgb(230, 90, 42)',
+    'rgb(207, 46, 46)',
+  ];
+  const now = Date.now();
+  for (const [index, hours] of ages.entries()) {
+    const response = await page.request.post(`/bag-filter/api/equipment/${code}/batches`, {
+      headers: { origin, 'Idempotency-Key': randomUUID() },
+      data: {
+        equipmentCode: code,
+        positions: [positions[index]],
+        installedAt: new Date(now - hours * 3600000).toISOString(),
+        brand: 'Filtras',
+        reason: '210-day browser fixture',
+      },
+    });
+    expect(response.status()).toBe(201);
+  }
+  await page.goto('/bag-filter/equipment/l62-bf1');
+  if (side !== 'Timur' || compartment !== 1) {
+    const label = config.sides.find((s) => s.name === side)!.labels[compartment - 1];
+    await page.getByRole('combobox', { name: 'Kompartemen', exact: true }).click();
+    await page.getByRole('option', { name: `Comp. ${label}`, exact: true }).click();
+  }
+  for (const [index, label] of labels.entries()) {
+    const filter = page.locator('.age-buckets').getByRole('button', { name: label, exact: true });
+    await expect(filter).toHaveText(index === labels.length - 1 ? label : label.replace(' hari', ''));
+    await filter.click();
+    await expect(filter).toHaveAttribute('aria-pressed', 'true');
+    for (const [positionIndex, position] of positions.entries()) {
+      const cell = page.locator(`.bag-grid [data-position-key="${positionKey(position)}"]`);
+      await expect(cell).toHaveCSS('opacity', Math.floor(positionIndex / 2) === index ? '1' : '0.25');
+      if (positionIndex < 12) await expect(cell).not.toHaveClass(/is-old/);
+      else await expect(cell).toHaveClass(/is-old/);
+      if (positionIndex === index * 2) await expect(cell).toHaveCSS('background-color', colors[index]);
+    }
+    await filter.click();
+  }
+  for (const theme of ['light', 'dark'])
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate((value) => {
+        localStorage.setItem('plant-ui-theme', value);
+        dispatchEvent(
+          new StorageEvent('storage', { key: 'plant-ui-theme', newValue: value, storageArea: localStorage }),
+        );
+      }, theme);
+      await page
+        .locator('.age-legend')
+        .screenshot({ path: `test-results/age-spectrum-${theme}-${width}.png` });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const label of labels)
+        await expect(
+          page.locator('.age-buckets').getByRole('button', { name: label, exact: true }),
+        ).toBeVisible();
+    }
+  await page.goto('/bag-filter');
+  const distribution = page.locator('.distribution-legend');
+  for (const [index, label] of labels.entries())
+    await expect(
+      distribution.getByText(index === labels.length - 1 ? label : label.replace(' hari', ''), {
+        exact: true,
+      }),
+    ).toBeVisible();
+  await expect(page.locator('.equipment-card').first()).toContainText('Skala 0–1.260+ hari');
 });

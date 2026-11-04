@@ -1,5 +1,40 @@
 # Hasil validasi implementasi v2
 
+## Label legenda umur ringkas — 4 November 2026
+
+Peta dan distribusi dashboard memakai label **0–209**, **210–419**, **420–629**, **630–839**, **840–1049**, **1050–1259**, **≥ 1260 hari**. Peta tetap mempunyai **Belum tercatat**. Nama aksesibel filter mempertahankan satuan hari pada setiap rentang. Batas kategori, warna, KPI dan data tidak berubah.
+
+Typecheck root/empat aplikasi, format dan whitespace lulus. Preview browser development **6 kombinasi** terang/gelap × 320/390/1440 px memverifikasi label peta/distribusi, nama aksesibel, toggle filter dan tidak adanya overflow halaman; screenshot legenda ditinjau. Rentang angka tetap dalam satu baris dan kolom legenda menyesuaikan ruang mobile. Tidak membuat transaksi. Bukti privat: `.deploy/dev/compact-age-labels/`. Build produksi dan suite integrasi tidak diulang untuk perubahan label ini; hasil spektrum pada bagian berikut tetap merupakan pemeriksaan tahap sebelumnya.
+
+## Spektrum umur 210 hari dan perhatian ≥1.260 hari — 4 November 2026
+
+Tujuh kategori diubah menjadi **0–209, 210–419, 420–629, 630–839, 840–1049, 1050–1259, dan 1260+ hari**. Warna tetap continuous dengan tujuh stop existing; merah dijenuhkan mulai 1.260 hari. Metadata keenam equipment, legenda, filter, distribusi dashboard, KPI dan penanda sudut memakai batas baru. Sesuai pilihan pemilik, ambang perhatian ikut menjadi ≥1.260 hari. API menambah `older1260` pada ringkasan dan per-equipment; `older900` dipertahankan untuk kompatibilitas pembaca lama, bukan untuk UI saat ini.
+
+Pemeriksaan aktual: **29/29 unit test**, typecheck root/empat aplikasi, **44/44 integrasi MySQL**, build standalone Bag Filter/Portal, serta **2/2 browser test terfokus melalui HTTPS** lulus. Unit menguji semua batas kategori dan satu jam sebelum batas, stop warna, saturasi, keenam metadata equipment dan kontras teks ≥4,5:1 pada setiap jam skala 0–1.260 hari. Integrasi memverifikasi 14 pemasangan pada kedua ujung tujuh kategori, distribusi tepat, serta jumlah perhatian ≥1.260 hari. Regresi pencatatan/pembatalan dan autentikasi termasuk dalam suite integrasi.
+
+Browser memeriksa filter setiap kategori, opacity 14 sel, warna stop, notch sebelum/pada 1.260 hari, legenda/distribusi, serta KPI umur aktual pada desktop/mobile dan kedua tema. Empat screenshot legenda 390/1440 px ditinjau. Bukti privat: `.deploy/map-mobile/age-210-qa/` dan log build `build-age-210-final-*.log`. Seluruh container/volume/jaringan QA dibersihkan.
+
+Preview development lokal juga lulus: enam konfigurasi equipment memakai 1.260 hari, tujuh kategori tampil dan KPI dashboard memakai ≥1.260 hari; tidak membuat transaksi. Penyesuaian spektrum tidak menambah migrasi atau mengubah riwayat. Migrasi pembatalan `0003` dari pekerjaan sebelumnya tetap bagian rilis terpisah yang harus diterapkan saat deployment. Belum ada commit/push atau pembaruan VPS untuk perubahan ini.
+
+## Pembatalan record Bag Filter — 4 November 2026
+
+Fitur pembatalan seluruh batch khusus admin Bag Filter dalam scope telah diimplementasikan lokal. Migrasi aditif `0003_batch_cancellations` mempertahankan seluruh batch/pemasangan/hash asli. Pembatalan dan audit atomik; pembatalan dikeluarkan sebelum ranking snapshot dan penghitungan masa pakai. History/deep link tetap menampilkan status/alasan/pembatal/waktu; KPI, grafik, aktivitas dan discovery hanya menghitung record sah.
+
+Pemeriksaan aktual:
+
+- Typecheck root dan keempat aplikasi lulus; **29/29 unit test** lulus pada Node 26.12.1.
+- Keempat aplikasi berhasil dibangun sebagai image standalone. Bag Filter dibangun ulang pada keadaan akhir setelah perbaikan replay agar tidak memakai koneksi pool bertingkat.
+- **43/43 pengujian integrasi MySQL** lulus pada instance/volume baru tanpa port host: termasuk kasus salah equipment 3 bag, pemulihan brand/tanggal sebelumnya, pembatalan pertama/tengah/terbaru/waktu sama, batch 500 posisi, pagination, izin, replay/konflik, dua admin bersamaan, rollback audit, migrasi ulang, serta 24 retry bersamaan melebihi ukuran pool.
+- **10 regresi browser existing Bag Filter** lulus: pemilihan 450, batas 500/501, Undo, enam peta, orientasi/stiffener, geometri, sidebar/resize, dropdown dan tooltip sentuh/mouse/keyboard.
+- **2/2 browser test pembatalan** lulus melalui gateway HTTPS dan image produksi pada lingkungan baru. Dialog ditinjau pada 320/390/1440 px dalam dua tema; Escape/fokus, alasan wajib, respons hilang setelah commit, replay key yang sama, refresh gagal, draft/pilihan tetap tersimpan, timeline/audit, API langsung, origin/identitas palsu, role/scope dan pencabutan grant diuji.
+- **Backup/restore tiga database lulus** pada MySQL terpisah dengan fixture batch yang benar-benar dibatalkan. Fingerprint seluruh tabel, schema, PK, jumlah dan SHA data persis sama; `batch_cancellations` ikut diverifikasi dengan isi, bukan hanya tabel kosong. Container, volume dan jaringan QA dibersihkan.
+- Migrasi pada `plant-v2-dev` lokal di loopback 14306 lulus setelah backup privat. Fingerprint seluruh tabel lama identik kecuali penambahan entry journal migrasi; tabel baru kosong. Tidak ada batch lokal yang dibatalkan otomatis.
+- Preview development setelah migrasi: login/SSO, Portal, Bag Filter, Consumables, detail equipment dan API snapshot/history memberi 200. Tidak membuat/membatalkan transaksi; hanya sesi login pengujian yang dibuat lalu diakhiri.
+
+Bukti privat: `.deploy/map-mobile/cancellation-qa/` untuk regresi existing dan `.deploy/map-mobile/cancellation-final-qa/` untuk 43 integrasi, dua browser pembatalan, enam screenshot dialog dan fingerprint restore. Run awal browser menemukan selector tes yang juga mencocokkan announcer aksesibilitas Next.js; selector diperbaiki, lalu kedua tes pembatalan lulus pada run akhir. Unit test awal diblokir `spawn EPERM` oleh sandbox dan lulus setelah dijalankan dengan izin proses yang sesuai. Pengaman tes lama localhost:13306 dipenuhi memakai proxy loopback di container QA, tanpa membuka port atau mengubah guard.
+
+VPS dan database arsip beku tidak disentuh. Pembaruan produksi, commit dan push belum dilakukan untuk perubahan ini. Runbook melarang rollback ke pembaca lama setelah pembatalan pertama karena pembaca tersebut belum mengecualikan record batal.
+
 ## Penyesuaian akhir sebelum commit — 4 November 2026
 
 Penyesuaian lokal pengguna dipertahankan: delay tooltip **400 ms per koordinat**, tanpa percepatan antar-sel; suffix WIB pada tooltip tanggal pembaruan dihapus; scroll daftar pekerjaan dapat diteruskan ke halaman. Dokumentasi tema memakai nilai 400 ms. Catatan 500 ms di bawah merupakan hasil tahap sebelumnya.

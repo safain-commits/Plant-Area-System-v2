@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import { ageStops, bagBrands, formatDate } from '@plant/contracts';
+import { ageStops, bagBrands, formatDate, bagAgeScaleDays } from '@plant/contracts';
 import { Select } from './fields';
 import { Icon } from './icon';
 type Data = {
@@ -10,9 +10,9 @@ type Data = {
   total: number;
   installed: number;
   neverInstalled: number;
-  older900: number;
+  older1260: number;
   distribution: number[];
-  perEquipment: { code: string; total: number; installed: number; older900: number }[];
+  perEquipment: { code: string; total: number; installed: number; older1260: number }[];
   series: { quarter: number; label: string; total: number; brands: Record<string, number> }[];
   periodTotal: number;
   previousTotal: number;
@@ -255,11 +255,11 @@ export function Dashboard() {
             {[
               ['Total posisi', data.total],
               ['Belum tercatat', data.neverInstalled],
-              ['Umur ≥ 900 hari', data.older900],
+              [`Umur ≥ ${n(bagAgeScaleDays)} hari`, data.older1260],
             ].map(([label, value]) => (
               <article className="metric-block" key={label}>
                 <span>{label}</span>
-                <strong className={label === 'Umur ≥ 900 hari' ? 'negative-text' : ''}>
+                <strong className={label === `Umur ≥ ${n(bagAgeScaleDays)} hari` ? 'negative-text' : ''}>
                   <AnimatedNumber value={Number(value)} />
                 </strong>
                 <small>Dalam cakupan Anda</small>
@@ -329,8 +329,9 @@ export function Dashboard() {
                 <div key={stop.days}>
                   <i style={{ background: stop.color }} />
                   <span>
-                    {stop.days}
-                    {i === 6 ? '+' : `–${ageStops[i + 1].days - 1}`} hari
+                    {i === ageStops.length - 1
+                      ? `≥ ${stop.days} hari`
+                      : `${stop.days}–${ageStops[i + 1].days - 1}`}
                   </span>
                   <strong>{n(data.distribution[i])}</strong>
                 </div>

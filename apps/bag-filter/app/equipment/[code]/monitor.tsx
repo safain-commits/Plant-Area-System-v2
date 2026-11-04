@@ -4,14 +4,17 @@ import { OverviewMap } from './overview-map';
 import { activeAgeSummary } from './age-summary';
 import { BulkSelection } from './bulk-selection';
 import { CoordinateHistory, type TimelineItem } from './coordinate-history';
+import { BatchCancellationDialog, CancellationNotice, type BatchRecord } from './batch-cancellation';
 import { compartmentOptions, groupSelection, initialSelection, selectionReducer } from './selection';
 import {
   ageHours,
   ageStops,
   ageBucket,
+  bagAgeScaleDays,
   bagColor,
   bagBrands,
   type BagBrand,
+  type BatchCancellation,
   displayCompartment,
   rowOrder,
   rowDividerBefore,
@@ -45,17 +48,7 @@ type Snapshot = {
   updatedAt: string | null;
   yearlyReplacements: { year: number; total: number; previousYear: number; previousTotal: number };
 };
-type Batch = {
-  brand: BagBrand | null;
-  id: string;
-  installedAt: string;
-  createdAt: string;
-  reason: string;
-  wo: string;
-  actorName: string;
-  positionCount: number;
-  positions: Position[];
-};
+type Batch = BatchRecord;
 type Page<T> = { items: T[]; nextCursor: string | null };
 async function read<T>(url: string, signal?: AbortSignal): Promise<T> {
   const r = await fetch(url, { cache: 'no-store', signal });
@@ -66,10 +59,12 @@ async function read<T>(url: string, signal?: AbortSignal): Promise<T> {
 export default function BagMonitor({
   initial,
   writable,
+  cancellable,
   initialBatch = '',
 }: {
   initial: Snapshot;
   writable: boolean;
+  cancellable: boolean;
   initialBatch?: string;
 }) {
   const [data, setData] = useState(initial),
@@ -109,6 +104,9 @@ export default function BagMonitor({
     suppressClick = useRef(false);
   const retry = useRef<{ key: string; payload: string } | null>(null);
   const recordButton = useRef<HTMLButtonElement>(null);
+  const [cancelTarget, setCancelTarget] = useState<Batch | null>(null);
+  const cancelTrigger = useRef<HTMLButtonElement>(null);
+  const historyHeading = useRef<HTMLHeadingElement>(null);
   const inputMode = useRef('keyboard');
   const tooltipId = useId();
   const latest = useMemo(() => new Map(data.positions.map((p) => [positionKey(p), p])), [data.positions]);
@@ -127,6 +125,25 @@ export default function BagMonitor({
     setNow(Date.parse(result.serverTime));
     setRevision((r) => r + 1);
   }, [base]);
+  function cancelled(batchId: string, cancellation: BatchCancellation) {
+    setHistory((old) => ({
+      ...old,
+      items: old.items.map((item) =>
+        item.id === batchId ? { ...item, status: 'cancelled', cancellation } : item,
+      ),
+    }));
+    setTimeline((old) => ({
+      ...old,
+      items: old.items.map((item) =>
+        item.batchId === batchId ? { ...item, status: 'cancelled', cancellation } : item,
+      ),
+    }));
+    setCancelTarget(null);
+    setNotice('Record sudah dibatalkan. Riwayat dan jejak audit tetap tersimpan.');
+    setError('');
+    requestAnimationFrame(() => historyHeading.current?.focus({ preventScroll: true }));
+    void reload().catch(() => setError('Record sudah dibatalkan, tetapi tampilan belum diperbarui.'));
+  }
   useEffect(() => {
     const abort = new AbortController();
     const timer = setTimeout(() => {
@@ -393,7 +410,7 @@ export default function BagMonitor({
         <span
           className="badge"
           data-equipment-updated
-          title={data.updatedAt ? `Pencatatan terakhir: ${formatDate(data.updatedAt)}` : undefined}
+          title={data.updatedAt ? `Pembaruan terakhir: ${formatDate(data.updatedAt)}` : undefined}
         >
           {data.updatedAt ? (
             <>
@@ -451,13 +468,14 @@ export default function BagMonitor({
             ) : (
               <>
                 {ages.min !== ages.max && <>{ages.min.toLocaleString('id-ID')}–</>}
-                <span data-old={ages.max >= 900}>{ages.max.toLocaleString('id-ID')}</span> <small>hari</small>
+                <span data-old={ages.max >= bagAgeScaleDays}>{ages.max.toLocaleString('id-ID')}</span>{' '}
+                <small>hari</small>
               </>
             )}
           </strong>
           <small>
             {ages.recorded
-              ? `Termuda–tertua · ${ages.old.toLocaleString('id-ID')} bag ≥900 hari`
+              ? `Termuda–tertua · ${ages.old.toLocaleString('id-ID')} bag ≥${bagAgeScaleDays.toLocaleString('id-ID')} hari`
               : 'Belum ada pemasangan tercatat'}
           </small>
         </article>
@@ -491,11 +509,19 @@ export default function BagMonitor({
                 type="button"
                 key={stop.days}
                 aria-pressed={bucket === i}
+                aria-label={
+                  i === ageStops.length - 1
+                    ? `≥ ${stop.days} hari`
+                    : `${stop.days}–${ageStops[i + 1].days - 1} hari`
+                }
                 onClick={() => setBucket((v) => (v === i ? null : i))}
               >
                 <i style={{ background: stop.color }} />
-                {stop.days}
-                {i === 6 ? '+' : '–' + (ageStops[i + 1].days - 1)} hari
+                <span className="age-range-label">
+                  {i === ageStops.length - 1
+                    ? `≥ ${stop.days} hari`
+                    : `${stop.days}–${ageStops[i + 1].days - 1}`}
+                </span>
               </button>
             ))}
             <button
@@ -555,7 +581,7 @@ export default function BagMonitor({
                               return (
                                 <button
                                   key={c}
-                                  className={`overview-cell${age !== null && age >= 21600 ? ' is-old' : ''}`}
+                                  className={`overview-cell${age !== null && age >= bagAgeScaleDays * 24 ? ' is-old' : ''}`}
                                   data-position-key={key}
                                   tabIndex={-1}
                                   style={{
@@ -773,7 +799,7 @@ export default function BagMonitor({
                           <button
                             key={c}
                             type="button"
-                            className={`bag-cell${age === null ? ' is-empty' : age >= 21600 ? ' is-old' : ''}`}
+                            className={`bag-cell${age === null ? ' is-empty' : age >= bagAgeScaleDays * 24 ? ' is-old' : ''}`}
                             data-position-key={key}
                             data-column={c + 1}
                             data-row={row}
@@ -1017,7 +1043,9 @@ export default function BagMonitor({
               <div className="section-head">
                 <div>
                   <p className="eyebrow">RECORD PENGGANTIAN</p>
-                  <h2>Riwayat pekerjaan</h2>
+                  <h2 ref={historyHeading} tabIndex={-1}>
+                    Riwayat pekerjaan
+                  </h2>
                 </div>
                 <span className="badge">{history.items.length} batch</span>
               </div>
@@ -1055,7 +1083,7 @@ export default function BagMonitor({
                   tabIndex={0}
                 >
                   {history.items.map((batch) => (
-                    <article className="history-item" key={batch.id}>
+                    <article className="history-item" key={batch.id} data-batch-id={batch.id}>
                       <span className="history-count">{batch.positionCount}</span>
                       <div>
                         <strong>
@@ -1068,6 +1096,21 @@ export default function BagMonitor({
                         <small>
                           {batch.actorName} · dicatat {formatDate(batch.createdAt)} WIB
                         </small>
+                        {batch.cancellation && <CancellationNotice cancellation={batch.cancellation} />}
+                        {cancellable && batch.status === 'active' && (
+                          <button
+                            type="button"
+                            className="ghost small cancel-record-action"
+                            disabled={busy}
+                            onClick={(event) => {
+                              cancelTrigger.current = event.currentTarget;
+                              leaveHover();
+                              setCancelTarget(batch);
+                            }}
+                          >
+                            Batalkan record
+                          </button>
+                        )}
                         <div className="coordinate-links">
                           {batch.positions.slice(0, 12).map((p) => (
                             <button
@@ -1137,8 +1180,23 @@ export default function BagMonitor({
         </div>
       </div>
       {writable && selected.length > 0 && <div className="selection-spacer" aria-hidden="true" />}
+      <BatchCancellationDialog
+        batch={cancelTarget}
+        equipment={eq}
+        anchor={cancelTrigger}
+        onClose={() => setCancelTarget(null)}
+        onCancelled={cancelled}
+        onConflict={() => {
+          void reload().catch(() => setError('Riwayat belum dapat diperbarui. Muat ulang data.'));
+        }}
+      />
       {writable && selected.length > 0 && (
-        <div className="selection-bar" role="region" aria-label="Pilihan bag" hidden={sheetOpen || bulkOpen}>
+        <div
+          className="selection-bar"
+          role="region"
+          aria-label="Pilihan bag"
+          hidden={sheetOpen || bulkOpen || !!cancelTarget}
+        >
           <strong>{selected.length} posisi dipilih</strong>
           <button type="button" className="ghost" disabled={busy} onClick={clearSelection}>
             Bersihkan semua
@@ -1166,6 +1224,7 @@ export default function BagMonitor({
       {hovered &&
         !sheetOpen &&
         !bulkOpen &&
+        !cancelTarget &&
         (() => {
           const installed = latest.get(positionKey(hovered.position)),
             hours = ageHours(installed?.installedAt || null, now);

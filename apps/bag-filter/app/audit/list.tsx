@@ -7,7 +7,8 @@ type Event = {
   equipmentCode: string;
   actorName: string;
   createdAt: string;
-  details: { count: number; wo: string; brand?: string };
+  action: string;
+  details: { count: number; wo: string; brand?: string; reason?: string };
 };
 export default function AuditList() {
   const [items, setItems] = useState<Event[]>([]),
@@ -49,6 +50,7 @@ export default function AuditList() {
               <th>Waktu WIB</th>
               <th>Equipment</th>
               <th>Pencatat</th>
+              <th>Tindakan / alasan</th>
               <th>Bag</th>
               <th>WO</th>
               <th>Brand/Pabrikan</th>
@@ -61,6 +63,10 @@ export default function AuditList() {
                 <td>{formatDate(e.createdAt)}</td>
                 <td>{e.equipmentCode}</td>
                 <td>{e.actorName}</td>
+                <td>
+                  {e.action === 'bag.batch_cancelled' ? 'Pembatalan record' : 'Pencatatan penggantian'}
+                  {e.details.reason && <small className="audit-reason">{e.details.reason}</small>}
+                </td>
                 <td>{e.details.count}</td>
                 <td>{e.details.wo || 'Tanpa WO'}</td>
                 <td>{e.details.brand || 'Belum tercatat'}</td>

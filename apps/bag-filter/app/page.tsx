@@ -42,7 +42,7 @@ export default async function BagFilter() {
                   <i style={{ background: 'var(--success-text)' }} />
                   Umur otomatis 24/7
                 </span>
-                <span>Skala 0–900 hari</span>
+                <span>Skala 0–{e.colorScaleDays.toLocaleString('id-ID')}+ hari</span>
               </div>
             </a>
           ))}

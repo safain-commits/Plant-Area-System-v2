@@ -38,6 +38,14 @@ Gateway memakai resolver DNS Docker `127.0.0.11` dengan cache 5 detik, upstream 
 
 Jika dashboard menampilkan kesalahan JSON berawalan `<!DOCTYPE` atau halaman aplikasi memuat aset milik aplikasi lain, periksa routing terlebih dahulu: API seharusnya mengembalikan `application/json`, halaman dan aset seharusnya mengikuti prefix aplikasinya. Healthcheck container saja tidak membuktikan routing gateway benar. Verifikasi sesi/grant melalui Auth; jangan menambahkan role untuk menutupi kesalahan routing.
 
+## Upgrade pembatalan record Bag Filter
+
+Rilis pembatalan memerlukan migrasi aditif **Bag Filter `0003_batch_cancellations`**; nomor ini terpisah dari migrasi `0003` Consumables. Ambil backup tiga database, catat SHA/image aktif, aktifkan maintenance dan hentikan akses aplikasi selama migrasi. Jalankan migrator dari rilis baru memakai konfigurasi deployment yang sama, tanpa bootstrap, reset, atau impor ulang. Migrasi hanya menambah tabel pembatalan; batch, pemasangan, actor, hash dan audit lama dipertahankan.
+
+Deploy keempat aplikasi yang memakai kontrak izin bersama, lalu periksa readiness, SSO dan riwayat sebelum membuka maintenance. Verifikasi tombol pembatalan hanya bagi admin Bag Filter dalam scope. Uji transaksi buatan hanya pada lingkungan terisolasi; kesalahan record produksi ditinjau dan dibatalkan oleh admin melalui UI setelah rilis diterapkan. Panduan pengguna: [Pembatalan Bag Filter](BAG-FILTER-CANCELLATION.md).
+
+Backup mencakup tabel `batch_cancellations` secara otomatis. Restore drill harus membandingkan isi tabel tersebut beserta audit dan kondisi peta, bukan hanya jumlah batch/pemasangan. Snapshot database generik membaca seluruh tabel, termasuk tabel baru. Sesudah pembatalan pertama, **jangan rollback ke aplikasi lama yang belum memahami pembatalan**: query lama akan kembali menghitung record batal. Pertahankan tabel/data dan lakukan perbaikan maju atau gunakan image kompatibel; tidak ada down migration otomatis.
+
 ## Backup harian
 
 Sidecar backup membuat dump konsisten tiga database dengan `--single-transaction`, mengompres, memverifikasi gzip, lalu rename atomik. File selesai `backups/plant-YYYYMMDDTHHMMSSZ.sql.gz`; file sementara memakai `.tmp`. Retensi lokal14hari. File bersifat rahasia karena memuat hash akun dan sesi.

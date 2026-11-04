@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { AppError, equipment, ageBucket, ageHours, type EquipmentCode } from '@plant/contracts';
+import {
+  AppError,
+  equipment,
+  ageBucket,
+  ageHours,
+  bagAgeScaleDays,
+  type EquipmentCode,
+} from '@plant/contracts';
 import { getBagDb } from './database';
 
 const allowed = (codes: EquipmentCode[]) => equipment.filter((e) => codes.includes(e.code));
@@ -21,7 +28,7 @@ export async function activity(codes: EquipmentCode[], query = '', limit = 12) {
     ? sql`AND (wo LIKE ${q} OR reason LIKE ${q} OR brand LIKE ${q} OR equipment_code LIKE ${q} OR id=${query.trim()})`
     : sql``;
   const [rows] = await getBagDb().execute(
-    sql`SELECT id,equipment_code AS equipmentCode,wo,reason,brand,position_count AS positionCount,actor_name AS actorName,installed_at AS installedAt,created_at AS createdAt FROM replacement_batches WHERE equipment_code IN (${scope(catalog.map((e) => e.code))}) ${filter} ORDER BY created_at DESC,id DESC LIMIT ${Math.min(50, Math.max(1, limit))}`,
+    sql`SELECT id,equipment_code AS equipmentCode,wo,reason,brand,position_count AS positionCount,actor_name AS actorName,installed_at AS installedAt,created_at AS createdAt FROM replacement_batches b WHERE equipment_code IN (${scope(catalog.map((e) => e.code))}) AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=b.id) ${filter} ORDER BY created_at DESC,id DESC LIMIT ${Math.min(50, Math.max(1, limit))}`,
   );
   return (
     rows as unknown as {
@@ -56,22 +63,25 @@ export async function dashboard(codes: EquipmentCode[], year: number, now = Date
     total: e.compartments * e.bagsPerCompartment,
     installed: 0,
     older900: 0,
+    older1260: 0,
   }));
   let previousTotal = 0;
   if (catalog.length) {
     const list = scope(catalog.map((e) => e.code));
     const [current] = await getBagDb().execute(
-      sql`SELECT equipment_code AS equipmentCode,installed_at AS installedAt FROM (SELECT equipment_code,installed_at,ROW_NUMBER() OVER(PARTITION BY equipment_code,side,compartment,col,row_no ORDER BY installed_at DESC,id DESC) AS rn FROM installations WHERE equipment_code IN (${list})) r WHERE rn=1`,
+      sql`SELECT equipment_code AS equipmentCode,installed_at AS installedAt FROM (SELECT equipment_code,installed_at,ROW_NUMBER() OVER(PARTITION BY equipment_code,side,compartment,col,row_no ORDER BY installed_at DESC,id DESC) AS rn FROM installations i WHERE equipment_code IN (${list}) AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=i.batch_id)) r WHERE rn=1`,
     );
     for (const p of current as unknown as { equipmentCode: EquipmentCode; installedAt: Date | string }[]) {
       const hours = ageHours(iso(p.installedAt), now)!;
       distribution[ageBucket(hours)]++;
       const target = perEquipment.find((e) => e.code === p.equipmentCode)!;
       target.installed++;
-      if (hours >= 21600) target.older900++;
+      // Preserve the legacy API field for older readers; current UI uses older1260.
+      if (hours >= 900 * 24) target.older900++;
+      if (hours >= bagAgeScaleDays * 24) target.older1260++;
     }
     const [history] = await getBagDb().execute(
-      sql`SELECT YEAR(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS year,QUARTER(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS quarter,brand,SUM(position_count) AS total FROM replacement_batches WHERE equipment_code IN (${list}) AND installed_at>=${new Date(start)} AND installed_at<${new Date(end)} AND installed_at<=${new Date(now + 60000)} GROUP BY year,quarter,brand ORDER BY year,quarter`,
+      sql`SELECT YEAR(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS year,QUARTER(DATE_ADD(installed_at,INTERVAL 7 HOUR)) AS quarter,brand,SUM(position_count) AS total FROM replacement_batches b WHERE equipment_code IN (${list}) AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=b.id) AND installed_at>=${new Date(start)} AND installed_at<${new Date(end)} AND installed_at<=${new Date(now + 60000)} GROUP BY year,quarter,brand ORDER BY year,quarter`,
     );
     for (const h of history as unknown as {
       year: number;
@@ -88,7 +98,8 @@ export async function dashboard(codes: EquipmentCode[], year: number, now = Date
   }
   const total = perEquipment.reduce((sum, e) => sum + e.total, 0),
     installed = perEquipment.reduce((sum, e) => sum + e.installed, 0),
-    older900 = perEquipment.reduce((sum, e) => sum + e.older900, 0);
+    older900 = perEquipment.reduce((sum, e) => sum + e.older900, 0),
+    older1260 = perEquipment.reduce((sum, e) => sum + e.older1260, 0);
   return {
     serverTime: new Date(now).toISOString(),
     year,
@@ -97,6 +108,7 @@ export async function dashboard(codes: EquipmentCode[], year: number, now = Date
     installed,
     neverInstalled: total - installed,
     older900,
+    older1260,
     distribution,
     perEquipment,
     series,

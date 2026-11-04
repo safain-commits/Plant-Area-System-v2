@@ -27,7 +27,7 @@ Grafik pemasangan menampilkan Q1–Q4 menurut tanggal pemasangan WIB, dengan pil
 | Admin portal        | Akun, status aplikasi, role, scope equipment, audit administrasi |
 | Viewer Bag Filter   | Peta, umur, history, timeline                                    |
 | Operator Bag Filter | Hak viewer + pemasangan/penggantian                              |
-| Admin Bag Filter    | Hak operator + audit aplikasi                                    |
+| Admin Bag Filter    | Hak operator + audit aplikasi + pembatalan batch dalam scope     |
 
 Semua operasi Bag Filter mengikuti scope equipment. Admin portal tidak otomatis mengabaikan scope. Bootstrap memiliki admin portal dan admin Bag Filter untuk enam equipment. Saat upgrade, hanya akun bootstrap dari audit `bootstrap.created` mendapat scope L61/L62 otomatis; pengguna lain diatur melalui Kelola akses. Admin aktif terakhir tidak boleh dinonaktifkan/dicabut perannya.
 
@@ -55,7 +55,7 @@ Total 18.784 posisi bag. Konfigurasi peta mengikuti equipment, dengan nomor bari
 `422-BF1` adalah kode yang benar; `422-BF2` hanya merupakan nama lama dalam audit baseline dan migrasi, bukan alias operasional. Upgrade mempertahankan ID, tanggal, actor, batch, serta posisi fisik transaksi; Utara/Selatan lama pada 421/422 menjadi A/B dengan nomor lokal dan indeks kolom tetap.
 
 - Tema netral light/dark sesuai UI refresh v2; seleksi overview memakai garis dua warna di dalam sel, detail memakai double ring dan tanda centang tanpa mengubah warna umur; posisi tanpa pemasangan abu-abu. Overview seluruh kompartemen, detail dengan target sentuh minimal 44 px dan scroll internal di mobile.
-- Umur berjalan 24/7 sejak pemasangan. Skala warna 0–900 hari, dijenuhkan setelah 900 hari; umur tampilan diperbarui setiap 60 detik.
+- Umur berjalan 24/7 sejak pemasangan. Skala warna memakai tujuh kategori berinterval 210 hari: 0–209, 210–419, 420–629, 630–839, 840–1049, 1050–1259, dan 1260+ hari. Gradasi dijenuhkan merah mulai 1.260 hari; umur tampilan diperbarui setiap 60 detik.
 - Satu batch: 1–500 posisi unik dalam satu equipment, boleh lintas kompartemen/sisi.
 - Detail dan Area bag memilih kompartemen langsung dari kedua sisi dalam satu dropdown: 1–24 pada 561/562, 1A–15A lalu 1B–15B pada 421/422, dan 1–16 pada L61/L62. Dropdown Sisi terpisah dihapus; orientasi dan identitas fisik tetap mengikuti konfigurasi equipment. Dropdown Bag Filter tidak mempunyai kolom pencarian; navigasi keyboard dan klik luar tetap tersedia.
 - Pemilihan cepat: beberapa kompartemen penuh atau area inklusif kolom/baris, digabung dengan pilihan individual tanpa duplikasi. Kapasitas 136/128 bag per kompartemen terlihat; checkbox yang membutuhkan bag baru melebihi sisa kuota dinonaktifkan secara proaktif. Kompartemen parsial dihitung dari posisi unik yang belum dipilih dan checkbox draft tetap dapat dibatalkan. Pratinjau jumlah wajib tersedia; penambahan di atas 500 ditolak seluruhnya. Tersedia Urungkan satu perubahan terakhir dan ringkasan per kompartemen sebelum penyimpanan. Pilihan hanya berada pada halaman aktif, belum menjadi transaksi sampai disimpan.
@@ -98,7 +98,15 @@ Kontrak HTTP lengkap ada di `API.md`. Payload batch: `equipmentCode`, `positions
 
 ## 6. Di luar rilis
 
-Approval transaksi, koreksi/pembatalan melalui UI, impor Sites/Excel, SAP, telemetry, mobile native, dan implementasi modul lain. Tidak ada data operasional lama yang dimigrasikan.
+Approval transaksi, edit/pembatalan sebagian, pemindahan equipment otomatis, impor Sites/Excel melalui UI, SAP, telemetry, mobile native, dan implementasi modul lain.
+
+### Pembatalan record penggantian
+
+Admin Bag Filter dapat membatalkan seluruh posisi dalam satu batch melalui **Riwayat pekerjaan → Batalkan record**, tetap mengikuti scope equipment. Alasan wajib 1–500 karakter. Viewer, operator, dan admin portal tanpa grant admin Bag Filter tidak dapat membatalkan.
+
+Batch dan pemasangan asli tetap tersimpan. Riwayat pekerjaan/koordinat menampilkan **Dibatalkan**, alasan, pembatal, serta waktu WIB; record batal tidak memiliki umur pemakaian atau status terpasang sekarang. Kondisi bag dihitung ulang dari pemasangan sah terbaru menurut tanggal pemasangan lalu ID. Bila tidak ada pemasangan sah, posisi kembali Belum tercatat. Pemasangan sah sesudah record yang dibatalkan tetap berlaku.
+
+Seluruh KPI, grafik, cakupan, distribusi umur, aktivitas dan pencarian operasional mengecualikan batch batal. Tanggal pembaruan equipment mencakup pencatatan maupun pembatalan. Pembatalan dan audit disimpan atomik dan idempoten; tidak ada penghapusan, pengaktifan kembali, atau pemindahan otomatis. Pilihan bag dan draft formulir tetap tersedia setelah pembatalan. Kesalahan equipment diselesaikan dengan membatalkan batch salah, lalu membuat pencatatan baru pada equipment yang benar.
 
 ## Referensi dokumentasi
 
@@ -114,9 +122,9 @@ Perluasan Consumable Room menjadi v1.1: satu stok R22 tanpa fitur lokasi, rak op
 
 ## Penyempurnaan equipment Bag Filter — 4 November 2026
 
-Alur halaman: lihat kondisi, pilih posisi, lalu catat penggantian. KPI **Umur bag aktif** menampilkan umur termuda–tertua dari pemasangan terkini seluruh posisi equipment, tanpa batas 900 hari. Umur yang sama ditampilkan sekali; tanpa pemasangan tampil **—**. Jumlah bag ≥900 hari memberi konteks perhatian. Perhitungan diperbarui setiap 60 detik dan tidak mengikuti filter legenda/kompartemen; skala warna tetap 0–900+ hari.
+Alur halaman: lihat kondisi, pilih posisi, lalu catat penggantian. KPI **Umur bag aktif** menampilkan umur termuda–tertua dari pemasangan terkini seluruh posisi equipment, tanpa pembatasan umur. Umur yang sama ditampilkan sekali; tanpa pemasangan tampil **—**. Jumlah bag ≥1.260 hari memberi konteks perhatian dan penanda sudut bag tua mengikuti ambang yang sama. Perhitungan diperbarui setiap 60 detik dan tidak mengikuti filter legenda/kompartemen; skala warna memakai tujuh kategori berinterval 210 hari sampai 1260+ hari.
 
-KPI **Kompartemen** juga memperlihatkan total bag dan bag per kompartemen, tanpa catatan rincian sisi. KPI kanan **Penggantian bag {tahun berjalan}** menghitung jumlah bag pada seluruh pencatatan pemasangan/penggantian equipment menurut tanggal pemasangan WIB, mengikuti grafik, dengan jumlah Januari–Desember tahun sebelumnya sebagai konteks. Catatan tanggal/WIB tidak ditampilkan pada kartu. Posisi yang diganti lebih dari sekali dihitung pada setiap kejadian; retry batch tidak menggandakan jumlah. Tahun berasal dari waktu server, tidak mengikuti filter legenda atau kompartemen. Cakupan posisi aktif tetap tersedia pada data snapshot dan dashboard. Header equipment menampilkan tanggal pencatatan terakhir secara ringkas, misalnya **Diperbarui 4 Nov 2026**, berdasarkan waktu simpan server, bukan tanggal pemasangan. Tanpa pencatatan tampil **Belum ada pembaruan**.
+KPI **Kompartemen** juga memperlihatkan total bag dan bag per kompartemen, tanpa catatan rincian sisi. KPI kanan **Penggantian bag {tahun berjalan}** menghitung jumlah bag pada pencatatan pemasangan/penggantian equipment yang masih sah menurut tanggal pemasangan WIB, mengikuti grafik, dengan jumlah Januari–Desember tahun sebelumnya sebagai konteks. Catatan tanggal/WIB tidak ditampilkan pada kartu. Posisi yang diganti lebih dari sekali dihitung pada setiap kejadian; retry batch tidak menggandakan jumlah. Tahun berasal dari waktu server, tidak mengikuti filter legenda atau kompartemen. Cakupan posisi aktif tetap tersedia pada data snapshot dan dashboard. Header equipment menampilkan tanggal pencatatan/pembatalan terakhir secara ringkas, misalnya **Diperbarui 4 Nov 2026**, berdasarkan waktu simpan server, bukan tanggal pemasangan. Tanpa pencatatan tampil **Belum ada pembaruan**.
 
 Kompartemen yang dibuka mempunyai bingkai dan penanda judul berbeda dari garis seleksi di dalam sel bag. Pada area kerja minimal 960 px, kartu detail selebar 520 px berada di kiri; Riwayat koordinat dan Riwayat pekerjaan berada di kanan. Pada ruang lebih sempit, ketiganya tersusun vertikal dengan lebar maksimal 520 px. Timeline dibatasi sekitar 320 px dan daftar pekerjaan 560 px, dengan pencarian serta pagination di luar area gulir.
 

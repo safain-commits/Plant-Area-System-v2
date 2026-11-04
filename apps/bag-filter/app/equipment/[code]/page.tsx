@@ -24,6 +24,7 @@ export default async function EquipmentPage({
           initialBatch={batch.slice(0, 200)}
           initial={await snapshot(code)}
           writable={hasPermission(identity, 'write', code)}
+          cancellable={hasPermission(identity, 'cancel', code)}
         />
       ) : (
         <section className="panel" style={{ marginTop: 30 }}>

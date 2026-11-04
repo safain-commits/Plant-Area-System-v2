@@ -123,14 +123,14 @@ test('coordinate validation respects each equipment layout', () => {
   assert.equal(replacementSchema.safeParse({ ...input, equipmentCode: '422-BF2' }).success, false);
   assert.equal(replacementSchema.safeParse({ ...input, equipmentCode: '421-BF1' }).success, false);
 });
-test('24/7 age and 0, 450, 900 and >900 day colors', () => {
+test('24/7 age and 0, 630, 1260 and >1260 day colors', () => {
   const now = Date.UTC(2026, 9, 22);
-  for (const days of [0, 450, 900, 1200])
+  for (const days of [0, 630, 1260, 1678])
     assert.equal(ageHours(new Date(now - days * 86400000).toISOString(), now), days * 24);
   assert.equal(ageHours(null), null);
   assert.equal(bagColor(null), 'var(--empty-bag)');
-  assert.notEqual(bagColor(0), bagColor(450 * 24));
-  assert.equal(bagColor(900 * 24), bagColor(1200 * 24));
+  assert.notEqual(bagColor(0), bagColor(630 * 24));
+  assert.equal(bagColor(1260 * 24), bagColor(1678 * 24));
 });
 test('WIB conversion and date boundary', () => {
   assert.equal(wibToIso('2026-10-22T07:30'), '2026-10-22T00:30:00.000Z');
@@ -174,12 +174,17 @@ test('permissions deny unknown roles, actions, equipment and temporary passwords
   };
   assert.equal(hasPermission(actor, 'read', '561-BF1'), true);
   assert.equal(hasPermission(actor, 'write', '561-BF1'), false);
+  assert.equal(hasPermission(actor, 'cancel', '561-BF1'), false);
   assert.equal(hasPermission(actor, 'read', '562-BF1'), false);
   actor.grants[0].role = 'operator';
   assert.equal(hasPermission(actor, 'write', '561-BF1'), true);
   assert.equal(hasPermission(actor, 'audit'), false);
+  assert.equal(hasPermission(actor, 'cancel', '561-BF1'), false);
   actor.grants[0].role = 'admin';
   assert.equal(hasPermission(actor, 'audit'), true);
+  assert.equal(hasPermission(actor, 'cancel', '561-BF1'), true);
+  assert.equal(hasPermission(actor, 'cancel', '562-BF1'), false);
+  assert.equal(hasPermission({ ...actor, grants: [] }, 'cancel', '561-BF1'), false);
   assert.equal(hasPermission(actor, 'delete' as 'read'), false);
   actor.grants[0].role = 'unknown' as 'viewer';
   assert.equal(hasPermission(actor, 'read'), false);

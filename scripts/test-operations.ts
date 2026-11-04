@@ -24,10 +24,14 @@ const delay = () => new Promise((r) => setTimeout(r, 1000));
 const client = await request.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
 const countsSql =
   'SELECT (SELECT COUNT(*) FROM plant_auth.users),(SELECT COUNT(*) FROM plant_auth.sessions),(SELECT COUNT(*) FROM plant_bag_filter.replacement_batches),(SELECT COUNT(*) FROM plant_bag_filter.installations),(SELECT COUNT(*) FROM plant_bag_filter.bag_audit),(SELECT COUNT(*) FROM plant_bag_filter.coordinates),(SELECT COUNT(*) FROM plant_consumables.materials),(SELECT COUNT(*) FROM plant_consumables.inventory),(SELECT COUNT(*) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.consumables_audit),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.inventory),(SELECT COALESCE(SUM(quantity),0) FROM plant_consumables.stock_movements),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),id,quantity,balance_after,actor_id))) FROM plant_consumables.stock_movements),(SELECT COUNT(*) FROM plant_consumables.locations),(SELECT COUNT(*) FROM plant_consumables.stock_idempotency),(SELECT COUNT(*) FROM plant_consumables.catalog_imports),(SELECT COUNT(*) FROM plant_auth.app_grants),(SELECT COUNT(*) FROM plant_consumables.stock_documents),(SELECT COUNT(*) FROM plant_consumables.stock_document_sequences),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),id,number,type,hec,line_count,actor_id))) FROM plant_consumables.stock_documents),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),type,year,`last_value`))) FROM plant_consumables.stock_document_sequences)';
+const persistedSql = countsSql.replace(
+  'SELECT ',
+  'SELECT (SELECT COUNT(*) FROM plant_bag_filter.batch_cancellations),(SELECT BIT_XOR(CRC32(CONCAT_WS(CHAR(31),batch_id,reason,actor_id,actor_name,cancelled_at,idempotency_key,request_hash))) FROM plant_bag_filter.batch_cancellations),',
+);
 const source = await mysql.createConnection(process.env.BAG_MIGRATION_DATABASE_URL!);
 let restored = false;
 try {
-  const [before] = await source.query<mysql.RowDataPacket[]>(countsSql);
+  const [before] = await source.query<mysql.RowDataPacket[]>(persistedSql);
   await docker([...compose, 'restart', 'mysql', 'bag-filter', 'consumables']);
   await source.end();
   let connection: mysql.Connection | undefined;
@@ -43,7 +47,7 @@ try {
     }
   }
   assert.ok(connection, 'MySQL must recover after restart');
-  const [after] = await connection.query<mysql.RowDataPacket[]>(countsSql);
+  const [after] = await connection.query<mysql.RowDataPacket[]>(persistedSql);
   await connection.end();
   assert.deepEqual(after, before);
   console.log(JSON.stringify({ event: 'test.restart_persistence', result: 'passed' }));
@@ -146,7 +150,7 @@ try {
     'plant-v2-test-restore',
     'bash',
     '-c',
-    `MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -B -e '${countsSql}'`,
+    `MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -B -e '${persistedSql}'`,
   ]);
   assert.deepEqual(result.stdout.trim().split('\t'), Object.values(before[0]).map(String));
   console.log(

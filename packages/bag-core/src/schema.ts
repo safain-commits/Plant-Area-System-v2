@@ -92,6 +92,21 @@ export const installations = mysqlTable(
     }),
   ],
 );
+export const batchCancellations = mysqlTable(
+  'batch_cancellations',
+  {
+    batchId: varchar('batch_id', { length: 36 })
+      .primaryKey()
+      .references(() => batches.id),
+    reason: varchar('reason', { length: 500 }).notNull(),
+    actorId: varchar('actor_id', { length: 36 }).notNull(),
+    actorName: varchar('actor_name', { length: 100 }).notNull(),
+    cancelledAt: datetime('cancelled_at', { fsp: 3, mode: 'date' }).notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+  },
+  (t) => [uniqueIndex('cancellation_actor_key_unique').on(t.actorId, t.idempotencyKey)],
+);
 export const bagAudit = mysqlTable(
   'bag_audit',
   {

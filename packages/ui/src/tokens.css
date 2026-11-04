@@ -38,12 +38,12 @@
   --gray-950: #0b0b0b;
   --gray-1000: #050505;
   --age-0: #8fcb2f;
-  --age-150: #bdd62e;
-  --age-300: #ebd52f;
-  --age-450: #f7b32b;
-  --age-600: #f4862a;
-  --age-750: #e65a2a;
-  --age-900: #cf2e2e;
+  --age-210: #bdd62e;
+  --age-420: #ebd52f;
+  --age-630: #f7b32b;
+  --age-840: #f4862a;
+  --age-1050: #e65a2a;
+  --age-1260: #cf2e2e;
   --radius-shell: 32px;
   --radius-card: 16px;
   --radius-overlay: 14px;
