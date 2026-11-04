@@ -1,5 +1,36 @@
 # Hasil validasi implementasi v2
 
+## Penyesuaian akhir sebelum commit — 4 November 2026
+
+Penyesuaian lokal pengguna dipertahankan: delay tooltip **400 ms per koordinat**, tanpa percepatan antar-sel; suffix WIB pada tooltip tanggal pembaruan dihapus; scroll daftar pekerjaan dapat diteruskan ke halaman. Dokumentasi tema memakai nilai 400 ms. Catatan 500 ms di bawah merupakan hasil tahap sebelumnya.
+
+Typecheck root, format dan whitespace lulus. Verifikasi browser lokal **4 kombinasi** terang/gelap × 390/1440 px lulus kembali untuk jeda hover, perpindahan sel, klik beruntun, keyboard dan sentuhan tanpa tooltip. Delapan pengukuran event-ke-tampilan tercatat sekitar **441–756 ms**, termasuk render development. Harness memblokir API tulis Bag Filter; tidak membuat transaksi. Bukti privat: `.deploy/dev/tooltip-delay-400/result.json`. Build produksi dan suite lengkap tidak diulang untuk penyesuaian akhir ini.
+
+## Jeda tooltip saat pemilihan beruntun — 4 November 2026
+
+Delay tooltip diatur **500 ms per koordinat**. Percepatan antar-tooltip dihapus; berpindah sel memulai timer baru. Pointer down, pemilihan lewat klik/keyboard, meninggalkan sel, gulir dan Escape menutup tooltip serta membatalkan timer. Tidak ada tooltip yang dibuka ulang otomatis setelah klik beruntun. Sentuhan tetap tanpa tooltip, dan informasi detail tetap pada Riwayat koordinat.
+
+Typecheck root dan Bag Filter, format serta whitespace lulus. Verifikasi browser development lokal **4 kombinasi** terang/gelap × 390/1440 px lulus: jeda awal dan perpindahan sel, klik beruntun, penutupan setelah klik, keyboard, serta tap sentuh pada 390 px. Delapan pengukuran event ke tampilan tooltip tercatat sekitar **548–850 ms**, termasuk waktu render browser development; tidak ada jalur tampil instan. Harness memblokir API tulis Bag Filter dan hanya mengubah pilihan di memori. Bukti privat: `.deploy/dev/tooltip-delay/result.json`. Waktu tunggu regresi tap pada tes existing diselaraskan ke 600 ms agar melewati delay baru. Build produksi dan suite terisolasi lengkap tidak diulang untuk penyetelan timer ini; tidak mengubah database atau VPS.
+
+## Penyederhanaan info sentuh ke Riwayat koordinat — 4 November 2026
+
+Sesuai evaluasi pengguna, bar ringkasan, tombol **Lihat info**, sheet informasi dan CSS/state pendukungnya dihapus. Panel **Riwayat koordinat** existing menjadi satu tempat informasi detail. Tap tetap memilih/membatalkan bag tanpa tooltip dan memperbarui koordinat/riwayat tanpa scroll otomatis. Hover mouse, fokus keyboard dan pembatalan timer tooltip sentuh dipertahankan; perubahan `touch-action: manipulation` dari workspace tetap utuh.
+
+Typecheck root dan Bag Filter, build produksi Bag Filter, format serta whitespace lulus. **2/2 tes browser terfokus lulus** pada build baru dan MySQL disposable: tap/select/batal, tidak ada tombol/sheet info tambahan, panel riwayat mengikuti posisi dengan umur/pabrikan, mouse pada viewport 390 px, sentuhan pada 1440 px, keyboard, swipe horizontal/vertikal tanpa memilih bag, serta viewer. Kedua tema dan enam equipment termasuk lebar 320 px diperiksa tanpa overflow. Screenshot grid mobile terang dan Riwayat koordinat mobile gelap ditinjau. Tes integrasi KPI existing pada harness yang sama juga lulus. Bukti privat: `.deploy/map-mobile/build-touch-history-bag-filter.log` dan `touch-history-qa/`. Resource QA dibersihkan. Tidak mengubah API/data perusahaan/VPS; suite lengkap tidak diulang untuk penghapusan UI duplikat ini. Catatan sheet pada bagian sebelumnya merupakan hasil tahap terdahulu dan digantikan penyederhanaan ini.
+
+## Tooltip mouse dan informasi bag pada layar sentuh — 4 November 2026
+
+Tap pada peta overview/detail tidak lagi membuka tooltip. Input sentuh/pen membatalkan timer hover sebelum fokus sel; tooltip hanya dibuka oleh hover mouse atau fokus keyboard. Ringkasan koordinat/umur dan tombol **Lihat info** tersedia pada perangkat sentuh, dengan ruang disiapkan sebelum tap pertama agar grid tidak bergeser. Tombol membuka sheet berisi umur aktif, pemasangan WIB, pabrikan dan riwayat. Riwayat memakai komponen bersama dengan panel existing, tanpa merender dua timeline bersamaan. Bilah pencatatan tersembunyi selama sheet info terbuka; penutupan mengembalikan fokus dan mempertahankan pilihan. Perubahan `touch-action: manipulation` yang sudah ada di workspace dipertahankan.
+
+Pemeriksaan aktual yang lulus:
+
+- Typecheck root dan Bag Filter, build standalone Bag Filter pada Node.js 26.12.1, format serta whitespace.
+- **5/5 tes browser HTTPS** pada build baru dan MySQL disposable. Tes baru memakai event sentuh native Chromium melalui CDP, menguji tap pilih/batal tanpa tooltip tertunda, ringkasan tanpa pergeseran grid, sheet info, fokus setelah Escape/tombol tutup, serta pilihan tetap utuh. Hover mouse tetap bekerja pada viewport 390 px dan sentuhan tetap bekerja pada 1440 px; fokus keyboard/Space/Escape juga diperiksa. Kedua tema dan enam equipment diuji, termasuk target 320 px tanpa overflow, serta akses viewer tanpa kontrol pencatatan.
+- Swipe horizontal pada grid detail dan scroll vertikal halaman tidak memilih bag. Regresi overview/keyboard, KPI/layout, pemilihan campuran 450 bag, respons save terputus/retry, Undo, batas 500/501 dan scope API tetap lulus.
+- Tes integrasi MySQL KPI existing **1/1 lulus** pada harness yang sama. Screenshot sheet mobile terang, ringkasan mobile gelap dan sheet desktop gelap ditinjau visual.
+
+Putaran awal menemukan selector tes mencocokkan fragmen streaming tersembunyi dan hover dijalankan sebelum pemuatan riwayat/scroll awal selesai. Harness diperbaiki dengan role region yang terlihat dan menunggu antarmuka siap sebelum hover; kelima tes lulus bersama pada putaran final. Bukti privat: `.deploy/map-mobile/build-touch-info-bag-filter.log`, `touch-info-qa/` (diagnosis awal) dan `touch-info-final-qa/` (hasil final, laporan, screenshot `touch-bag-*`). Resource QA sementara dibersihkan. Pengujian memakai Chromium dengan emulasi sentuh, bukan perangkat fisik iPhone/Android atau stylus. Tidak mengubah API, database perusahaan atau VPS. Unit test domain, suite browser lengkap dan build aplikasi lain tidak diulang untuk perubahan interaksi ini.
+
 ## Tanggal pembaruan ringkas pada header equipment — 4 November 2026
 
 Badge cakupan diganti menjadi **Diperbarui 4 Nov 2026**, berdasarkan waktu pencatatan batch terakhir pada equipment. Waktu simpan disediakan sebagai `updatedAt` (ISO UTC atau `null`) pada snapshot, terpisah dari tanggal pemasangan dan waktu halaman dimuat. Tanggal tampil dalam WIB; jam lengkap hanya pada tooltip. Tanpa batch tampil **Belum ada pembaruan**. Mobile tetap satu baris di bawah deskripsi, desktop di kanan; catatan KPI yang sebelumnya dihapus tetap tidak ditampilkan.

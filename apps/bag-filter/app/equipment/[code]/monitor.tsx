@@ -1,8 +1,9 @@
 'use client';
-import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import { OverviewMap } from './overview-map';
 import { activeAgeSummary } from './age-summary';
 import { BulkSelection } from './bulk-selection';
+import { CoordinateHistory, type TimelineItem } from './coordinate-history';
 import { compartmentOptions, groupSelection, initialSelection, selectionReducer } from './selection';
 import {
   ageHours,
@@ -54,16 +55,6 @@ type Batch = {
   actorName: string;
   positionCount: number;
   positions: Position[];
-};
-type TimelineItem = {
-  brand: BagBrand | null;
-  id: string;
-  installedAt: string;
-  endedAt: string | null;
-  createdAt: string;
-  reason: string;
-  wo: string;
-  actorName: string;
 };
 type Page<T> = { items: T[]; nextCursor: string | null };
 async function read<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -118,6 +109,8 @@ export default function BagMonitor({
     suppressClick = useRef(false);
   const retry = useRef<{ key: string; payload: string } | null>(null);
   const recordButton = useRef<HTMLButtonElement>(null);
+  const inputMode = useRef('keyboard');
+  const tooltipId = useId();
   const latest = useMemo(() => new Map(data.positions.map((p) => [positionKey(p), p])), [data.positions]);
   const ages = useMemo(() => activeAgeSummary(latest.values(), now), [latest, now]);
   const selectedKeys = useMemo(() => new Set(selected.map(positionKey)), [selected]);
@@ -242,25 +235,57 @@ export default function BagMonitor({
   }
   function hover(p: Position, el: HTMLElement) {
     clearTimeout(hoverTimer.current);
+    setHovered(null);
     const r = el.getBoundingClientRect();
     const target = {
       position: p,
       x: Math.max(8, Math.min(innerWidth - 280, r.right + 8)),
       y: Math.max(8, Math.min(innerHeight - 140, r.top - 16)),
     };
-    if (Date.now() < hoverWarmUntil.current) setHovered(target);
-    else hoverTimer.current = setTimeout(() => setHovered(target), 280);
+    hoverTimer.current = setTimeout(() => setHovered(target), 400);
   }
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
-    hoverWarmUntil = useRef(0);
-  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  function pointerHover(p: Position, event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== 'mouse' || event.buttons !== 0) {
+      leaveHover();
+      return;
+    }
+    inputMode.current = 'mouse';
+    hover(p, event.currentTarget);
+  }
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    function dismiss() {
+      clearTimeout(hoverTimer.current);
+      setHovered(null);
+    }
+    function pointer(event: PointerEvent) {
+      inputMode.current = event.pointerType;
+      dismiss();
+    }
+    function keyboard(event: KeyboardEvent) {
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(event.key)) return;
+      inputMode.current = 'keyboard';
+      if (event.key === 'Escape') dismiss();
+    }
+    document.addEventListener('pointerdown', pointer, true);
+    document.addEventListener('keydown', keyboard, true);
+    document.addEventListener('scroll', dismiss, true);
+    window.addEventListener('blur', dismiss);
+    return () => {
+      clearTimeout(hoverTimer.current);
+      document.removeEventListener('pointerdown', pointer, true);
+      document.removeEventListener('keydown', keyboard, true);
+      document.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('blur', dismiss);
+    };
+  }, []);
   function leaveHover() {
     clearTimeout(hoverTimer.current);
-    if (hovered) hoverWarmUntil.current = Date.now() + 600;
     setHovered(null);
   }
   function toggle(p: Position, event?: { shiftKey: boolean }) {
     if (busy || suppressClick.current) return;
+    leaveHover();
     focus(p);
     if (!writable) return;
     if (event?.shiftKey) {
@@ -327,6 +352,30 @@ export default function BagMonitor({
     }
   }
   const currentComp = displayCompartment({ side, compartment }, eq);
+  const coordinateHistory = (
+    <CoordinateHistory
+      items={timeline.items}
+      loading={timelineBusy}
+      error={timelineError}
+      hasPosition={!!focused}
+      hasMore={!!timeline.nextCursor && !!focused}
+      now={now}
+      onRetry={() => setRevision((v) => v + 1)}
+      onMore={async () => {
+        if (!focused || !timeline.nextCursor) return;
+        setTimelineBusy(true);
+        setTimelineError('');
+        try {
+          const next = await read<Page<TimelineItem>>(timelineUrl(focused, timeline.nextCursor));
+          setTimeline((old) => ({ items: [...old.items, ...next.items], nextCursor: next.nextCursor }));
+        } catch (e) {
+          setTimelineError((e as Error).message);
+        } finally {
+          setTimelineBusy(false);
+        }
+      }}
+    />
+  );
   return (
     <>
       <nav className="breadcrumbs">
@@ -344,7 +393,7 @@ export default function BagMonitor({
         <span
           className="badge"
           data-equipment-updated
-          title={data.updatedAt ? `Pencatatan terakhir: ${formatDate(data.updatedAt)} WIB` : undefined}
+          title={data.updatedAt ? `Pencatatan terakhir: ${formatDate(data.updatedAt)}` : undefined}
         >
           {data.updatedAt ? (
             <>
@@ -520,9 +569,7 @@ export default function BagMonitor({
                                         : 0.25,
                                   }}
                                   aria-label={`${display} ${letters[c]}${row}`}
-                                  onPointerEnter={(e) => {
-                                    if (e.pointerType !== 'touch') hover(p, e.currentTarget);
-                                  }}
+                                  onPointerEnter={(e) => pointerHover(p, e)}
                                   onPointerLeave={leaveHover}
                                   aria-pressed={picked}
                                   onClick={(event) => toggle(p, event)}
@@ -740,8 +787,10 @@ export default function BagMonitor({
                                   : -1
                             }
                             onKeyDown={(e) => cellKey(e, p)}
-                            onFocus={(e) => hover(p, e.currentTarget)}
-                            onPointerEnter={(e) => hover(p, e.currentTarget)}
+                            onFocus={(e) => {
+                              if (inputMode.current === 'keyboard') hover(p, e.currentTarget);
+                            }}
+                            onPointerEnter={(e) => pointerHover(p, e)}
                             onPointerLeave={leaveHover}
                             onBlur={leaveHover}
                             style={{
@@ -759,6 +808,9 @@ export default function BagMonitor({
                                   : 0.25,
                             }}
                             aria-pressed={picked}
+                            aria-describedby={
+                              hovered && positionKey(hovered.position) === key ? tooltipId : undefined
+                            }
                             aria-label={`Kolom ${letters[c]}, baris ${row}: ${age === null ? 'belum tercatat' : `${Math.floor(age / 24)} hari`}`}
                             onClick={(event) => toggle(p, event)}
                           >
@@ -773,7 +825,7 @@ export default function BagMonitor({
               </div>
             </div>
             <p className="fine" style={{ marginTop: 18 }}>
-              Koordinat bag. Umur tersedia saat diarahkan.{' '}
+              Arahkan mouse untuk info cepat; tap bag untuk memperbarui Riwayat koordinat.{' '}
               {writable
                 ? 'Gunakan Pilih banyak untuk kompartemen/area, atau klik ulang bag untuk menghapus pilihan. Desktop juga mendukung Shift+klik dan seret mouse.'
                 : 'Klik posisi untuk membaca riwayat.'}
@@ -959,71 +1011,7 @@ export default function BagMonitor({
             <section className="panel" id="position-history">
               <p className="eyebrow">RIWAYAT KOORDINAT</p>
               <h2>{focused ? `Comp. ${positionLabel(focused, eq)}` : 'Pilih satu posisi'}</h2>
-              {timelineError && (
-                <p className="notice error" role="alert">
-                  {timelineError}{' '}
-                  <button className="small secondary" onClick={() => setRevision((v) => v + 1)}>
-                    Coba lagi
-                  </button>
-                </p>
-              )}
-              {timelineBusy && !timeline.items.length ? (
-                <p className="loading-line">Memuat riwayat…</p>
-              ) : !focused ? (
-                <p className="empty">Pilih bag untuk melihat pemasangan dan masa pakainya.</p>
-              ) : !timeline.items.length ? (
-                <p className="empty">Belum ada catatan untuk posisi ini.</p>
-              ) : (
-                <div className="timeline" role="region" aria-label="Daftar riwayat koordinat" tabIndex={0}>
-                  {timeline.items.map((item) => {
-                    const hours = Math.max(
-                      0,
-                      Math.floor(
-                        ((item.endedAt ? Date.parse(item.endedAt) : now) - Date.parse(item.installedAt)) /
-                          3600000,
-                      ),
-                    );
-                    return (
-                      <article key={item.id}>
-                        <strong>{item.endedAt ? 'Pernah terpasang' : 'Terpasang sekarang'}</strong>
-                        <small>{formatDate(item.installedAt)} WIB</small>
-                        <small>Brand/Pabrikan: {item.brand || 'Belum tercatat'}</small>
-                        <strong className={!item.endedAt ? 'now' : ''}>
-                          {Math.floor(hours / 24).toLocaleString('id-ID')} hari
-                        </strong>
-                        <small>
-                          {item.wo || 'Tanpa WO'} · {item.reason}
-                        </small>
-                        <small>
-                          {item.actorName} · dicatat {formatDate(item.createdAt)} WIB
-                        </small>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-              {timeline.nextCursor && focused && (
-                <button
-                  className="secondary small"
-                  disabled={timelineBusy}
-                  onClick={async () => {
-                    setTimelineBusy(true);
-                    try {
-                      const next = await read<Page<TimelineItem>>(timelineUrl(focused, timeline.nextCursor));
-                      setTimeline((old) => ({
-                        items: [...old.items, ...next.items],
-                        nextCursor: next.nextCursor,
-                      }));
-                    } catch (e) {
-                      setTimelineError((e as Error).message);
-                    } finally {
-                      setTimelineBusy(false);
-                    }
-                  }}
-                >
-                  Riwayat sebelumnya
-                </button>
-              )}
+              {coordinateHistory}
             </section>
             <section className="panel" id="work-history">
               <div className="section-head">
@@ -1176,11 +1164,18 @@ export default function BagMonitor({
         />
       )}
       {hovered &&
+        !sheetOpen &&
+        !bulkOpen &&
         (() => {
           const installed = latest.get(positionKey(hovered.position)),
             hours = ageHours(installed?.installedAt || null, now);
           return (
-            <div className="bag-tooltip" role="tooltip" style={{ left: hovered.x, top: hovered.y }}>
+            <div
+              id={tooltipId}
+              className="bag-tooltip"
+              role="tooltip"
+              style={{ left: hovered.x, top: hovered.y }}
+            >
               <strong>Comp. {positionLabel(hovered.position, eq)}</strong>
               <small>{hours === null ? 'Belum tercatat' : Math.floor(hours / 24) + ' hari'}</small>
               {installed && (

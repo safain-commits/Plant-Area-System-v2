@@ -485,7 +485,162 @@ test('touch panning, keyboard and detail navigation preserve deliberate bag sele
   await page.locator('.bag-cell').first().click();
   await expect(page.locator('.selection-bar strong')).toHaveText('2 posisi dipilih');
   await page.goto('/bag-filter/equipment/l61-bf1');
-  await expect.poll(() => page.locator('.overview-viewport').evaluate((el) => el.scrollLeft)).toBe(0);
+  await expect
+    .poll(() =>
+      page
+        .getByRole('region', { name: 'Peta seluruh kompartemen L61-BF1', exact: true })
+        .evaluate((el) => el.scrollLeft),
+    )
+    .toBe(0);
+});
+
+test('touch selects without tooltips and the existing history preserves mouse, keyboard, scrolling and viewer access', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(180000);
+  await login(page);
+  const installedAt = new Date(Date.now() - 674 * 86400000).toISOString();
+  const response = await page.request.post('/bag-filter/api/equipment/421-BF1/batches', {
+    headers: { origin, 'Idempotency-Key': randomUUID() },
+    data: {
+      equipmentCode: '421-BF1',
+      positions: [{ side: 'A', compartment: 1, column: 1, row: 17 }],
+      installedAt,
+      reason: `Touch info ${userId}`,
+      brand: 'Filtras',
+    },
+  });
+  expect(response.status(), await response.text()).toBe(201);
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  async function tap(cell: ReturnType<Page['locator']>) {
+    await cell.scrollIntoViewIfNeeded();
+    const r = await cell.boundingBox();
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: r!.x + r!.width / 2, y: r!.y + r!.height / 2 }],
+    });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  const first = page.getByRole('main').locator('.bag-cell').first();
+  const second = page.getByRole('main').locator('.bag-cell').nth(1);
+  const tooltip = page.getByRole('tooltip');
+  const panel = page.getByRole('main').locator('#position-history');
+  for (const theme of ['light', 'dark']) {
+    await page.addInitScript((value) => localStorage.setItem('plant-ui-theme', value), theme);
+    for (const width of [390, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const historyReady = page.waitForResponse((res) => res.url().includes('/421-BF1/batches') && res.ok());
+      await page.goto('/bag-filter/equipment/421-bf1');
+      await historyReady;
+      await expect(page.getByRole('button', { name: 'Lihat info', exact: true })).toHaveCount(0);
+      await first.scrollIntoViewIfNeeded();
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      );
+      await page.mouse.move(0, 0);
+      await first.hover();
+      await expect(tooltip).toContainText('674 hari');
+      await expect(tooltip).toContainText('Filtras');
+      const before = await first.boundingBox();
+      await tap(first);
+      await expect(first).toHaveAttribute('aria-pressed', 'true');
+      await page.waitForTimeout(600); // Covers the 500 ms hover delay and focus produced by a native tap.
+      await expect(tooltip).toHaveCount(0);
+      await expect(panel.getByRole('heading')).toHaveText('Comp. 1A A17');
+      await expect(panel).toContainText('674 hari');
+      expect((await first.boundingBox())!.y).toBeCloseTo(before!.y, 1);
+      await tap(second);
+      await expect(page.locator('.selection-bar strong')).toHaveText('2 posisi dipilih');
+      await tap(first);
+      await expect(first).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+      await expect(panel).toContainText('Filtras');
+      await expect(page.getByRole('dialog', { name: /Info bag/ })).toHaveCount(0);
+      await second.focus();
+      await page.keyboard.press('ArrowLeft');
+      await expect(first).toBeFocused();
+      await expect(tooltip).toContainText('674 hari');
+      await page.keyboard.press('Escape');
+      await expect(tooltip).toHaveCount(0);
+      await page.keyboard.press('Space');
+      await expect(first).toHaveAttribute('aria-pressed', 'true');
+      await tap(second);
+      await expect(tooltip).toHaveCount(0);
+      await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+      if (width === 390) {
+        const scroll = page.locator('.bag-grid-scroll');
+        await scroll.evaluate((el) => {
+          el.scrollLeft = 0;
+        });
+        const box = await scroll.boundingBox();
+        const x = box!.x + box!.width - 35,
+          y = Math.max(100, box!.y + 90);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+        for (let i = 1; i <= 6; i++) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x: x - i * 18, y }],
+          });
+          await page.waitForTimeout(20);
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(() => scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(20);
+        await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+        const beforeY = await page.evaluate(() => scrollY);
+        const r = await scroll.boundingBox();
+        const touchY = Math.max(150, r!.y + 120);
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchStart',
+          touchPoints: [{ x: 180, y: touchY }],
+        });
+        for (let i = 1; i <= 6; i++) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x: 180, y: touchY - i * 16 }],
+          });
+          await page.waitForTimeout(20);
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(beforeY);
+        await expect(page.locator('.selection-bar strong')).toHaveText('1 posisi dipilih');
+        await expect(tooltip).toHaveCount(0);
+      }
+      await tap(first);
+      await expect(panel).toContainText('Filtras');
+      await page.locator('#bag-detail').screenshot({ path: `test-results/touch-grid-${theme}-${width}.png` });
+      await panel.screenshot({ path: `test-results/touch-coordinate-history-${theme}-${width}.png` });
+    }
+  }
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const code of equipmentCodes) {
+    await page.goto(`/bag-filter/equipment/${code.toLowerCase()}`);
+    await tap(first);
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByRole('heading')).not.toHaveText('Pilih satu posisi');
+    await expect(tooltip).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  const [bootstrap] = await getAuthDb()
+    .select()
+    .from(authSchema.user)
+    .where(eq(authSchema.user.email, process.env.BOOTSTRAP_EMAIL!));
+  const actor = { ...bootstrap, mustChangePassword: false, grants: [] } as Identity;
+  try {
+    await setGrant(actor, userId, { appId: 'bag-filter', role: 'viewer', equipment: [...equipmentCodes] });
+    await page.goto('/bag-filter/equipment/421-bf1');
+    await tap(first);
+    await expect(page.locator('.selection-bar')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Pilih banyak', exact: true })).toHaveCount(0);
+    await expect(panel.getByRole('heading')).toHaveText('Comp. 1A A17');
+    await expect(panel).toContainText('Filtras');
+    await expect(page.getByRole('button', { name: 'Lihat info', exact: true })).toHaveCount(0);
+  } finally {
+    await setGrant(actor, userId, { appId: 'bag-filter', role: 'admin', equipment: [...equipmentCodes] });
+    await cdp.detach();
+  }
 });
 
 test('one compartment selector covers both sides without search and keeps selection across six equipment', async ({

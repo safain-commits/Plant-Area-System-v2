@@ -245,7 +245,7 @@
   font-size: 11px;
   line-height: 14px;
   font-weight: 500;
-  touch-action: pan-y;
+  touch-action: manipulation;
   transition:
     opacity var(--duration-base) var(--ease-standard),
     transform var(--duration-fast) var(--ease-standard);
@@ -508,7 +508,7 @@
 .history-list {
   max-height: 560px;
   overflow: auto;
-  overscroll-behavior: contain;
+  /* overscroll-behavior: contain; */
 }
 .bag-grid {
   max-width: 480px;
