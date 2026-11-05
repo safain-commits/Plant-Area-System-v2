@@ -125,7 +125,7 @@ Panduan Bag Filter: [membatalkan record penggantian yang salah](docs/BAG-FILTER-
 
 ## Consumable Room v1.1 — R22
 
-Satu stok R22 pada `/consumables`, tanpa pengelolaan lokasi. Rak tetap opsional. Consume/Return memakai HEC wajib dan keranjang multi-item persisten; Penerimaan Picklist mendukung konversi SAP → satuan terkecil R22 serta bukti cetak bernomor. Role Viewer, Client, R22 Cashier dan Admin mengatur tindakan; semua grant melihat stok/riwayat yang sama.
+Satu stok R22 pada `/consumables`, tanpa pengelolaan lokasi. Rak tetap opsional. Consume/Return memakai HAC/SAC wajib dan keranjang multi-item persisten; Penerimaan Picklist mendukung konversi SAP → satuan terkecil R22 serta bukti cetak bernomor. Role Viewer, Client, R22 Cashier dan Admin mengatur tindakan; semua grant melihat stok/riwayat yang sama.
 
 Mulai dari [PRD R22](docs/CONSUMABLE-ROOM-PRD.md), [kontrak API](docs/API.md), serta [upgrade R22 dan handover OpenClaw](docs/deployment/R22-UPGRADE.md). Migrasi aditif `0002`/`0003` mempertahankan master dan history. Preflight menolak data yang perlu digabungkan; tidak mereset database. Produksi harus diperbarui melalui SHA teruji dan checkpoint backup/maintenance.
 

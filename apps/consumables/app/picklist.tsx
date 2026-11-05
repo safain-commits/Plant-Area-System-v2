@@ -135,6 +135,7 @@ export function Picklist({ identity }: { identity: Identity }) {
       if (!draft.lines.length || draft.lines.length > 100) throw Error('Pilih 1–100 material unik.');
       if (!draft.reservationNo.trim() || !draft.wo.trim())
         throw Error('No. Reservasi dan WO No. wajib diisi.');
+      if (!draft.costCenter.trim()) throw Error('Cost Center wajib diisi.');
       const body = {
         reservationNo: draft.reservationNo.trim(),
         wo: draft.wo.trim(),
@@ -275,8 +276,9 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                Cost Center (opsional)
+                Cost Center
                 <Input
+                  required
                   maxLength={40}
                   value={draft.costCenter}
                   onChange={(e) => update({ costCenter: e.target.value })}

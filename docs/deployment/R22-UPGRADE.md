@@ -64,7 +64,7 @@ Jika ditemukan inventory/transaksi noncanonical atau konflik R22, berhenti dan l
 jumlahnya tanpa menggabungkan atau menghapus data. Produksi seharusnya master saja.
 Saat maintenance, hentikan penulis, ulangi backup/preflight, jalankan migrator rilis,
 cek master/role/grant, rekonsiliasi dan readiness. Uji SSO, empat role, API, aset,
-stok tunggal, rak opsional, HEC wajib, dokumen dan cetak. Pemilik menguji login sendiri.
+stok tunggal, rak opsional, HAC/SAC wajib, dokumen dan cetak. Pemilik menguji login sendiri.
 Laporkan bukti, pekerjaan pending dan opsi rollback; jangan klaim selesai sebelum
 penerimaan pemilik. Pertahankan backup terenkripsi dan sumber laptop lama yang beku.
 ```

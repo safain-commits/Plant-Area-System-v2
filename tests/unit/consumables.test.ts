@@ -13,9 +13,40 @@ import {
   validateStockQuantity,
   canonicalDocumentPayload,
   allowsDecimals,
+  AppError,
   type Identity,
 } from '@plant/contracts';
 import { parseCatalog } from '@plant/consumables-core/import';
+import { createDocument } from '@plant/consumables-core';
+
+test('picklist requires a nonblank Cost Center before accessing persistence', async () => {
+  const actor: Identity = {
+    id: 'cost-center-validation',
+    name: 'Validation',
+    email: 'validation@example.test',
+    position: '',
+    portalAdmin: false,
+    mustChangePassword: false,
+    grants: [{ appId: 'consumables', role: 'storekeeper' }],
+  };
+  const input = {
+    reservationNo: 'RES-VALIDATION',
+    wo: 'WO-VALIDATION',
+    lines: [{ materialId: '8f3345f3-50a5-48fb-bbc4-3596711c41a7', quantity: '1' }],
+  };
+  for (const patch of [
+    {},
+    { costCenter: '' },
+    { costCenter: ' \t\n ' },
+    { costCenter: null },
+    { costCenter: 40420 },
+    { costCenter: 'x'.repeat(41) },
+  ])
+    await assert.rejects(
+      createDocument(actor, 'picklist', { ...input, ...patch }, 'cost-center-test'),
+      (e) => e instanceof AppError && e.status === 400,
+    );
+});
 test('fixed-point quantities preserve fractions, localization and overflow boundaries', () => {
   assert.equal(decimalString(decimalUnits('0.1') + decimalUnits('0.2')), '0.300000');
   assert.equal(decimalString(decimalUnits('12.125') * 3n), '36.375000');
@@ -51,7 +82,7 @@ test('consumable permissions are app-specific, shared within R22 and fail closed
   assert.equal(canConsume(actor, 'read'), false);
 });
 
-test('R22 HEC and aliases normalize consistently without accepting malformed locations', () => {
+test('R22 HAC/SAC and aliases normalize consistently without accepting malformed locations', () => {
   assert.equal(normalizeHec(' tq.452-bu1 '), '452-BU1');
   for (const v of ['452-BU1', '123-ABC']) assert.ok(HEC_PATTERN.test(normalizeHec(v)));
   for (const v of ['', '45-BU1', '452-BU11', '452 BU1', 'TQ.TQ.452-BU1'])
@@ -60,6 +91,32 @@ test('R22 HEC and aliases normalize consistently without accepting malformed loc
   assert.throws(() => normalizeAliases('x'.repeat(41)));
   assert.throws(() => normalizeAliases(Array.from({ length: 11 }, (_, i) => 'alias' + i).join(',')));
 });
+test('Consume and Return validation use HAC/SAC while retaining the compatible payload', async () => {
+  const actor: Identity = {
+    id: 'asset-code-validation',
+    name: 'Validation',
+    email: 'validation@example.test',
+    position: '',
+    portalAdmin: false,
+    mustChangePassword: false,
+    grants: [{ appId: 'consumables', role: 'operator' }],
+  };
+  for (const type of ['consume', 'return'] as const)
+    for (const hec of ['', '45-BU1', '452 BU1'])
+      await assert.rejects(
+        createDocument(
+          actor,
+          type,
+          { hec, lines: [{ materialId: '8f3345f3-50a5-48fb-bbc4-3596711c41a7', quantity: '1' }] },
+          'asset-code-test',
+        ),
+        (e) =>
+          e instanceof AppError &&
+          e.status === 400 &&
+          e.message === 'HAC/SAC wajib dengan format XXX-XXX, contoh 452-BU1.',
+      );
+});
+
 test('R22 SAP conversion is exact, bounded and respects count units', () => {
   const m = { unit: 'PCS', sapUnit: 'SET', packSize: '2', decimalAllowed: false };
   assert.equal(sapToR22('0.5', m), '1.000000');

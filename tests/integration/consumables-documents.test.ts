@@ -159,11 +159,24 @@ test('R22 picklist conversion, partial reservation warning, K3 and historical sn
   const input = {
     reservationNo: 'RES-' + key().slice(0, 24),
     wo: 'WO',
+    costCenter: ' 40420 ',
     functionalLocation: 'TQ.452-BU1 - SAP description',
     requiredDate: '2026-11-02',
     lines: [{ materialId, sapQuantity: '3', materialVersion: 1 }],
   };
-  const result = await createDocument(actor, 'picklist', input, key());
+  const receiptKey = key();
+  for (const costCenter of [undefined, '', ' \t ', null, 'x'.repeat(41)])
+    await assert.rejects(
+      createDocument(actor, 'picklist', { ...input, costCenter }, receiptKey),
+      status(400),
+    );
+  assert.equal((await materialDetail(actor, materialId)).stock, null);
+  const result = await createDocument(actor, 'picklist', input, receiptKey);
+  assert.equal(result.document.costCenter, '40420');
+  assert.equal((await documentDetail(actor, result.document.id)).document.costCenter, '40420');
+  const replay = await createDocument(actor, 'picklist', { ...input, costCenter: '40420' }, receiptKey);
+  assert.equal(replay.document.id, result.document.id);
+  assert.equal(replay.replayed, true);
   assert.equal(result.document.lineCount, 1);
   assert.equal(result.document.requiredDate, '2026-11-02');
   assert.equal(result.lines.length, 1);

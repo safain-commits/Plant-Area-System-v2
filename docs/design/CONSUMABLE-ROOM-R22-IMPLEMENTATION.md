@@ -5,6 +5,18 @@ Status: **Disetujui 2 November 2026. Fase 1–5 selesai dan teruji lokal/terisol
 
 Acuan kebutuhan: [brief revisi R22](../CONSUMABLE-ROOM-R22-REVISION-PROMPT.md), PRD Consumable Room, kontrak API, dan design system aktif. Keputusan K1–K4 pada brief tetap berlaku. R22 memakai aplikasi `/consumables` yang sudah ada.
 
+## Revisi 5 November 2026: istilah HAC/SAC
+
+Pengguna mengoreksi typo HEC menjadi **HAC/SAC**. Form Consume/Return, konfirmasi, ringkasan, riwayat, pesan validasi dan bukti cetak memakai istilah baru. Nama internal `hec`, normalisasi, payload, endpoint saran dan database dipertahankan; tidak memerlukan migrasi. Penyebutan HEC pada audit/rencana awal di bawah adalah istilah historis yang digantikan koreksi ini.
+
+## Revisi 5 November 2026: istilah HAC/SAC
+
+Pengguna mengoreksi typo HEC menjadi **HAC/SAC**. Form Consume/Return, konfirmasi, ringkasan, riwayat, pesan validasi dan bukti cetak memakai istilah baru. Nama internal `hec`, normalisasi, payload, endpoint saran dan database dipertahankan; tidak memerlukan migrasi. Penyebutan HEC pada audit/rencana awal di bawah adalah istilah historis yang digantikan koreksi ini.
+
+## Revisi 5 November 2026: Cost Center wajib
+
+Penerimaan Picklist mewajibkan Cost Center di formulir dan API, 1–40 karakter setelah trim. Input kosong atau hanya spasi ditolak sebelum konfirmasi dan penyimpanan. Dokumen lama tetap terbaca; tidak memerlukan migrasi atau pengisian data historis. Ketentuan ini menggantikan status opsional Cost Center pada brief awal.
+
 ## Revisi disetujui: satu stok tanpa Lokasi
 
 Keputusan terbaru menggantikan persyaratan scope lokasi di rencana awal ini: grant Consumables hanya appId/role; semua pengguna membaca stok dan dokumen R22 yang sama. Rak opsional; HEC pekerjaan tetap wajib. UI/API tidak menerima locationId; material detail mempunyai satu stock nullable. Draft disimpan per user/jenis, draft lokasi lama diabaikan. Kelola akses tidak membaca metadata lokasi.

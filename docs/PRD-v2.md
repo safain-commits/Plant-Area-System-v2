@@ -118,7 +118,7 @@ Mulai 23 Oktober 2026, Consumable Room menjadi aplikasi operasional keempat pada
 
 ## Revisi R22 — 2 November 2026
 
-Perluasan Consumable Room menjadi v1.1: satu stok R22 tanpa fitur lokasi, rak opsional, HEC tujuan pekerjaan wajib pada Consume/Return, dokumen multi-item, retur, Picklist SAP dan bukti cetak. Grant hanya role; semua pengguna aplikasi melihat stok/riwayat yang sama. Ketentuan lokasi Consumables pada revisi terdahulu digantikan [PRD R22](CONSUMABLE-ROOM-PRD.md); scope equipment Bag Filter tetap berlaku.
+Perluasan Consumable Room menjadi v1.1: satu stok R22 tanpa fitur lokasi, rak opsional, HAC/SAC tujuan pekerjaan wajib pada Consume/Return, dokumen multi-item, retur, Picklist SAP dan bukti cetak. Grant hanya role; semua pengguna aplikasi melihat stok/riwayat yang sama. Ketentuan lokasi Consumables pada revisi terdahulu digantikan [PRD R22](CONSUMABLE-ROOM-PRD.md); scope equipment Bag Filter tetap berlaku.
 
 ## Penyempurnaan equipment Bag Filter — 4 November 2026
 

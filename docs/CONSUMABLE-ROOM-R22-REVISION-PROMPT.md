@@ -2,6 +2,10 @@
 
 > Serahkan seluruh dokumen ini ke coding agent. Dokumen disusun 2 November 2026 dari audit `ref-client/R22 Business Process.pptx` terhadap source di repo ini (commit `529a46c`).
 
+> Koreksi pengguna, 5 November 2026: HEC pada brief awal merupakan typo; istilah aplikasi yang benar adalah **HAC/SAC**. Persyaratan aktif mengikuti [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md), termasuk Cost Center wajib pada Penerimaan Picklist. Teks brief awal di bawah dipertahankan sebagai referensi historis.
+
+> Koreksi pengguna, 5 November 2026: HEC pada brief awal merupakan typo; istilah aplikasi yang benar adalah **HAC/SAC**. Persyaratan aktif mengikuti [PRD Consumable Room](CONSUMABLE-ROOM-PRD.md), termasuk Cost Center wajib pada Penerimaan Picklist. Teks brief awal di bawah dipertahankan sebagai referensi historis.
+
 ---
 
 ## 0. Peran dan tujuan

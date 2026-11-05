@@ -116,7 +116,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
     if (busy || loaded !== storageKey) return;
     try {
       const hec = normalizeHec(draft.hec);
-      if (!HEC_PATTERN.test(hec)) throw Error('HEC wajib dengan format XXX-XXX, contoh 452-BU1.');
+      if (!HEC_PATTERN.test(hec)) throw Error('HAC/SAC wajib dengan format XXX-XXX, contoh 452-BU1.');
       if (!draft.lines.length || draft.lines.length > 50)
         throw Error('Pilih 1–50 material unik dalam satu order.');
       const body = {
@@ -136,7 +136,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
         throw Error('Nama peminta wajib diisi.');
       if (
         !(await confirm(
-          `${title} · HEC ${hec} · WO ${draft.wo || '—'} · Peminta ${self} · ${body.lines.length} item. Finalisasi dan ${type === 'consume' ? 'kurangi' : 'tambahkan'} stok sekarang?`,
+          `${title} · HAC/SAC ${hec} · WO ${draft.wo || '—'} · Peminta ${self} · ${body.lines.length} item. Finalisasi dan ${type === 'consume' ? 'kurangi' : 'tambahkan'} stok sekarang?`,
         ))
       )
         return;
@@ -179,7 +179,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
         <h2>{title} tersimpan</h2>
         <p className="display-lg">{success.document.number}</p>
         <p>
-          {success.lines.length} item · HEC {success.document.hec} · {success.document.requesterName}
+          {success.lines.length} item · HAC/SAC {success.document.hec} · {success.document.requesterName}
         </p>
         <div className="form-actions">
           <a className="button primary" href={`/consumables/documents/${success.document.id}`}>
@@ -227,7 +227,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
             <fieldset disabled={busy || loaded !== storageKey} className="r22-fieldset">
               <div className="form-grid">
                 <label>
-                  HEC / Functional Location
+                  HAC/SAC / Functional Location
                   <Input
                     required
                     maxLength={30}
@@ -411,7 +411,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
             {draft.lines.length} <small>item</small>
           </p>
           <dl>
-            <dt>HEC</dt>
+            <dt>HAC/SAC</dt>
             <dd>{normalizeHec(draft.hec) || 'Belum diisi'}</dd>
             <dt>Peminta</dt>
             <dd>{self || 'Belum diisi'}</dd>

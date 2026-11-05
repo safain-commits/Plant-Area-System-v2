@@ -51,7 +51,7 @@ const text = (n: number) => z.string().trim().max(n).default('');
 const hec = z
   .string()
   .transform(normalizeHec)
-  .refine((v) => HEC_PATTERN.test(v), 'HEC wajib dengan format XXX-XXX, contoh 452-BU1.');
+  .refine((v) => HEC_PATTERN.test(v), 'HAC/SAC wajib dengan format XXX-XXX, contoh 452-BU1.');
 const qtyLine = z.object({ materialId: z.uuid(), quantity: positive }).strict();
 const requester = z
   .object({ name: z.string().trim().min(1).max(100), nik: text(30) })
@@ -86,7 +86,7 @@ const schemas = {
       woDescription: text(500),
       equipmentNo: text(100),
       functionalLocation: text(100),
-      costCenter: text(40),
+      costCenter: z.string().trim().min(1, 'Cost Center wajib diisi.').max(40),
       requiredDate: date,
       lines: z.array(pickLine).min(1).max(100),
     })

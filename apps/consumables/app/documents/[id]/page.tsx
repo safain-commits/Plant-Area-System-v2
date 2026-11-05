@@ -45,7 +45,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </header>
         <dl className="stock-detail-grid">
           {[
-            ['HEC / Functional Location', d.hec || d.functionalLocation || '—'],
+            ['HAC/SAC / Functional Location', d.hec || d.functionalLocation || '—'],
             ['WO Number', d.wo || '—'],
             ['Keterangan', d.note || '—'],
             ['Peminta', d.requesterName + (d.requesterNik ? ' · ' + d.requesterNik : '')],

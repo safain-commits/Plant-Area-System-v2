@@ -1,5 +1,21 @@
 # Hasil validasi implementasi v2
 
+## Koreksi istilah HAC/SAC — 5 November 2026
+
+Typo HEC dikoreksi menjadi **HAC/SAC** pada form Consume/Return, ringkasan finalisasi, dialog konfirmasi, pesan sukses/validasi, pencarian dan detail riwayat, serta bukti cetak. Label lengkap **HAC/SAC / Functional Location**. API/database tetap memakai `hec` dan endpoint saran existing; normalisasi, nilai historis, draft dan hash idempotensi tidak diubah. Dokumentasi aktif mencatat koreksi terminologi; brief awal diberi catatan historis.
+
+Node 26.12.1: **31/31 unit**, typecheck root/empat aplikasi, build produksi Consumables, format dan whitespace lulus. Database MySQL sementara: **5/5 integrasi dokumen** lulus. Browser HTTPS terisolasi: **2/2 regresi** lulus, mencakup saldo awal, Consume/Return, draft, konfirmasi/sukses dengan label HAC/SAC, riwayat, bukti cetak, koreksi, lintas aplikasi, tema terang/gelap, halaman mobile 390 px, serta picklist 20 baris dengan Cost Center wajib dan retry.
+
+Bukti privat: `.deploy/map-mobile/hac-sac-qa/` dan `.deploy/map-mobile/build-hac-sac.log`. Seluruh container, volume dan jaringan uji dibersihkan. Tidak memerlukan migrasi, tidak memakai database development/VPS, dan tidak membangun ulang tiga aplikasi lain.
+
+## Cost Center wajib pada Penerimaan Picklist — 5 November 2026
+
+Label opsional dihapus dan input Cost Center menjadi wajib. Form menolak nilai hanya spasi sebelum konfirmasi; server menolak field hilang, kosong, bukan teks, atau lebih dari 40 karakter setelah trim. Nilai tersimpan tanpa spasi tepi. Dokumen historis tetap dapat dibaca tanpa migrasi database.
+
+Node 26.12.1: **30/30 unit**, typecheck root/empat aplikasi, serta build produksi Consumables lulus. MySQL disposable: **5/5 integrasi dokumen R22** lulus, termasuk penolakan tanpa auto-enroll/saldo, persistensi Cost Center dan replay payload setelah trim. Browser HTTPS terisolasi: **1/1 alur picklist 20 material** lulus; input kosong memfokuskan field, hanya spasi menampilkan pesan, API langsung tanpa Cost Center ditolak 400, lalu input valid dan retry tersimpan sekali. Form juga diperiksa pada 1440/390 px tanpa overflow. Format dan whitespace lulus.
+
+Bukti privat: `.deploy/map-mobile/cost-center-qa/` dan log build `.deploy/map-mobile/build-cost-center.log`. Container, volume dan jaringan uji dibersihkan. Pengujian tidak memakai database development atau VPS; aplikasi lain tidak dibangun ulang untuk perubahan ini.
+
 ## Label legenda umur ringkas — 4 November 2026
 
 Peta dan distribusi dashboard memakai label **0–209**, **210–419**, **420–629**, **630–839**, **840–1049**, **1050–1259**, **≥ 1260 hari**. Peta tetap mempunyai **Belum tercatat**. Nama aksesibel filter mempertahankan satuan hari pada setiap rentang. Batas kategori, warna, KPI dan data tidak berubah.

@@ -120,7 +120,7 @@ export function StockHistory({ identity }: { identity: Identity }) {
                 value={query}
                 maxLength={200}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nomor, HEC, WO, reservasi, peminta…"
+                placeholder="Nomor, HAC/SAC, WO, reservasi, peminta…"
               />
             </label>
             <label>
@@ -234,7 +234,7 @@ export function StockHistory({ identity }: { identity: Identity }) {
             <h2>{detail.document.number}</h2>
             <dl className="stock-detail-grid">
               {[
-                ['HEC', detail.document.hec || '—'],
+                ['HAC/SAC', detail.document.hec || '—'],
                 ['WO', detail.document.wo || '—'],
                 ['Keterangan', detail.document.note || '—'],
                 ['Peminta', detail.document.requesterName],

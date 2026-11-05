@@ -23,15 +23,17 @@ Admin mendaftarkan material langsung ke stok R22. **Rak opsional**, maksimal 100
 
 ## Dokumen operasional
 
-**Consume Order:** 1–50 material unik, jumlah positif dalam satuan R22, HEC wajib, WO dan catatan opsional. Identitas peminta self-service berasal dari sesi. Cashier/Admin dapat mencatat atas nama client dengan nama wajib dan NIK opsional. Saldo terkunci diperiksa lagi saat finalisasi; seluruh kekurangan dilaporkan per baris dan tidak ada perubahan parsial.
+Terminologi kode aset: **HAC/SAC**, dengan HAC sebagai istilah lapangan Holcim Asset-Code dan SAC sebagai penamaan penggantinya. Istilah HEC pada brief awal adalah typo yang dikoreksi pengguna pada 5 November 2026. Label form dan bukti memakai **HAC/SAC / Functional Location**.
 
-**Return Order:** alur keranjang yang sama, menambah stok. HEC wajib; nomor Consume Order asal opsional. Tidak membutuhkan approval atau pencocokan otomatis dengan dokumen asal.
+**Consume Order:** 1–50 material unik, jumlah positif dalam satuan R22, HAC/SAC wajib, WO dan catatan opsional. Identitas peminta self-service berasal dari sesi. Cashier/Admin dapat mencatat atas nama client dengan nama wajib dan NIK opsional. Saldo terkunci diperiksa lagi saat finalisasi; seluruh kekurangan dilaporkan per baris dan tidak ada perubahan parsial.
 
-**Penerimaan Picklist:** 1–100 material unik dari katalog, nomor reservasi dan WO wajib. Deskripsi WO, Equipment No., Functional Location SAP, Cost Center dan Required Date opsional. Satu baris memakai jumlah SAP dan versi master yang dikonfirmasi, atau jumlah R22 langsung. Server menghitung konversi tepat dan menolak konfigurasi kedaluwarsa. Reservasi berulang memberi peringatan, bukan penolakan: penerimaan parsial diperbolehkan.
+**Return Order:** alur keranjang yang sama, menambah stok. HAC/SAC wajib; nomor Consume Order asal opsional. Tidak membutuhkan approval atau pencocokan otomatis dengan dokumen asal.
+
+**Penerimaan Picklist:** 1–100 material unik dari katalog; nomor reservasi, WO dan Cost Center wajib. Cost Center berupa teks 1–40 karakter setelah spasi tepi dibuang; nilai kosong atau hanya spasi ditolak. Deskripsi WO, Equipment No., Functional Location SAP dan Required Date opsional. Satu baris memakai jumlah SAP dan versi master yang dikonfirmasi, atau jumlah R22 langsung. Server menghitung konversi tepat dan menolak konfigurasi kedaluwarsa. Reservasi berulang memberi peringatan, bukan penolakan: penerimaan parsial diperbolehkan.
 
 K3: material yang belum terdaftar otomatis didaftarkan tanpa rak, dengan ledger opening nol terkonfirmasi lalu receipt, dalam transaksi Picklist yang sama. Inventory existing yang belum dihitung/nonaktif ditolak; sistem tidak menebak saldo aktual.
 
-HEC tujuan pekerjaan **berbeda dari lokasi stok yang telah dihapus**. Consume/Return tetap mewajibkan format `XXX-XXX`, misalnya `452-BU1`; trim, kapitalisasi dan penghapusan prefiks `TQ.` dilakukan konsisten. Saran berasal dari dokumen sebelumnya, maksimal 8 hasil. Functional Location SAP pada Picklist tetap teks opsional.
+HAC/SAC tujuan pekerjaan **berbeda dari lokasi stok yang telah dihapus**. Consume/Return tetap mewajibkan format `XXX-XXX`, misalnya `452-BU1`; trim, kapitalisasi dan penghapusan prefiks `TQ.` dilakukan konsisten. Saran berasal dari dokumen sebelumnya, maksimal 8 hasil. Functional Location SAP pada Picklist tetap teks opsional.
 
 ## Presisi, atomisitas dan idempotensi
 
@@ -59,4 +61,4 @@ Panduan rilis, CLI penamaan, backup dan rollback: [operasi R22](deployment/R22-U
 
 ## Batas rilis dan asumsi
 
-Belum mencakup approval, reservasi stok, transfer khusus, stock opname bersesi, barcode/QR (opsional fase 6), pengadaan, valuasi, integrasi SAP otomatis atau pengurangan stok dari Bag Filter. Asumsi brief A1–A5 dipertahankan: self-service tanpa approval/jam terbatas, nama peminta untuk kanal cashier, dan dokumen langsung final. Format HEC, kewajiban WO Picklist, nomor dokumen dan `COUNT_UNITS` masih dapat disesuaikan lewat revisi kebutuhan; implementasi saat ini mengikuti aturan di atas.
+Belum mencakup approval, reservasi stok, transfer khusus, stock opname bersesi, barcode/QR (opsional fase 6), pengadaan, valuasi, integrasi SAP otomatis atau pengurangan stok dari Bag Filter. Asumsi brief A1–A5 dipertahankan: self-service tanpa approval/jam terbatas, nama peminta untuk kanal cashier, dan dokumen langsung final. Format HAC/SAC, kewajiban WO Picklist, nomor dokumen dan `COUNT_UNITS` masih dapat disesuaikan lewat revisi kebutuhan; implementasi saat ini mengikuti aturan di atas.

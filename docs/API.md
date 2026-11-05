@@ -96,14 +96,18 @@ Tidak ada migrasi database pada UI refresh ini.
 
 ## Consumable Room v1.1 — R22 satu stok
 
-Base `/consumables/api`. Identitas, origin, no-store dan error mengikuti platform. Quantity/packSize/balanceAfter berupa string DECIMAL(18,6). Actor, waktu, nomor dokumen, saldo dan faktor aktual ditentukan server. `locationId`/field lokasi stok tidak diterima pada body/filter; 400. `functionalLocation` Picklist dan HEC tetap menunjukkan tujuan pekerjaan, bukan ruang stok.
+Label pengguna memakai **HAC/SAC** (koreksi typo HEC). Field JSON/database `hec` dan endpoint `/hec-suggestions` tetap dipakai untuk kompatibilitas integrasi, draft dan idempotensi; koreksi istilah tidak mengubah format kode atau data tersimpan.
+
+Label pengguna memakai **HAC/SAC** (koreksi typo HEC). Field JSON/database `hec` dan endpoint `/hec-suggestions` tetap dipakai untuk kompatibilitas integrasi, draft dan idempotensi; koreksi istilah tidak mengubah format kode atau data tersimpan.
+
+Base `/consumables/api`. Identitas, origin, no-store dan error mengikuti platform. Quantity/packSize/balanceAfter berupa string DECIMAL(18,6). Actor, waktu, nomor dokumen, saldo dan faktor aktual ditentukan server. `locationId`/field lokasi stok tidak diterima pada body/filter; 400. `functionalLocation` Picklist dan HAC/SAC tetap menunjukkan tujuan pekerjaan, bukan ruang stok.
 
 | Method         | Path                                                                       | Kontrak                                                                                                                                |
 | -------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | GET            | `/materials?q=&category=&active=&cursor=&limit=`                           | `{items,nextCursor}`, katalog master                                                                                                   |
 | GET            | `/materials/:id`                                                           | `{material,stock:InventoryItem                                                                                                         | null}`; material mempunyai `unitLocked` |
 | GET            | `/search?q=`, `/catalog-search?q=`                                         | Maksimal 8 hasil peringkat MMID/nama/alias/SAP; catalog-search membutuhkan receive                                                     |
-| GET            | `/hec-suggestions?q=`                                                      | `{items:string[]}`, maksimal 8 HEC normalized                                                                                          |
+| GET            | `/hec-suggestions?q=`                                                      | `{items:string[]}`, maksimal 8 HAC/SAC normalized                                                                                      |
 | GET            | `/inventory?q=&materialId=&category=&availability=&active=&cursor=&limit=` | Satu inventory per material; rak opsional; available/empty/uncounted/critical                                                          |
 | GET            | `/documents?q=&type=&reservationNo=&from=&to=&cursor=&limit=`              | Dokumen semua pengguna R22; type consume/return/picklist                                                                               |
 | GET            | `/documents/:id`                                                           | `{document,lines}`; snapshot bukti final                                                                                               |
@@ -114,15 +118,15 @@ Base `/consumables/api`. Identitas, origin, no-store dan error mengikuti platfor
 | POST           | `/opening-balances`, `/adjustments`                                        | `{materialId,quantity,reason,expectedVersion}`; admin, jumlah fisik target                                                             |
 | POST           | `/consume-orders`                                                          | `{hec,wo?,note?,requester?,lines:[{materialId,quantity}]}`; 1–50 material unik                                                         |
 | POST           | `/return-orders`                                                           | Seperti Consume + `sourceRef?`; jumlah menambah saldo                                                                                  |
-| POST           | `/picklist-receipts`                                                       | `{reservationNo,wo,woDescription?,equipmentNo?,functionalLocation?,costCenter?,requiredDate?,lines}`; 1–100 material unik              |
+| POST           | `/picklist-receipts`                                                       | `{reservationNo,wo,woDescription?,equipmentNo?,functionalLocation?,costCenter,requiredDate?,lines}`; 1–100 material unik               |
 | GET            | `/categories`, `/dashboard?year=`, `/activity`, `/discovery?q=`            | Kategori, KPI material dikelola, empat kuartal dokumen/opening/koreksi, aktivitas dokumen dan pencarian                                |
 | GET            | `/audit?cursor=`, `/reconciliation`                                        | Admin; audit dan selisih saldo vs ledger read-only                                                                                     |
 | GET/POST/PATCH | `/locations[/:id]`                                                         | 410, fitur lokasi stok dihentikan                                                                                                      |
 | POST           | `/issues`, `/receipts`                                                     | 410, gunakan endpoint dokumen                                                                                                          |
 
-Picklist line: `{materialId,sapQuantity,materialVersion}` atau `{materialId,quantity}`. Jumlah SAP dikonversi memakai master terkunci; perubahan versi/konversi menghasilkan konflik. Required Date format YYYY-MM-DD, bukan waktu transaksi. Reservasi berulang mengembalikan `previousDocuments` sebagai peringatan. K3 auto-enroll material baru dengan opening nol; inventory existing belum dihitung/nonaktif ditolak.
+Picklist line: `{materialId,sapQuantity,materialVersion}` atau `{materialId,quantity}`. Cost Center wajib berupa teks 1–40 karakter setelah trim; field hilang, kosong, atau hanya spasi menghasilkan 400 sebelum transaksi. Jumlah SAP dikonversi memakai master terkunci; perubahan versi/konversi menghasilkan konflik. Required Date format YYYY-MM-DD, bukan waktu transaksi. Reservasi berulang mengembalikan `previousDocuments` sebagai peringatan. K3 auto-enroll material baru dengan opening nol; inventory existing belum dihitung/nonaktif ditolak.
 
-HEC Consume/Return wajib format XXX-XXX, dinormalisasi kapital dan prefiks `TQ.` dihapus. Requester hanya boleh Cashier/Admin (`{name,nik?}`), actor tetap sesi. Role API viewer/operator/storekeeper/admin ditampilkan Viewer/Client/R22 Cashier/Admin. Semua grant membaca stok dan dokumen R22 yang sama.
+HAC/SAC Consume/Return wajib format XXX-XXX, dinormalisasi kapital dan prefiks `TQ.` dihapus. Requester hanya boleh Cashier/Admin (`{name,nik?}`), actor tetap sesi. Role API viewer/operator/storekeeper/admin ditampilkan Viewer/Client/R22 Cashier/Admin. Semua grant membaca stok dan dokumen R22 yang sama.
 
 POST stok/dokumen wajib `Idempotency-Key` (8–128 `[A-Za-z0-9._:-]`). Dokumen: `{document,lines,replayed,previousDocuments?}`, 201 baru/200 replay. Saldo awal/koreksi: `{movement,replayed}`. Key unik per actor; payload berbeda 409; izin tetap diperiksa sebelum replay. Seluruh dokumen dan ledger atomik. Kegagalan baris:
 
