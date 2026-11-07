@@ -1,10 +1,11 @@
 :root {
   color-scheme: light;
-  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-system);
+  font-optical-sizing: auto;
   color: var(--textPrimary);
   background: var(--canvas);
   font-synthesis: none;
-  font-size: 14px;
+  font-size: 100%;
   font-weight: 400;
   font-variant-numeric: tabular-nums lining-nums;
   --data-dark: var(--gray-1000);
@@ -14,6 +15,8 @@
   color-scheme: dark;
 }
 body {
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
   background: var(--canvas);
   color: var(--textPrimary);
 }
@@ -32,26 +35,26 @@ button,
   font-weight: 500;
 }
 h1 {
-  font-size: 28px;
+  font-size: var(--type-large);
   line-height: 32px;
   letter-spacing: -0.015em;
 }
 h2 {
-  font-size: 18px;
+  font-size: var(--type-headline);
   line-height: 24px;
   letter-spacing: -0.01em;
 }
 h3 {
-  font-size: 15px;
+  font-size: var(--type-headline);
   line-height: 22px;
 }
 p {
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 20px;
 }
 .fine,
 small {
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 16px;
 }
 .muted,
@@ -59,33 +62,33 @@ small {
   color: var(--textSecondary);
 }
 .eyebrow {
-  font-size: 11px;
-  line-height: 14px;
-  letter-spacing: 0.1em;
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: 0.01em;
   color: var(--textSecondary);
   font-weight: 400;
 }
 .display-xl {
-  font-size: 40px;
+  font-size: var(--type-display);
   line-height: 44px;
   letter-spacing: -0.02em;
   font-weight: 500;
 }
 .display-lg {
-  font-size: 32px;
+  font-size: var(--type-large);
   line-height: 36px;
   letter-spacing: -0.02em;
   font-weight: 500;
 }
 .display-md {
-  font-size: 28px;
+  font-size: var(--type-large);
   line-height: 32px;
   letter-spacing: -0.015em;
   font-weight: 500;
 }
 .display-xl small,
 .display-lg small {
-  font-size: 13px;
+  font-size: var(--type-footnote);
   font-weight: 400;
   letter-spacing: 0;
   color: var(--textSecondary);
@@ -102,7 +105,7 @@ small {
   border: 0 !important;
 }
 .sr-label {
-  font-size: 12px;
+  font-size: var(--type-caption);
 }
 .positive-text {
   color: var(--positiveText);
@@ -115,8 +118,8 @@ button,
 .header-action {
   min-height: 40px;
   border-radius: var(--radius-control);
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-body);
   line-height: 20px;
   font-weight: 500;
   border: 1px solid transparent;
@@ -179,8 +182,8 @@ button.danger:hover:not(:disabled) {
 }
 button.small {
   min-height: 32px;
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--type-footnote);
 }
 button:disabled,
 button.primary:disabled,
@@ -226,25 +229,25 @@ summary:focus-visible {
 }
 kbd {
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 18px;
   font-weight: 500;
   white-space: nowrap;
   background: var(--surfaceSunken);
   color: var(--textSecondary);
-  padding: 0 5px;
+  padding: 0 var(--space-1);
   border: 1px solid var(--borderStrong);
   border-radius: 5px;
 }
 label {
-  font-size: 13px;
+  font-size: var(--type-footnote);
   line-height: 18px;
-  gap: 6px;
+  gap: var(--space-1);
   color: var(--textPrimary);
 }
 label small {
   color: var(--textSecondary);
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 16px;
 }
 input,
@@ -252,12 +255,12 @@ select,
 textarea,
 .select-trigger {
   min-height: 44px;
-  padding: 11px 14px;
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--divider);
   border-radius: 12px;
   background: var(--surfaceMuted);
   color: var(--textPrimary);
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 20px;
   font-weight: 400;
   box-shadow: inset 0 1px 2px rgba(11, 11, 11, 0.04);
@@ -310,7 +313,7 @@ textarea {
   min-width: 0;
 }
 .input-wrap input {
-  padding-right: 40px;
+  padding-right: var(--space-10);
 }
 .input-clear {
   position: absolute;
@@ -319,7 +322,7 @@ textarea {
   width: 30px;
   height: 30px;
   min-height: 30px;
-  padding: 6px;
+  padding: var(--space-1);
   border-radius: 8px;
   background: transparent;
   color: var(--textSecondary);
@@ -339,7 +342,7 @@ textarea {
 .field-counter {
   display: block;
   text-align: right;
-  margin-top: 6px;
+  margin-top: var(--space-1);
   color: var(--textSecondary);
 }
 .field-counter.warning {
@@ -353,7 +356,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   text-align: left;
 }
 .select-trigger > span {
@@ -379,7 +382,7 @@ textarea {
   align-items: center;
 }
 .date-field input {
-  padding-right: 88px;
+  padding-right: var(--space-20);
 }
 .date-field input::-webkit-calendar-picker-indicator {
   display: none;
@@ -394,8 +397,8 @@ textarea {
 .unit-chip {
   position: absolute;
   right: 44px;
-  font-size: 11px;
-  padding: 2px 5px;
+  font-size: var(--type-caption);
+  padding: var(--space-half) var(--space-1);
   border-radius: 6px;
   background: var(--surfaceSunken);
   color: var(--textSecondary);
@@ -408,12 +411,12 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--card-border);
   border-radius: 16px;
-  padding: 24px;
+  padding: var(--space-6);
   box-shadow: none;
   color: var(--textPrimary);
 }
 .panel + .panel {
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 .app-card[href] {
   border-top: 1px solid var(--card-border);
@@ -441,8 +444,8 @@ textarea {
   background: var(--surfaceSunken);
   color: var(--textPrimary);
   border-radius: 10px;
-  font-size: 20px;
-  margin-bottom: 16px;
+  font-size: var(--type-title);
+  margin-bottom: var(--space-4);
 }
 .app-card.planned {
   background: var(--surfaceMuted);
@@ -453,37 +456,37 @@ textarea {
 }
 .app-card .card-foot {
   border-color: var(--divider);
-  font-size: 13px;
+  font-size: var(--type-footnote);
   color: var(--textSecondary);
 }
 .app-card p,
 .equipment-card p {
-  font-size: 13px;
+  font-size: var(--type-footnote);
   line-height: 18px;
   color: var(--textSecondary);
 }
 .equipment-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 .equipment-card .big-number {
-  font-size: 32px;
+  font-size: var(--type-large);
   line-height: 36px;
   letter-spacing: -0.02em;
-  margin: 16px 0 8px;
+  margin: var(--space-4) 0 var(--space-2);
 }
 .section-title {
-  margin: 24px 0 16px;
+  margin: var(--space-6) 0 var(--space-4);
 }
 .section-title h2 {
-  font-size: 18px;
+  font-size: var(--type-headline);
 }
 .badge {
   height: 22px;
   min-height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
-  line-height: 14px;
+  padding: 0 var(--space-2);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
   border-radius: 999px;
   background: var(--surfaceSunken);
   color: var(--textSecondary);
@@ -502,25 +505,25 @@ textarea {
   color: var(--textSecondary);
 }
 .stats {
-  gap: 16px;
-  margin: 0 0 24px;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
 }
 .stat > span {
-  font-size: 13px;
+  font-size: var(--type-footnote);
   line-height: 18px;
   font-weight: 400;
   letter-spacing: 0;
   color: var(--textSecondary);
 }
 .stat strong {
-  font-size: 32px;
+  font-size: var(--type-large);
   line-height: 36px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .stat > small {
-  font-size: 12px;
+  font-size: var(--type-caption);
   line-height: 16px;
   color: var(--textSecondary);
 }
@@ -529,7 +532,7 @@ textarea {
   border-radius: 12px;
   background: var(--success-bg);
   color: var(--success-text);
-  font-size: 13px;
+  font-size: var(--type-footnote);
   line-height: 18px;
 }
 .notice.error {
@@ -541,17 +544,17 @@ textarea {
 }
 .error-text {
   color: var(--danger-text);
-  font-size: 12px;
+  font-size: var(--type-caption);
 }
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 100px;
-  padding: 24px;
-  font-size: 13px;
+  padding: var(--space-6);
+  font-size: var(--type-footnote);
   line-height: 18px;
   color: var(--textSecondary);
 }
@@ -563,34 +566,34 @@ textarea {
   margin: 0;
 }
 .form-stack {
-  gap: 16px;
+  gap: var(--space-4);
 }
 .form-grid {
-  gap: 16px;
+  gap: var(--space-4);
 }
 .form-actions {
-  margin-top: 24px;
+  margin-top: var(--space-6);
 }
 .user-row summary {
-  font-size: 14px;
+  font-size: var(--type-body);
 }
 .user-row summary small {
-  font-size: 12px;
+  font-size: var(--type-caption);
 }
 .user-row[open] summary {
   border-color: var(--divider);
 }
 .read-only {
   background: var(--surfaceSunken);
-  font-size: 13px;
+  font-size: var(--type-footnote);
   color: var(--textSecondary);
   border-radius: 12px;
 }
 .audit-table {
-  font-size: 13px;
+  font-size: var(--type-footnote);
 }
 .audit-table th {
-  font-size: 12px;
+  font-size: var(--type-caption);
   font-weight: 500;
   background: var(--surfaceMuted);
   color: var(--textSecondary);
@@ -598,10 +601,10 @@ textarea {
 .audit-table td,
 .audit-table th {
   border-color: var(--divider);
-  padding: 12px;
+  padding: var(--space-3);
 }
 .loading-line {
-  font-size: 13px;
+  font-size: var(--type-footnote);
   color: var(--textSecondary);
 }
 .overlay {
@@ -623,17 +626,17 @@ textarea {
   backdrop-filter: blur(4px);
 }
 .overlay-content {
-  padding: 24px;
+  padding: var(--space-6);
 }
 .overlay-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 .overlay-heading h2 {
-  font-size: 20px;
+  font-size: var(--type-title);
   line-height: 28px;
   margin: 0;
 }
@@ -660,19 +663,19 @@ textarea {
   backdrop-filter: none;
 }
 .overlay-menu .overlay-content {
-  padding: 6px;
+  padding: var(--space-1);
 }
 .overlay-menu .overlay-heading {
-  padding: 10px;
+  padding: var(--space-2);
   margin: 0;
 }
 .overlay-menu .overlay-heading h2 {
-  font-size: 15px;
+  font-size: var(--type-headline);
   line-height: 22px;
 }
 
 .overlay-menu > .overlay-content > .fine {
-  margin: 8px;
+  margin: var(--space-2);
 }
 .overlay-sheet {
   position: fixed;
@@ -688,7 +691,7 @@ textarea {
 }
 .overlay-sheet .overlay-content {
   min-height: 100%;
-  padding: 24px;
+  padding: var(--space-6);
 }
 .sheet-grab {
   display: none;
@@ -705,8 +708,8 @@ textarea {
   height: 72px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 20px;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
   border-bottom: 1px solid var(--divider);
 }
 .command-search input {
@@ -714,7 +717,7 @@ textarea {
   border: 0;
   box-shadow: none;
   background: transparent !important;
-  font-size: 18px;
+  font-size: var(--type-headline);
 }
 .command-search input:focus {
   box-shadow: none;
@@ -722,24 +725,24 @@ textarea {
 .command-results {
   max-height: 50dvh;
   overflow: auto;
-  padding: 8px;
+  padding: var(--space-2);
 }
 .command-result {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   color: var(--textPrimary);
-  font-size: 14px;
+  font-size: var(--type-body);
 }
 .command-result > span {
   flex: 1;
 }
 .command-result small {
   display: block;
-  font-size: 12px;
+  font-size: var(--type-caption);
   color: var(--textSecondary);
 }
 .command-result.is-highlighted {
@@ -747,16 +750,16 @@ textarea {
 }
 .command-footer {
   display: flex;
-  gap: 16px;
-  padding: 12px 20px;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--divider);
   color: var(--textSecondary);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .menu-group-label {
-  font-size: 12px;
+  font-size: var(--type-caption);
   color: var(--textSecondary);
-  padding: 8px 12px 4px;
+  padding: var(--space-2) var(--space-3) var(--space-1);
   margin: 0;
 }
 .menu-list {
@@ -781,15 +784,15 @@ textarea {
   height: 36px;
   min-height: 36px;
   width: 100%;
-  padding: 0 10px;
+  padding: 0 var(--space-2);
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: center;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--textPrimary);
-  font-size: 14px;
+  font-size: var(--type-body);
   text-align: left;
   font-weight: 400;
 }
@@ -813,18 +816,18 @@ textarea {
   top: 0;
   z-index: 2;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
-  padding: 0 10px;
+  padding: 0 var(--space-2);
   border-bottom: 1px solid var(--divider);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-1);
 }
 .select-search input {
   border: 0;
   box-shadow: none;
   background: transparent !important;
   min-height: 40px;
-  padding: 8px 0;
+  padding: var(--space-2) 0;
 }
 .select-search input:focus {
   box-shadow: none;
@@ -841,13 +844,13 @@ mark {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  padding: 12px;
+  gap: var(--space-1);
+  padding: var(--space-3);
 }
 .calendar-grid > span {
   text-align: center;
-  padding: 4px;
-  font-size: 11px;
+  padding: var(--space-1);
+  font-size: var(--type-caption);
   color: var(--textSecondary);
 }
 .calendar-grid button {
@@ -875,28 +878,28 @@ mark {
   justify-content: space-between;
 }
 .calendar-time {
-  padding: 0 12px 12px;
+  padding: 0 var(--space-3) var(--space-3);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .calendar-time input {
   width: 160px;
 }
 .overlay-menu .inline {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .toast {
   position: fixed;
   bottom: 24px;
   right: 24px;
   max-width: 420px;
-  padding: 16px;
+  padding: var(--space-4);
   z-index: 100;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   border: 1px solid var(--divider);
   border-radius: 14px;
   box-shadow: var(--shadow-overlay);
@@ -906,7 +909,7 @@ mark {
 }
 .toast p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--type-footnote);
   line-height: 18px;
 }
 .toast .icon-button {
@@ -924,8 +927,8 @@ mark {
 .auth-layout {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   background: var(--canvas);
-  padding: 24px;
-  gap: 24px;
+  padding: var(--space-6);
+  gap: var(--space-6);
   min-height: 100dvh;
 }
 .auth-story {
@@ -937,7 +940,7 @@ mark {
     var(--primary-500)
   );
   color: var(--gray-950);
-  padding: 48px;
+  padding: var(--space-12);
   position: relative;
   isolation: isolate;
 }
@@ -959,7 +962,7 @@ mark {
   color: var(--gray-950);
 }
 .auth-story h1 {
-  font-size: 40px;
+  font-size: var(--type-display);
   line-height: 44px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -972,30 +975,30 @@ mark {
 }
 .auth-form {
   max-width: 480px;
-  padding: 40px;
+  padding: var(--space-10);
   background: var(--surface);
   border: 1px solid var(--card-border);
   border-radius: 16px;
 }
 .auth-form h2 {
-  font-size: 28px;
+  font-size: var(--type-large);
   line-height: 32px;
 }
 .auth-theme {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 .narrow {
   max-width: 540px;
-  margin: 40px auto;
-  padding: 16px;
+  margin: var(--space-10) auto;
+  padding: var(--space-4);
 }
 .wordmark {
-  font-size: 11px;
+  font-size: var(--type-caption);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.01em;
 }
 .narrow h1 {
-  font-size: 28px;
+  font-size: var(--type-large);
   line-height: 32px;
 }
 @keyframes overlay-in {
@@ -1064,56 +1067,56 @@ mark {
   .stat,
   .app-card,
   .equipment-card {
-    padding: 20px;
+    padding: var(--space-5);
   }
   .app-grid,
   .equipment-grid {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: var(--space-3);
   }
   .stats {
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
     overflow: auto;
     grid-template-columns: repeat(3, minmax(140px, 1fr));
-    padding-bottom: 4px;
+    padding-bottom: var(--space-1);
   }
   .stat > span {
-    font-size: 12px;
+    font-size: var(--type-caption);
     line-height: 16px;
   }
   .stat strong {
-    font-size: 28px;
+    font-size: var(--type-large);
   }
   .stat > small {
-    font-size: 11px;
+    font-size: var(--type-caption);
   }
   .auth-layout {
     display: block;
-    padding: 16px;
+    padding: var(--space-4);
   }
   .auth-story {
-    padding: 24px;
+    padding: var(--space-6);
     min-height: 200px;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     border-radius: 16px;
   }
   .auth-story h1 {
-    font-size: 28px;
+    font-size: var(--type-large);
     line-height: 32px;
   }
   .auth-story > div {
-    padding: 24px 0 0;
+    padding: var(--space-6) 0 0;
   }
   .auth-form {
-    padding: 24px;
+    padding: var(--space-6);
   }
   .auth-form h2 {
-    font-size: 28px;
+    font-size: var(--type-large);
     line-height: 32px;
   }
   .narrow {
-    margin: 16px auto;
+    margin: var(--space-4) auto;
   }
   .toast {
     top: 16px;
@@ -1154,7 +1157,7 @@ mark {
     backdrop-filter: blur(4px);
   }
   .overlay-menu .overlay-content {
-    padding: 16px;
+    padding: var(--space-4);
   }
   .overlay-sheet {
     height: auto;
@@ -1186,10 +1189,10 @@ mark {
     max-height: calc(100dvh - 140px);
   }
   .command-search {
-    padding: 0 16px;
+    padding: 0 var(--space-4);
   }
   .command-search input {
-    font-size: 15px;
+    font-size: var(--type-headline);
   }
   .menu-item {
     height: 44px;
@@ -1214,8 +1217,8 @@ mark {
     min-height: 44px;
   }
   .calendar-grid {
-    padding: 4px;
-    gap: 2px;
+    padding: var(--space-1);
+    gap: var(--space-half);
   }
 }
 @keyframes bottom-in {
@@ -1313,8 +1316,8 @@ mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 0 12px 12px;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
 }
 .time-column {
   position: relative;
@@ -1327,13 +1330,13 @@ mark {
   width: 88px;
   background: var(--surfaceSunken);
   border-radius: 10px;
-  padding: 44px 4px;
-  scroll-padding: 44px;
+  padding: var(--space-10) var(--space-1);
+  scroll-padding: var(--space-10);
 }
 .time-column button {
   min-height: 44px;
   height: 44px;
-  padding: 10px;
+  padding: var(--space-2);
   flex-shrink: 0;
   scroll-snap-align: center;
   background: transparent;
@@ -1362,7 +1365,7 @@ mark {
     right: 2px;
   }
   .input-wrap input {
-    padding-right: 48px;
+    padding-right: var(--space-12);
   }
   .overlay-heading .icon-button,
   .date-field > .icon-button,
@@ -1389,7 +1392,7 @@ mark {
   height: 6px;
   border-radius: 50%;
   background: var(--danger);
-  margin-right: 6px;
+  margin-right: var(--space-1);
   vertical-align: middle;
 }
 html {
@@ -1397,4 +1400,17 @@ html {
 }
 html:has(dialog[open]) {
   overflow: hidden;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .overlay,
+  .topbar,
+  .r22-search-results {
+    background: var(--surface);
+    backdrop-filter: none;
+    border-color: var(--borderStrong);
+  }
+  .overlay::backdrop {
+    backdrop-filter: none;
+  }
 }
