@@ -1261,6 +1261,13 @@
   .overlay-menu .menu-item {
     position: relative;
   }
+  .overlay-menu .menu-item:focus-visible {
+    outline-offset: -2px;
+  }
+  /* WebKit marks showModal() autofocus as focus-visible even after a pointer click. */
+  .overlay-menu[data-focus-input='pointer'] .menu-item:focus-visible {
+    outline: none;
+  }
   .overlay-menu .menu-item > svg:last-child {
     animation: overlay-in var(--duration-fast) var(--ease-enter);
   }

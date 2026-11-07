@@ -31,6 +31,7 @@ export function Overlay({
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     last = useRef<HTMLElement | null>(null),
+    menuInput = useRef<'pointer' | 'keyboard'>('keyboard'),
     id = useId();
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [present, setPresent] = useState(open);
@@ -80,12 +81,35 @@ export function Overlay({
     )?.focus({ preventScroll: true });
   };
   useEffect(() => {
+    const trigger = anchor?.current;
+    if (kind !== 'menu' || !trigger) return;
+    const pointer = () => {
+        menuInput.current = 'pointer';
+      },
+      keyboard = () => {
+        menuInput.current = 'keyboard';
+      },
+      click = (event: MouseEvent) => {
+        // Virtual/assistive clicks need not produce a keydown or pointerdown.
+        if (event.detail === 0) menuInput.current = 'keyboard';
+      };
+    trigger.addEventListener('pointerdown', pointer, true);
+    trigger.addEventListener('keydown', keyboard, true);
+    trigger.addEventListener('click', click, true);
+    return () => {
+      trigger.removeEventListener('pointerdown', pointer, true);
+      trigger.removeEventListener('keydown', keyboard, true);
+      trigger.removeEventListener('click', click, true);
+    };
+  }, [anchor, kind, container]);
+  useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     if (closingTimer.current) clearTimeout(closingTimer.current);
     cancelSpring.current?.();
     if (open) {
       setPresent(true);
+      if (kind === 'menu') dialog.dataset.focusInput = menuInput.current;
       if (!dialog.open) {
         last.current = anchor?.current ?? (document.activeElement as HTMLElement);
         dialog.dataset.entering = '';
@@ -246,6 +270,12 @@ export function Overlay({
       ref={ref}
       className={`overlay overlay-${kind} ${className}`}
       aria-labelledby={id}
+      onPointerDownCapture={(e) => {
+        if (kind === 'menu') e.currentTarget.dataset.focusInput = menuInput.current = 'pointer';
+      }}
+      onKeyDownCapture={(e) => {
+        if (kind === 'menu') e.currentTarget.dataset.focusInput = menuInput.current = 'keyboard';
+      }}
       onTransitionEnd={(e) => {
         if (e.target === e.currentTarget && !openRef.current) finish();
       }}

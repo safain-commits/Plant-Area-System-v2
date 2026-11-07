@@ -28,8 +28,10 @@ jobs:
         run: |
           openssl req -x509 -newkey rsa:2048 -nodes -keyout infra/certs/tls.key -out infra/certs/tls.crt -days 1 -subj /CN=localhost -addext subjectAltName=DNS:localhost,IP:127.0.0.1
           docker compose --env-file .test-runtime/stack.env -p plant-v2-test -f compose.yaml -f .test-runtime/compose.yaml up -d --build --wait nginx backup
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:e2e
+      - name: WebKit menu focus regression
+        run: pnpm exec playwright test tests/e2e/menu-focus.spec.ts --browser=webkit
       - run: node --env-file=.test-runtime/host.env --import tsx scripts/test-operations.ts
       - name: Gateway recovery after application IP changes
         run: node --env-file=.test-runtime/host.env --import tsx scripts/test-gateway-recovery.ts

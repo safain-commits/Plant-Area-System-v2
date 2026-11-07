@@ -82,6 +82,8 @@ Hover dasar tombol memakai `button:where(:hover:not(:disabled))` agar tidak meni
 
 Overlay dirender melalui portal ke `document.body` setelah mount agar tidak berada di dalam label atau form pemanggil. Event pointer/click berhenti pada batas dialog; klik backdrop ditutup hanya jika penekanan dimulai di luar panel. Interaksi dalam menu dan drag keluar tidak dianggap dismissal. Escape serta penutupan normal mengembalikan fokus ke trigger; draft form tetap berada pada state pemanggil. Hasil audit TestSprite dan verifikasi lokal dicatat di [UI interaction results](testing/UI-INTERACTION-RESULTS.md).
 
+Menu mencatat jenis input pada pemicu dan di dalam dialog. Pembukaan lewat mouse/sentuhan tidak menampilkan outline fokus pada baris; navigasi keyboard menampilkan outline di dalam baris agar tidak terpotong container scroll. Klik virtual tetap mengikuti jalur keyboard. Ini menangani [autofokus `showModal()` pada WebKit](https://bugs.webkit.org/show_bug.cgi?id=309245) tanpa menghapus indikator keyboard. Regresi tema terang/gelap dan desktop/mobile dijalankan di Chromium serta WebKit melalui `tests/e2e/menu-focus.spec.ts`.
+
 ## Halaman equipment Bag Filter
 
 KPI umur memakai pemasangan aktif pada snapshot, bukan nilai konstanta palet. Rentang hari tidak dibatasi; nilai tertua ≥1.260 memakai token `--danger` dan disertai jumlah posisi tua. Posisi tanpa pemasangan tidak dihitung sebagai umur nol.
