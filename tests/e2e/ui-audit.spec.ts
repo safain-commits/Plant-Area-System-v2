@@ -162,6 +162,8 @@ test('filters and pagination fetch while browser timers are paused, retaining th
   await page.goto('/consumables/stock');
   await expect(page.locator('.stock-table-row')).toHaveCount(2);
   await page.getByRole('combobox', { name: 'Ketersediaan', exact: true }).click();
+  const availabilityMenu = page.getByRole('dialog', { name: 'Pilih opsi', exact: true });
+  await expect(availabilityMenu).toBeVisible();
   await page.clock.install();
   await page.clock.pauseAt(new Date());
   hold = true;
@@ -175,13 +177,15 @@ test('filters and pagination fetch while browser timers are paused, retaining th
   release();
   await page.clock.resume();
   await expect(page.locator('.stock-table')).toHaveAttribute('aria-busy', 'false');
-  await expect(page.getByRole('dialog', { name: 'Ketersediaan', exact: true })).toBeHidden();
+  await expect(availabilityMenu).toBeHidden();
+  const nextPage = page.getByRole('button', { name: 'Berikutnya', exact: true });
+  await expect(nextPage).toBeEnabled();
   seen = '';
   gate = new Promise((resolve) => {
     release = resolve;
   });
   await page.clock.pauseAt(new Date());
-  await page.getByRole('button', { name: 'Berikutnya', exact: true }).click({ force: true });
+  await nextPage.click({ force: true });
   await expect.poll(() => seen).toContain('cursor=next-page');
   await expect(page.locator('.stock-table-row')).toHaveCount(2);
   release();
@@ -458,6 +462,7 @@ test('large browser text and accessibility media retain usable Portal, tables an
       ]) {
         await page.goto(path);
         await expect(page.locator('.shell:not(.shell-skeleton) h1').first()).toBeVisible();
+        if (path === '/') await expect(page.locator('.application-summary')).toHaveCount(2);
         await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),

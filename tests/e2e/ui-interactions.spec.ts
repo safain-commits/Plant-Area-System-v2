@@ -231,6 +231,7 @@ test('nested manufacturer menu dismisses without closing or losing the replaceme
   await expect(reason).toHaveValue('Unsaved interaction-test draft');
   await brand.click();
   await page.getByRole('option', { name: 'Filtras', exact: true }).click();
+  await expect(menu).toBeHidden();
   await expect(brand).toHaveText('Filtras');
   await expect(sheet).toBeVisible();
   await page.keyboard.press('Escape');

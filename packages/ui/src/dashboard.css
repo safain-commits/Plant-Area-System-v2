@@ -762,6 +762,9 @@
   .application-summary + .application-summary {
     margin-top: 0;
   }
+  .application-summary .section-head {
+    flex-wrap: wrap;
+  }
   .application-summary h2 {
     display: flex;
     align-items: center;
