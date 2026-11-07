@@ -17,7 +17,50 @@ import {
   type Identity,
 } from '@plant/contracts';
 import { parseCatalog } from '@plant/consumables-core/import';
-import { createDocument } from '@plant/consumables-core';
+import { createDocument, saveInventory, postMovement } from '@plant/consumables-core';
+
+test('material references reject malformed IDs before accessing persistence', async () => {
+  const actor: Identity = {
+    id: 'material-validation',
+    name: 'Validation',
+    email: 'validation@example.test',
+    position: '',
+    portalAdmin: false,
+    mustChangePassword: false,
+    grants: [{ appId: 'consumables', role: 'admin' }],
+  };
+  for (const materialId of ['', 'x'.repeat(37), 'mat/001', ' mat-001', "mat-001';--", null, 1]) {
+    const invalid = (e: unknown) =>
+      e instanceof AppError && e.status === 400 && e.message === 'ID tidak valid.';
+    await assert.rejects(saveInventory(actor, { materialId }), invalid);
+    await assert.rejects(
+      postMovement(
+        actor,
+        'opening',
+        { materialId, quantity: '1', reason: 'Test', expectedVersion: 1 },
+        'validation-key',
+      ),
+      invalid,
+    );
+    for (const type of ['consume', 'return', 'picklist'] as const)
+      await assert.rejects(
+        createDocument(
+          actor,
+          type,
+          type === 'picklist'
+            ? {
+                reservationNo: 'RES',
+                wo: 'WO',
+                costCenter: 'TEST',
+                lines: [{ materialId, sapQuantity: '1' }],
+              }
+            : { hec: '361-CV1', lines: [{ materialId, quantity: '1' }] },
+          'validation-key',
+        ),
+        type === 'picklist' ? (e) => e instanceof AppError && e.status === 400 : invalid,
+      );
+  }
+});
 
 test('picklist requires a nonblank Cost Center before accessing persistence', async () => {
   const actor: Identity = {

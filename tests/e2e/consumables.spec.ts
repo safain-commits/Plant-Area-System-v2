@@ -58,7 +58,7 @@ test.beforeAll(async () => {
   await closeAuthDb();
   client = await requests.newContext({ baseURL: process.env.PUBLIC_ORIGIN, ignoreHTTPSErrors: true });
   expect((await post(client, '/auth/api/sign-in/email', { email, password })).ok()).toBeTruthy();
-  materialId = (
+  const generatedMaterialId = (
     await save('/consumables/api/materials', {
       mmid,
       description: 'Browser synthetic SAP',
@@ -71,6 +71,12 @@ test.beforeAll(async () => {
       decimalAllowed: false,
     })
   ).id;
+  // Reproduce pre-existing development IDs through the real browser/API workflow.
+  materialId = 'mat-' + suffix;
+  await getConsumablesDb()
+    .update(s.materials)
+    .set({ id: materialId })
+    .where(eq(s.materials.id, generatedMaterialId));
   materials.push(materialId);
   await save('/consumables/api/inventory', { materialId, rack: 'Rack B1' });
 });
@@ -378,5 +384,60 @@ test('gateway, four roles, role-only grant, rejected location fields, revocation
     expect((await client.get('/consumables/api/inventory')).status()).toBe(403);
   } finally {
     await save('/api/admin/applications/consumables', { status: 'active' });
+  }
+});
+
+test('Simpan order accepts a persisted non-UUID material alongside a new UUID material', async ({
+  page,
+  context,
+}) => {
+  const newMaterial = await save('/consumables/api/materials', {
+    mmid: 'R22-UUID-' + suffix,
+    description: 'UUID regression material',
+    unit: 'PCS',
+    category: 'Synthetic',
+    decimalAllowed: false,
+  });
+  materials.push(newMaterial.id);
+  await save('/consumables/api/inventory', { materialId: newMaterial.id });
+  const ids = [materialId, newMaterial.id],
+    before: string[] = [];
+  for (const id of ids) {
+    let detail = await (await client.get('/consumables/api/materials/' + id)).json();
+    if (!detail.stock.initialized) {
+      await save(
+        '/consumables/api/opening-balances',
+        { materialId: id, quantity: '150', reason: 'Identifier regression', expectedVersion: 1 },
+        randomUUID(),
+      );
+      detail = await (await client.get('/consumables/api/materials/' + id)).json();
+    }
+    before.push(detail.stock.quantity);
+  }
+  await context.addCookies((await client.storageState()).cookies);
+  for (const id of ids) {
+    await page.goto('/consumables/consume?material=' + encodeURIComponent(id));
+    const dialog = page.getByRole('dialog', { name: 'Tambah jumlah material' });
+    await dialog.getByLabel('Jumlah (PCS)', { exact: true }).fill('1');
+    await dialog.getByRole('button', { name: 'Tambah ke keranjang' }).click();
+    await expect(dialog).toBeHidden();
+  }
+  await page.getByLabel('HAC/SAC / Lokasi fungsional').fill('361-CV1');
+  await page.getByLabel('Nomor WO (opsional)').fill('32141');
+  await page.getByLabel('Keterangan / deskripsi pekerjaan (opsional)').fill('Ganti bearing');
+  await expect(page.locator('.r22-cart-table .r22-cart-row')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Simpan order', exact: true }).click();
+  const response = page.waitForResponse(
+    (r) => r.url().endsWith('/consumables/api/consume-orders') && r.request().method() === 'POST',
+  );
+  await page.getByRole('button', { name: 'Finalisasi Pemakaian', exact: true }).click();
+  const saved = await response;
+  expect(saved.status(), await saved.text()).toBe(201);
+  await expect(page.getByRole('status')).toContainText('Consume Order tersimpan');
+  const result = await saved.json();
+  expect(result.lines.map((l: { materialId: string }) => l.materialId).sort()).toEqual([...ids].sort());
+  for (const [i, id] of ids.entries()) {
+    const detail = await (await client.get('/consumables/api/materials/' + id)).json();
+    expect(detail.stock.quantity).toBe((Number(before[i]) - 1).toFixed(6));
   }
 });

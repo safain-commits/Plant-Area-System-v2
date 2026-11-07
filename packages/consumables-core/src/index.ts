@@ -38,6 +38,7 @@ import {
   parse,
   amount,
   positive,
+  recordId,
   code,
   search,
   page,
@@ -69,7 +70,7 @@ const materialInput = z
   .strict();
 const inventoryInput = z
   .object({
-    materialId: z.uuid(),
+    materialId: recordId,
     rack: z.string().trim().max(100).default(''),
     active: z.boolean().default(true),
     version: z.number().int().positive().optional(),
@@ -169,7 +170,7 @@ export async function saveInventory(actor: Identity, body: unknown, id?: string)
     throw e;
   }
 }
-const common = { materialId: z.uuid() };
+const common = { materialId: recordId };
 const schemas = {
   opening: z
     .object({

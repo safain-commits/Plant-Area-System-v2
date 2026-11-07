@@ -10,6 +10,8 @@ import {
   createDocument,
   documentDetail,
   listDocuments,
+  listMaterials,
+  listInventory,
   searchMaterials,
   hecSuggestions,
   materialDetail,
@@ -37,7 +39,7 @@ const actor: Identity = {
   grants: [{ appId: 'consumables', role: 'admin' }],
 };
 const key = () => randomUUID();
-async function fixture(n = 2) {
+async function fixture(n = 2, legacyIds = false) {
   const fixtureWo = 'WO-' + key();
   const list: Array<{
     id: string;
@@ -55,7 +57,7 @@ async function fixture(n = 2) {
   }> = [];
   for (let j = 0; j < n; j++) {
     const source = {
-      mmid: 'R22-' + key(),
+      mmid: legacyIds ? `LEGACY-${fixtureWo}-${j}` : 'R22-' + key(),
       description: 'SAP Bolt ' + j,
       commonName: 'Baut M16',
       aliases: 'mur, fastener',
@@ -65,8 +67,16 @@ async function fixture(n = 2) {
       packSize: '2',
       category: 'Synthetic',
     };
-    const id = (await saveMaterial(actor, source)).id;
-    await saveInventory(actor, { materialId: id });
+    const generatedId = (await saveMaterial(actor, source)).id;
+    const id = legacyIds ? 'mat-' + key().slice(0, 20) : generatedId;
+    if (legacyIds)
+      await getConsumablesDb().update(s.materials).set({ id }).where(eq(s.materials.id, generatedId));
+    const stock = await saveInventory(actor, { materialId: id });
+    if (legacyIds)
+      await getConsumablesDb()
+        .update(s.inventory)
+        .set({ id: 'inv-' + id })
+        .where(eq(s.inventory.id, stock.id));
     await postMovement(
       actor,
       'opening',
@@ -84,6 +94,74 @@ async function fixture(n = 2) {
   return { list, input, quantity };
 }
 const status = (n: number) => (e: unknown) => e instanceof AppError && e.status === n;
+test('existing non-UUID material and inventory IDs support orders, replay and pagination', async () => {
+  const f = await fixture(2, true),
+    requestKey = key();
+  const found = await searchMaterials(actor, new URLSearchParams({ q: f.list[0].source.mmid }));
+  assert.equal(found.items[0].id, f.list[0].id);
+  const consume = await createDocument(actor, 'consume', f.input, requestKey);
+  assert.equal(consume.lines.length, 2);
+  assert.equal(await f.quantity(), '8.000000');
+  const replay = await createDocument(actor, 'consume', f.input, requestKey);
+  assert.equal(replay.document.id, consume.document.id);
+  assert.equal(replay.replayed, true);
+  assert.equal(await f.quantity(), '8.000000');
+  await createDocument(actor, 'return', f.input, key());
+  assert.equal(await f.quantity(), '10.000000');
+  await createDocument(
+    actor,
+    'picklist',
+    {
+      reservationNo: 'LEGACY-RES',
+      wo: f.input.wo,
+      costCenter: 'TEST',
+      lines: f.list.map((m) => ({ materialId: m.id, sapQuantity: '1', materialVersion: 1 })),
+    },
+    key(),
+  );
+  assert.equal(await f.quantity(), '12.000000');
+  for (const list of [listMaterials, listInventory]) {
+    const params = new URLSearchParams({ q: f.input.wo, limit: '1' });
+    const first = await list(actor, params);
+    assert.equal(first.items.length, 1);
+    assert.ok(first.nextCursor);
+    params.set('cursor', first.nextCursor);
+    const second = await list(actor, params);
+    assert.equal(second.items.length, 1);
+    assert.notEqual(second.items[0].id, first.items[0].id);
+    assert.equal(second.nextCursor, null);
+    params.set('cursor', Buffer.from(JSON.stringify({ sort: '', id: '../invalid' })).toString('base64url'));
+    await assert.rejects(list(actor, params), status(400));
+  }
+  await assert.rejects(
+    createDocument(
+      actor,
+      'consume',
+      { ...f.input, lines: [{ materialId: 'mat-missing-' + key().slice(0, 8), quantity: '1' }] },
+      key(),
+    ),
+    status(404),
+  );
+  await assert.rejects(
+    createDocument(
+      { ...actor, grants: [{ appId: 'consumables', role: 'viewer' }] },
+      'consume',
+      f.input,
+      key(),
+    ),
+    status(403),
+  );
+  await assert.rejects(
+    createDocument(
+      actor,
+      'consume',
+      { ...f.input, lines: f.list.map((m) => ({ materialId: m.id, quantity: '13' })) },
+      key(),
+    ),
+    (e) => e instanceof DocumentConflict && e.lines.length === 2,
+  );
+  assert.equal(await f.quantity(), '12.000000');
+});
 test('R22 multi-item consume is atomic, reports every shortage, and replays normalized payload', async () => {
   const f = await fixture(),
     k = key();

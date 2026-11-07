@@ -68,6 +68,10 @@ export const amount = z.string().transform((v, ctx) => {
   }
 });
 export const positive = amount.refine((v) => decimalUnits(v) > 0n, 'Jumlah harus lebih besar dari nol.');
+// Existing varchar(36) keys can predate UUID generation (for example, mat-001).
+export const recordId = z
+  .string({ error: 'ID tidak valid.' })
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,35}$/, 'ID tidak valid.');
 
 export function code(e: unknown): string | undefined {
   if (!e || typeof e !== 'object') return;
@@ -89,7 +93,7 @@ function pageCursor(value: string | null) {
   if (!value) return null;
   try {
     const v = JSON.parse(Buffer.from(value, 'base64url').toString());
-    if (typeof v.sort !== 'string' || v.sort.length > 200 || !z.uuid().safeParse(v.id).success) throw Error();
+    if (typeof v.sort !== 'string' || v.sort.length > 200 || !recordId.safeParse(v.id).success) throw Error();
     return v as { sort: string; id: string };
   } catch {
     throw new AppError(400, 'Cursor tidak valid.');

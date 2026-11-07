@@ -35,6 +35,7 @@ import {
   rows,
   parse,
   positive,
+  recordId,
   requireStock,
   scope,
   entry,
@@ -52,7 +53,7 @@ const hec = z
   .string()
   .transform(normalizeHec)
   .refine((v) => HEC_PATTERN.test(v), 'HAC/SAC wajib dengan format XXX-XXX, contoh 452-BU1.');
-const qtyLine = z.object({ materialId: z.uuid(), quantity: positive }).strict();
+const qtyLine = z.object({ materialId: recordId, quantity: positive }).strict();
 const requester = z
   .object({ name: z.string().trim().min(1).max(100), nik: text(30) })
   .strict()
@@ -69,7 +70,7 @@ const date = z
 const pickLine = z.union([
   z
     .object({
-      materialId: z.uuid(),
+      materialId: recordId,
       sapQuantity: positive,
       materialVersion: z.number().int().positive().optional(),
     })
