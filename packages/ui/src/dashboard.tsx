@@ -37,19 +37,27 @@ const brandColors = [
 ];
 export function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(value),
-    previous = useRef(0);
+    previous = useRef(value);
+  const presentation = useRef(value);
   useEffect(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (value === previous.current || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setDisplay(value);
+      previous.current = value;
+      presentation.current = value;
       return;
     }
-    const from = previous.current;
+    const from = presentation.current;
     previous.current = value;
     const start = performance.now();
+    const duration = Math.min(
+      300,
+      parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration-data')) || 280,
+    );
     let frame = 0;
     const tick = (time: number) => {
-      const f = Math.min(1, (time - start) / 600);
-      setDisplay(Math.round(from + (value - from) * (1 - (1 - f) ** 3)));
+      const f = Math.min(1, (time - start) / duration);
+      presentation.current = Math.round(from + (value - from) * (1 - (1 - f) ** 3));
+      setDisplay(presentation.current);
       if (f < 1) frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

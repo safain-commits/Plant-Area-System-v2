@@ -9,7 +9,12 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }) {
   return (
-    <button {...props} className={`busy-button ${className}`} disabled={disabled || busy} aria-busy={busy}>
+    <button
+      {...props}
+      className={`busy-button pressable ${className}`}
+      disabled={disabled || busy}
+      aria-busy={busy}
+    >
       <span className="button-label" style={busy ? { visibility: 'hidden' } : undefined}>
         {children}
       </span>

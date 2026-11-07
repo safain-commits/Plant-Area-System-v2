@@ -2,7 +2,6 @@
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100dvh;
-  transition: grid-template-columns var(--duration-moderate) var(--ease-drawer);
 }
 .shell.is-collapsed {
   grid-template-columns: 76px minmax(0, 1fr);
@@ -22,7 +21,6 @@
   border-right: 1px solid var(--sidebar-border);
   color-scheme: inherit;
   z-index: 30;
-  transition: width var(--duration-moderate) var(--ease-drawer);
 }
 .sidebar .brand {
   gap: var(--space-3);
@@ -809,4 +807,25 @@
     width: 44px;
     min-width: 44px;
   }
+}
+
+/* One layout change at collapse; only labels animate between states. */
+.sidebar {
+  view-transition-name: app-sidebar;
+}
+.topbar {
+  view-transition-name: app-topbar;
+}
+.page-content {
+  view-transition-name: app-content;
+  contain: layout;
+}
+.sidebar-label {
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+::view-transition-old(app-sidebar),
+::view-transition-new(app-sidebar),
+::view-transition-old(app-topbar),
+::view-transition-new(app-topbar) {
+  animation: none;
 }

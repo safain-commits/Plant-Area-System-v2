@@ -2,6 +2,7 @@
 import { useEffect, useRef, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './icon';
+import { record, velocity, rubberband, shouldDismiss, spring, type Sample } from './gesture';
 
 export function Overlay({
   open,
@@ -14,6 +15,7 @@ export function Overlay({
   placement = 'bottom',
   className = '',
   showHandle = true,
+  onNavigate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,50 +27,201 @@ export function Overlay({
   placement?: 'bottom' | 'right';
   className?: string;
   showHandle?: boolean;
+  onNavigate?: (direction: -1 | 1) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null),
     last = useRef<HTMLElement | null>(null),
     id = useId();
-  const [drag, setDrag] = useState(0);
-  const start = useRef<number | null>(null);
-  const swipe = useRef<{ x: number; y: number } | null>(null);
-  const [dragX, setDragX] = useState(0);
   const [container, setContainer] = useState<HTMLElement | null>(null);
-  const backdropPress = useRef(false);
+  const backdropPress = useRef(false),
+    closingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelSpring = useRef<(() => void) | null>(null),
+    dragFrame = useRef(0),
+    position = useRef(0);
+  const retained = useRef(children),
+    openRef = useRef(open),
+    closeRef = useRef(onClose);
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    origin: number;
+    horizontal: boolean;
+    sign: number;
+    dimension: number;
+    active: boolean;
+    samples: Sample[];
+  } | null>(null);
+  const suppressClick = useRef(false);
+  if (open) retained.current = children;
+  openRef.current = open;
+  closeRef.current = onClose;
   useEffect(() => setContainer(document.body), []);
+  const finish = () => {
+    const dialog = ref.current;
+    if (!dialog || openRef.current) return;
+    dialog.close();
+    dialog.removeAttribute('data-closing');
+    dialog.style.removeProperty('transform');
+    position.current = 0;
+    (last.current?.isConnected
+      ? last.current
+      : document.querySelector<HTMLElement>('[data-sheet-trigger]')
+    )?.focus({ preventScroll: true });
+  };
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
+    if (closingTimer.current) clearTimeout(closingTimer.current);
+    cancelSpring.current?.();
     if (open) {
-      last.current = anchor?.current ?? (document.activeElement as HTMLElement);
+      if (!dialog.open) {
+        last.current = anchor?.current ?? (document.activeElement as HTMLElement);
+        dialog.dataset.entering = '';
+        dialog.showModal();
+        // Force the entry presentation once; reopening an exit preserves its current transform.
+        dialog.getBoundingClientRect();
+        delete dialog.dataset.entering;
+      }
+      delete dialog.dataset.closing;
+      dialog.style.removeProperty('transform');
+      position.current = 0;
       if (kind === 'menu' && anchor?.current && innerWidth >= 640) {
         const rect = anchor.current.getBoundingClientRect();
-        dialog.style.setProperty(
-          '--anchor-top',
-          `${Math.max(8, Math.min(innerHeight - 340, placement === 'right' ? rect.top : rect.bottom + 8))}px`,
+        const width = dialog.getBoundingClientRect().width;
+        const desiredLeft = placement === 'right' ? rect.right + 8 : rect.left;
+        const left = Math.max(8, Math.min(innerWidth - width - 8, desiredLeft));
+        const top = Math.max(
+          8,
+          Math.min(
+            innerHeight - dialog.getBoundingClientRect().height - 8,
+            placement === 'right' ? rect.top : rect.bottom + 8,
+          ),
         );
+        dialog.style.setProperty('--anchor-top', `${top}px`);
+        dialog.style.setProperty('--anchor-left', `${left}px`);
         dialog.style.setProperty(
-          '--anchor-left',
-          `${Math.max(8, Math.min(innerWidth - 340, placement === 'right' ? rect.right + 8 : rect.left))}px`,
+          '--anchor-origin',
+          placement === 'right' ? 'left top' : left < desiredLeft ? 'top right' : 'top left',
         );
       }
-      if (!dialog.open) dialog.showModal();
     } else if (dialog.open) {
-      dialog.close();
-      (last.current?.isConnected
-        ? last.current
-        : document.querySelector<HTMLElement>('[data-sheet-trigger]')
-      )?.focus({ preventScroll: true });
+      dialog.getBoundingClientRect();
+      delete dialog.dataset.dragging;
+      dialog.style.removeProperty('transform');
+      dialog.dataset.closing = '';
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const duration = getComputedStyle(dialog).getPropertyValue(
+        reduced ? '--duration-instant' : '--duration-moderate',
+      );
+      const ms = parseFloat(duration) * (duration.trim().endsWith('ms') ? 1 : 1000);
+      closingTimer.current = setTimeout(finish, ms + 32);
     }
+    return () => {
+      if (closingTimer.current) clearTimeout(closingTimer.current);
+    };
   }, [open, kind, anchor, placement, container]);
-  // Keep modal content outside enclosing labels/forms. Portals still bubble through
-  // the React tree, so pointer/click events also stop at the dialog boundary.
+  useEffect(
+    () => () => {
+      cancelSpring.current?.();
+      cancelAnimationFrame(dragFrame.current);
+    },
+    [],
+  );
+  function start(e: React.PointerEvent<HTMLElement>, handle = false) {
+    const dialog = ref.current;
+    if (!dialog || e.button !== 0 || (kind !== 'drawer' && !handle)) return;
+    const horizontal = kind === 'drawer' || innerWidth >= 640;
+    if (!handle && e.pointerType !== 'touch') return;
+    cancelSpring.current?.();
+    const transform = new DOMMatrixReadOnly(getComputedStyle(dialog).transform);
+    const sign = kind === 'drawer' ? -1 : 1;
+    position.current = (horizontal ? transform.m41 : transform.m42) * sign;
+    const dimension = horizontal ? dialog.offsetWidth : dialog.offsetHeight;
+    gesture.current = {
+      x: e.clientX,
+      y: e.clientY,
+      origin: position.current,
+      horizontal,
+      sign,
+      dimension,
+      active: Math.abs(position.current) > 0.25,
+      samples: [],
+    };
+    if (gesture.current.active) e.currentTarget.setPointerCapture(e.pointerId);
+    record(gesture.current.samples, position.current, e.timeStamp);
+  }
+  function move(e: React.PointerEvent<HTMLElement>) {
+    const g = gesture.current,
+      dialog = ref.current;
+    if (!g || !dialog) return;
+    const main = g.horizontal ? e.clientX - g.x : e.clientY - g.y;
+    const cross = g.horizontal ? e.clientY - g.y : e.clientX - g.x;
+    if (!g.active) {
+      if (Math.max(Math.abs(main), Math.abs(cross)) < 10) return;
+      if (Math.abs(cross) > Math.abs(main)) {
+        gesture.current = null;
+        return;
+      }
+      g.active = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dialog.dataset.dragging = '';
+    }
+    const raw = g.origin + main * g.sign;
+    position.current =
+      raw < 0
+        ? rubberband(raw, g.dimension)
+        : raw > g.dimension
+          ? g.dimension + rubberband(raw - g.dimension, g.dimension)
+          : raw;
+    record(g.samples, position.current, e.timeStamp);
+    cancelAnimationFrame(dragFrame.current);
+    dragFrame.current = requestAnimationFrame(() => {
+      dialog.style.transform = g.horizontal
+        ? `translate3d(${position.current * g.sign}px,0,0)`
+        : `translate3d(0,${position.current}px,0)`;
+    });
+  }
+  function release(e: React.PointerEvent<HTMLElement>, cancelled = false) {
+    const g = gesture.current,
+      dialog = ref.current;
+    gesture.current = null;
+    if (!g?.active || !dialog) return;
+    cancelAnimationFrame(dragFrame.current);
+    suppressClick.current = true;
+    record(g.samples, position.current, e.timeStamp);
+    const speed = velocity(g.samples);
+    const dismiss = !cancelled && shouldDismiss(position.current, speed, g.dimension);
+    const target = dismiss ? g.dimension : 0;
+    const update = (v: number) => {
+      position.current = v;
+      dialog.style.transform = g.horizontal ? `translate3d(${v * g.sign}px,0,0)` : `translate3d(0,${v}px,0)`;
+    };
+    const complete = () => {
+      delete dialog.dataset.dragging;
+      if (dismiss) closeRef.current();
+      else dialog.style.removeProperty('transform');
+    };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      update(target);
+      complete();
+    } else
+      cancelSpring.current = spring({
+        from: position.current,
+        to: target,
+        velocity: speed,
+        update,
+        complete,
+      });
+  }
   if (!container) return null;
   return createPortal(
     <dialog
       ref={ref}
       className={`overlay overlay-${kind} ${className}`}
       aria-labelledby={id}
+      onTransitionEnd={(e) => {
+        if (e.target === e.currentTarget && !openRef.current) finish();
+      }}
       onPointerDown={(e) => {
         e.stopPropagation();
         const r = e.currentTarget.getBoundingClientRect();
@@ -82,12 +235,17 @@ export function Overlay({
       }}
       onKeyDown={(e) => {
         if (
-          kind !== 'menu' ||
           e.defaultPrevented ||
-          !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
-          (e.target as HTMLElement).matches('input,textarea')
+          (e.target as HTMLElement).matches('input,textarea,[role="combobox"],select')
         )
           return;
+        if (kind === 'sheet' && onNavigate && ['ArrowUp', 'ArrowDown'].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onNavigate(e.key === 'ArrowUp' ? -1 : 1);
+          return;
+        }
+        if (kind !== 'menu' || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
         const items = Array.from(
           ref.current!.querySelectorAll<HTMLElement>('.menu-item:not(:disabled), .activity-row'),
         );
@@ -110,6 +268,11 @@ export function Overlay({
       }}
       onClick={(e) => {
         e.stopPropagation();
+        if (suppressClick.current) {
+          e.preventDefault();
+          suppressClick.current = false;
+          return;
+        }
         if (backdropPress.current && e.target === e.currentTarget) {
           const r = e.currentTarget.getBoundingClientRect();
           if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
@@ -122,39 +285,17 @@ export function Overlay({
     >
       <div
         className="overlay-content"
-        style={drag || dragX ? { transform: `translate(${dragX}px, ${drag}px)` } : undefined}
-        onPointerDown={(e) => {
-          if (kind === 'drawer' && e.pointerType === 'touch') swipe.current = { x: e.clientX, y: e.clientY };
-        }}
-        onPointerMove={(e) => {
-          if (swipe.current && Math.abs(e.clientY - swipe.current.y) < 60)
-            setDragX(Math.min(0, e.clientX - swipe.current.x));
-        }}
-        onPointerUp={() => {
-          if (dragX < -80) onClose();
-          swipe.current = null;
-          setDragX(0);
-        }}
-        onPointerCancel={() => {
-          swipe.current = null;
-          setDragX(0);
-        }}
+        onPointerDown={(e) => start(e)}
+        onPointerMove={move}
+        onPointerUp={(e) => release(e)}
+        onPointerCancel={(e) => release(e, true)}
       >
         {showHandle && (kind === 'sheet' || kind === 'menu') && (
           <div
             className="sheet-grab"
             onPointerDown={(e) => {
-              if (innerWidth >= 640) return;
-              start.current = e.clientY;
-              e.currentTarget.setPointerCapture(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              if (start.current !== null) setDrag(Math.max(0, e.clientY - start.current));
-            }}
-            onPointerUp={() => {
-              if (drag > 100) onClose();
-              setDrag(0);
-              start.current = null;
+              e.stopPropagation();
+              start(e, true);
             }}
             aria-hidden="true"
           >
@@ -174,7 +315,7 @@ export function Overlay({
             </button>
           )}
         </div>
-        {children}
+        {open ? children : retained.current}
       </div>
     </dialog>,
     container,

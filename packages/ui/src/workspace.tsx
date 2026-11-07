@@ -49,6 +49,8 @@ export function Workspace({
   activeEquipment?: string;
   children: React.ReactNode;
 }) {
+  const [modifier, setModifier] = useState('Ctrl');
+  useEffect(() => setModifier(/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'), []);
   const [collapsed, setCollapsed] = useState(false),
     [mobile, setMobile] = useState(false),
     [drawer, setDrawer] = useState(false);
@@ -371,7 +373,7 @@ export function Workspace({
           </button>
         )}
       </div>
-      <p className="nav-label sidebar-label">WORKSPACE</p>
+      <p className="nav-label sidebar-label">Ruang kerja</p>
       <SidebarNavigation
         identity={identity}
         activeHref={activeHref}
@@ -392,7 +394,7 @@ export function Workspace({
             <Icon name="collapse" style={collapsed ? { transform: 'rotate(180deg)' } : undefined} />
           </span>
           <span className="sidebar-label">Ciutkan sidebar</span>
-          <kbd className="sidebar-label">Ctrl B</kbd>
+          <kbd className="sidebar-label">{modifier} B</kbd>
         </button>
       </div>
       {/* <button
@@ -438,7 +440,7 @@ export function Workspace({
           >
             <Icon name="search" />
             <span>Pencarian cepat</span>
-            <kbd>Ctrl K</kbd>
+            <kbd>{modifier} K</kbd>
           </button>
           <div className="topbar-actions">
             <ThemeToggle />
