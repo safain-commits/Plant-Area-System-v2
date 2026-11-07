@@ -137,6 +137,11 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
       if (
         !(await confirm(
           `${title} · HAC/SAC ${hec} · WO ${draft.wo || '—'} · Peminta ${self} · ${body.lines.length} item. Finalisasi dan ${type === 'consume' ? 'kurangi' : 'tambahkan'} stok sekarang?`,
+          {
+            title: `Konfirmasi ${title}`,
+            confirmLabel: `Finalisasi ${type === 'consume' ? 'Pemakaian' : 'Pengembalian'}`,
+            variant: 'primary',
+          },
         ))
       )
         return;
@@ -227,7 +232,12 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
             <fieldset disabled={busy || loaded !== storageKey} className="r22-fieldset">
               <div className="form-grid">
                 <label>
-                  HAC/SAC / Functional Location
+                  <span>
+                    HAC/SAC / Functional Location{' '}
+                    <span className="r22-required" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
                   <Input
                     required
                     maxLength={30}
@@ -281,7 +291,12 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
               {canConsume(identity, 'onbehalf') && draft.onbehalf ? (
                 <div className="form-grid">
                   <label>
-                    Nama peminta
+                    <span>
+                      Nama peminta{' '}
+                      <span className="r22-required" aria-hidden="true">
+                        *
+                      </span>
+                    </span>
                     <Input
                       required
                       maxLength={100}
@@ -325,7 +340,14 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                   className="secondary small"
                   disabled={busy}
                   onClick={async () => {
-                    if (await confirm('Kosongkan seluruh item dalam keranjang ini?')) update({ lines: [] });
+                    if (
+                      await confirm('Kosongkan seluruh item dalam keranjang ini?', {
+                        title: 'Kosongkan keranjang',
+                        confirmLabel: 'Kosongkan',
+                        variant: 'danger',
+                      })
+                    )
+                      update({ lines: [] });
                   }}
                 >
                   Kosongkan

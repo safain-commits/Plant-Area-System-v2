@@ -23,6 +23,11 @@
   margin: 20px 0 0;
   min-width: 0;
 }
+.r22-required {
+  color: var(--danger);
+  font-weight: 700;
+  margin-left: 2px;
+}
 .r22-span-all {
   grid-column: 1 / -1;
 }

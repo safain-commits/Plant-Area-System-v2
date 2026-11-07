@@ -715,7 +715,13 @@ function StockTransaction({
           reason: new FormData(e.currentTarget).get('reason'),
           expectedVersion: item.inventoryVersion,
         };
-        if (!(await confirm(`${labels[kind]} ${item.mmid} di R22: jumlah fisik ${amount} ${item.unit}?`)))
+        if (
+          !(await confirm(`${labels[kind]} ${item.mmid} di R22: jumlah fisik ${amount} ${item.unit}?`, {
+            title: `Konfirmasi ${labels[kind]}`,
+            confirmLabel: `Simpan ${labels[kind]}`,
+            variant: 'primary',
+          }))
+        )
           return;
         const fingerprint = JSON.stringify(body),
           key = pending?.fingerprint === fingerprint ? pending.key : crypto.randomUUID();
@@ -750,7 +756,12 @@ function StockTransaction({
         </p>
       )}
       <label>
-        Jumlah fisik
+        <span>
+          Jumlah fisik{' '}
+          <span className="r22-required" aria-hidden="true">
+            *
+          </span>
+        </span>
         <Input
           required
           inputMode={item.decimalAllowed ? 'decimal' : 'numeric'}
@@ -760,7 +771,12 @@ function StockTransaction({
         />
       </label>
       <label>
-        Alasan / keterangan hitung fisik
+        <span>
+          Alasan / keterangan hitung fisik{' '}
+          <span className="r22-required" aria-hidden="true">
+            *
+          </span>
+        </span>
         <Textarea name="reason" required maxLength={500} />
       </label>
       <div className="stock-preview">
@@ -906,11 +922,21 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
       )}
       <div className="form-grid">
         <label>
-          SAP/MMID
+          <span>
+            SAP/MMID{' '}
+            <span className="r22-required" aria-hidden="true">
+              *
+            </span>
+          </span>
           <Input name="mmid" required maxLength={80} defaultValue={material?.mmid} disabled={!!material} />
         </label>
         <label>
-          Nama asli / part description
+          <span>
+            Nama asli / part description{' '}
+            <span className="r22-required" aria-hidden="true">
+              *
+            </span>
+          </span>
           <Input name="description" required maxLength={160} defaultValue={material?.description} />
         </label>
         <label>
@@ -920,7 +946,12 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
         </label>
         <AliasInput initial={material?.aliases || ''} />
         <label>
-          Satuan SAP
+          <span>
+            Satuan SAP{' '}
+            <span className="r22-required" aria-hidden="true">
+              *
+            </span>
+          </span>
           <Input
             name="sapUnit"
             required
@@ -931,7 +962,12 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           />
         </label>
         <label>
-          Satuan R22 (terkecil)
+          <span>
+            Satuan R22 (terkecil){' '}
+            <span className="r22-required" aria-hidden="true">
+              *
+            </span>
+          </span>
           <Input
             name="unit"
             required
@@ -948,7 +984,12 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           </small>
         </label>
         <label>
-          Kategori
+          <span>
+            Kategori{' '}
+            <span className="r22-required" aria-hidden="true">
+              *
+            </span>
+          </span>
           <Input name="category" required maxLength={100} defaultValue={material?.category} />
         </label>
         <label>

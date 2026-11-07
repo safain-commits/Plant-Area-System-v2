@@ -40,7 +40,7 @@ export function Heading({
 
 export { Dashboard, AnimatedNumber } from './dashboard';
 
-export { useConfirmation } from './confirm';
+export { useConfirmation, type ConfirmationOptions, type ConfirmFunction } from './confirm';
 export { StockSummary } from './stock-summary';
 export {
   readCart,

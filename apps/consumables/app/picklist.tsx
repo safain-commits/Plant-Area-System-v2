@@ -162,6 +162,11 @@ export function Picklist({ identity }: { identity: Identity }) {
       if (
         !(await confirm(
           `Terima picklist ${body.reservationNo} · WO ${body.wo} · ${body.lines.length} item ke stok R22?`,
+          {
+            title: 'Konfirmasi Penerimaan Picklist',
+            confirmLabel: 'Terima ke Stok R22',
+            variant: 'primary',
+          },
         ))
       )
         return;
@@ -241,7 +246,12 @@ export function Picklist({ identity }: { identity: Identity }) {
           <fieldset className="r22-fieldset" disabled={busy || loaded !== key}>
             <div className="form-grid">
               <label>
-                No. Reservasi
+                <span>
+                  No. Reservasi{' '}
+                  <span className="r22-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <Input
                   required
                   maxLength={30}
@@ -250,7 +260,12 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                WO No.
+                <span>
+                  WO No.{' '}
+                  <span className="r22-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <Input
                   required
                   maxLength={100}
@@ -276,7 +291,12 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                Cost Center
+                <span>
+                  Cost Center{' '}
+                  <span className="r22-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <Input
                   required
                   maxLength={40}

@@ -71,7 +71,12 @@ export function QuantityDialog({
             )}
           </div>
           <label>
-            Jumlah ({material.unit})
+            <span>
+              Jumlah ({material.unit}){' '}
+              <span className="r22-required" aria-hidden="true">
+                *
+              </span>
+            </span>
             <Input
               autoFocus
               required
