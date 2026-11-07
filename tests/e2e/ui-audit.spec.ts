@@ -203,6 +203,62 @@ test('material detail uses a sheet, keeps its selected row and moves with arrow 
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
 });
+test('switching catalog and stock tabs never renders material data as inventory rows', async ({ page }) => {
+  await start(page);
+  const keyWarnings: string[] = [];
+  page.on('console', (message) => {
+    if (/unique.*key|same key/i.test(message.text())) keyWarnings.push(message.text());
+  });
+  const catalog = inventory.map(
+    ({ inventoryId, rack, quantity, initialized, inventoryActive, inventoryVersion, ...material }) =>
+      material,
+  );
+  let hold = false,
+    release = () => {};
+  let gate = Promise.resolve();
+  await page.route('**/consumables/api/materials?*', (route) =>
+    route.fulfill({ json: { items: catalog, nextCursor: null } }),
+  );
+  await page.route('**/consumables/api/inventory?*', async (route) => {
+    if (hold) await gate;
+    await route.fulfill({ json: { items: inventory, nextCursor: null } });
+  });
+  try {
+    await page.goto('/consumables/stock');
+    await expect(page.locator('.stock-table-row')).toHaveCount(2);
+    for (let i = 0; i < 2; i++) {
+      await page.getByRole('button', { name: 'Katalog master', exact: true }).click();
+      await expect(page.locator('.stock-table')).toHaveAttribute('aria-busy', 'false');
+      await expect(page.locator('.stock-table-head')).toContainText('SAP/MMID');
+      hold = true;
+      gate = new Promise((resolve) => {
+        release = resolve;
+      });
+      await page.getByRole('button', { name: 'Stok R22', exact: true }).click();
+      await expect(page.locator('.stock-table')).toHaveAttribute('aria-busy', 'true');
+      await expect(page.locator('.stock-table-row')).toHaveCount(0);
+      await expect(page.locator('.table-skeleton')).toBeVisible();
+      release();
+      await expect(page.locator('.stock-table')).toHaveAttribute('aria-busy', 'false');
+      await expect(page.locator('.stock-table-row')).toHaveCount(2);
+      await expect(page.locator('.stock-table-row').first()).toContainText(inventory[0].rack);
+    }
+    await page.goto('/consumables/manage');
+    await expect(page.locator('.stock-table-row')).toHaveCount(2);
+    gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    await page.getByRole('button', { name: 'Stok, rak & saldo awal', exact: true }).click();
+    await expect(page.locator('.stock-table-row')).toHaveCount(0);
+    await expect(page.locator('.table-skeleton')).toBeVisible();
+    release();
+    await expect(page.locator('.stock-table-row')).toHaveCount(2);
+    await expect(page.locator('.stock-table')).toHaveAttribute('aria-busy', 'false');
+    expect(keyWarnings).toEqual([]);
+  } finally {
+    release();
+  }
+});
 test('cart undo restores only the removed row and the mobile save action stays visible', async ({ page }) => {
   await start(page);
   await page.setViewportSize({ width: 375, height: 812 });

@@ -28,6 +28,8 @@ import {
 } from '@plant/contracts';
 type AuditItem = { id: string; action: string; actorName: string; createdAt: string; details: string };
 type ListItem = Material | InventoryItem | Movement | AuditItem;
+type ListSource = 'materials' | 'inventory' | 'movements' | 'audit';
+type ListPage = { source: ListSource; items: ListItem[]; nextCursor: string | null; checked: string };
 const api = '/consumables/api';
 const labels = {
   opening: 'Saldo awal',
@@ -70,21 +72,33 @@ export function ConsumablesWorkspace({
     [to, setTo] = useState(''),
     [catalog, setCatalog] = useState(false),
     [showInactive, setShowInactive] = useState(false);
-  const [items, setItems] = useState<ListItem[]>([]),
+  const [result, setResult] = useState<ListPage | null>(null),
     [cursor, setCursor] = useState<string | null>(null),
-    [next, setNext] = useState<string | null>(null),
     [back, setBack] = useState<(string | null)[]>([]),
-    [busy, setBusy] = useState(false),
-    [ready, setReady] = useState(false),
+    [loading, setBusy] = useState(false),
     [error, setError] = useState(''),
     [notice, setNotice] = useState(''),
-    [refresh, setRefresh] = useState(0),
-    [checked, setChecked] = useState('');
+    [refresh, setRefresh] = useState(0);
   const [detail, setDetail] = useState<{ material: Material; stock: InventoryItem | null } | null>(null),
     [movement, setMovement] = useState<Movement | null>(null),
     [selected, setSelected] = useState<InventoryItem | null>(null),
     [editing, setEditing] = useState<Material | null>(null),
     [management, setManagement] = useState('materials');
+  const source: ListSource =
+    view === 'history'
+      ? 'movements'
+      : view === 'audit'
+        ? 'audit'
+        : catalog || (view === 'manage' && management === 'materials')
+          ? 'materials'
+          : 'inventory';
+  // Retain rows for same-source filters, never across incompatible table shapes.
+  const current = result?.source === source ? result : null,
+    items = current?.items ?? [],
+    next = current?.nextCursor ?? null,
+    checked = current?.checked ?? '',
+    ready = !!current,
+    busy = loading || !current;
   const admin = canConsume(identity, 'manage');
   const [categories, setCategories] = useState<string[]>([]);
   useEffect(() => {
@@ -109,17 +123,9 @@ export function ConsumablesWorkspace({
       if (from) p.set('from', from);
       if (to) p.set('to', to);
       if (showInactive) p.set('active', 'all');
-      const path =
-        view === 'history'
-          ? '/movements'
-          : view === 'audit'
-            ? '/audit'
-            : catalog || (view === 'manage' && management === 'materials')
-              ? '/materials'
-              : '/inventory';
-      return get(path + '?' + p, signal);
+      return get('/' + source + '?' + p, signal);
     },
-    [view, debouncedQuery, cursor, availability, category, type, from, to, catalog, management, showInactive],
+    [source, debouncedQuery, cursor, availability, category, type, from, to, showInactive],
   );
   useEffect(() => {
     const controller = new AbortController();
@@ -128,15 +134,14 @@ export function ConsumablesWorkspace({
     load(controller.signal)
       .then((d) => {
         if (controller.signal.aborted) return;
-        setItems(d.items);
-        setNext(d.nextCursor);
-        setChecked(new Date().toISOString());
-        setReady(true);
+        setResult({ source, items: d.items, nextCursor: d.nextCursor, checked: new Date().toISOString() });
       })
       .catch((e) => {
         if (!controller.signal.aborted) {
           setError(e.message);
-          setReady(true);
+          setResult((old) =>
+            old?.source === source ? old : { source, items: [], nextCursor: null, checked: '' },
+          );
         }
       })
       .finally(() => {
@@ -145,7 +150,7 @@ export function ConsumablesWorkspace({
     return () => {
       controller.abort();
     };
-  }, [load, refresh]);
+  }, [load, refresh, source]);
   useEffect(() => {
     setCursor(null);
     setBack([]);
