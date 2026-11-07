@@ -68,7 +68,8 @@
     background: var(--textSecondary);
     transition: transform var(--duration-fast) var(--ease-standard);
   }
-  .r22-onbehalf input:checked {
+  /* Keep the active track above the generic dark input background. */
+  .r22-onbehalf input[type='checkbox']:checked {
     background: var(--controlOn);
   }
   .r22-onbehalf input:checked:after {

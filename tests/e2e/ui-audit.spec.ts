@@ -259,6 +259,43 @@ test('switching catalog and stock tabs never renders material data as inventory 
     release();
   }
 });
+test('pill toggle thumb contrasts with its track in both themes and checked states', async ({ page }) => {
+  await start(page);
+  await page.goto('/consumables/consume');
+  const toggle = page.getByRole('switch', { name: 'Catat untuk pengguna lain', exact: true });
+  await expect(toggle).toBeEnabled();
+  for (const theme of ['light', 'dark']) {
+    await page.getByRole('button', { name: 'Tema', exact: true }).click();
+    await page.getByRole('button', { name: theme === 'dark' ? 'Gelap' : 'Terang', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Tema', exact: true })).toBeHidden();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    for (const checked of [false, true]) {
+      await toggle.setChecked(checked);
+      await toggle.blur();
+      await toggle
+        .locator('..')
+        .screenshot({ path: `.test-runtime/toggle-${theme}-${checked ? 'on' : 'off'}.png` });
+      const colors = await toggle.evaluate((el) => {
+        const luminance = (color: string) =>
+          (color.match(/[\d.]+/g) || [])
+            .slice(0, 3)
+            .map(Number)
+            .map((v) => v / 255)
+            .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+            .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const track = getComputedStyle(el).backgroundColor,
+          thumb = getComputedStyle(el, '::after').backgroundColor,
+          a = luminance(track),
+          b = luminance(thumb);
+        return { track, thumb, contrast: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) };
+      });
+      expect(
+        colors.contrast,
+        `${theme}, checked=${checked}: ${JSON.stringify(colors)}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  }
+});
 test('cart undo restores only the removed row and the mobile save action stays visible', async ({ page }) => {
   await start(page);
   await page.setViewportSize({ width: 375, height: 812 });
