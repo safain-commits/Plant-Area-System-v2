@@ -16,18 +16,13 @@ const labels = {
   return: 'Return Order',
   adjustment: 'Koreksi',
 };
-const colors = [
-  'var(--gray-500)',
-  'var(--primary-500)',
-  'var(--secondary-500)',
-  'var(--highlight)',
-  'var(--primary-800)',
-];
+const colors = kinds.map((_, i) => `var(--series-${i + 1})`);
 const series: ChartSeries[] = kinds.map((key, i) => ({
   key,
   label: labels[key],
+  direction: key === 'consume' ? 'out' : key === 'adjustment' ? 'mixed' : 'in',
   color: colors[i],
-  hatch: key === 'picklist' || key === 'consume',
+  hatch: key === 'opening' || key === 'adjustment' || key === 'picklist',
 }));
 const n = (value: number) => value.toLocaleString('id-ID');
 
@@ -162,7 +157,19 @@ export function StockSummary({
             <div className="chart-panel">
               <div className="section-head">
                 <div>
-                  <p className="eyebrow">AKTIVITAS MATERIAL</p>
+                  <h2 className="stock-chart-title">
+                    Aktivitas material{' '}
+                    <span className="chart-info" tabIndex={0} aria-label="Cara menghitung transaksi">
+                      <Icon name="info" />
+                      <span role="tooltip">
+                        Order dihitung per dokumen; saldo awal dan koreksi per pencatatan. Jumlah dengan
+                        satuan berbeda tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
+                        {data.legacyMovementCount > 0
+                          ? ` ${n(data.legacyMovementCount)} transaksi v1 tersedia di Pergerakan stok.`
+                          : ''}
+                      </span>
+                    </span>
+                  </h2>
                   <span className="display-xl">
                     <AnimatedNumber value={total} />
                     <small> transaksi</small>
@@ -203,24 +210,15 @@ export function StockSummary({
                     ? 'Tahun berjalan: data sampai saat ini.'
                     : `Data tahun kalender ${data.year}.`}
               </p>
-              <p className="fine stock-chart-note">
-                Order dihitung per dokumen; saldo awal dan koreksi per pencatatan. Kuantitas berbeda satuan
-                tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
-              </p>
-              {!!data.legacyMovementCount && (
-                <p className="fine">
-                  {n(data.legacyMovementCount)} transaksi v1 tanpa dokumen tersedia pada tab Pergerakan stok.
-                </p>
-              )}
             </div>
             <div className="kpi-rail">
+              <p className="fine">Kondisi saat ini</p>
               {metrics.map(([label, value]) => (
                 <div className="metric-block" key={label}>
                   <span>{label}</span>
                   <strong>
                     <AnimatedNumber value={value} />
                   </strong>
-                  <small>Stok R22 · saat ini</small>
                 </div>
               ))}
             </div>
@@ -228,12 +226,12 @@ export function StockSummary({
           <div className="dashboard-row two-columns stock-followups">
             <section className="panel">
               <div className="section-head">
-                <h2>Kesiapan saldo awal</h2>
+                <h2>Saldo awal belum dihitung</h2>
                 <Icon name="box" />
               </div>
               <p className="stock-counted">
-                <strong>{n(counted)}</strong>
-                <span>/ {n(data.operational)}</span>
+                <strong>{n(data.uncounted)}</strong>
+                <span>material menunggu hitung fisik</span>
               </p>
               <div
                 className="progress-track"
@@ -266,16 +264,11 @@ export function StockSummary({
               </div>
               <div className="stock-attention">
                 <a href="/consumables/stock?availability=critical">
-                  <span>Critical stok nol</span>
+                  <span>Kritis, stok nol</span>
                   <strong className={data.criticalEmpty ? 'stock-warning-value' : ''}>
                     {n(data.criticalEmpty)}
                   </strong>
                   <small>Saldo nol terkonfirmasi</small>
-                </a>
-                <a href="/consumables/stock?availability=uncounted">
-                  <span>Belum dihitung</span>
-                  <strong>{n(data.uncounted)}</strong>
-                  <small>Menunggu saldo awal fisik</small>
                 </a>
               </div>
               {identity && canConsume(identity, 'manage') && (
@@ -287,18 +280,21 @@ export function StockSummary({
           </div>
         </div>
         <aside className="dashboard-rail stock-rail" aria-label="Aksi dan aktivitas material">
-          <section className="feature-widget stock-action-card">
-            <div className="feature-contours" aria-hidden="true" />
-            <p className="eyebrow">MATERIAL CONTROL</p>
-            <Icon name={action.icon} className="stock-feature-icon" />
-            <h2>
-              Material siap,
-              <br />
-              pekerjaan lancar.
-            </h2>
-            <p>Telusuri stok dan catat pergerakan material di ruang stok R22.</p>
-            <a href={action.href}>
-              {action.label} <Icon name="arrow" />
+          <section className="panel stock-action-card">
+            <h2>Aksi cepat</h2>
+            <a className="button primary" href={action.href}>
+              {action.label}
+              <Icon name="arrow" />
+            </a>
+            {action.href !== '/consumables/stock' && (
+              <a href="/consumables/stock">
+                Cari material
+                <Icon name="chevron" />
+              </a>
+            )}
+            <a href="/consumables/history">
+              Riwayat material
+              <Icon name="chevron" />
             </a>
           </section>
           <StockActivity items={data.recent} />

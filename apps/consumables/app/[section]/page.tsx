@@ -16,6 +16,15 @@ const titles: Record<string, string> = {
   manage: 'Pengelolaan material',
   audit: 'Audit Consumable Room',
 };
+const descriptions: Record<string, string> = {
+  stock: 'Cari material, periksa saldo R22, lalu tambahkan ke order.',
+  consume: 'Ambil material dari R22 untuk satu HAC/SAC. Semua item disimpan sebagai satu dokumen.',
+  return: 'Kembalikan material ke R22 dan catat HAC/SAC asalnya.',
+  picklist: 'Terima material dari Picklist SAP ke satuan terkecil R22.',
+  history: 'Telusuri dokumen dan pergerakan stok R22.',
+  manage: 'Kelola master material, rak, dan konfirmasi saldo awal R22.',
+  audit: 'Telusuri perubahan material dan stok beserta pencatatnya.',
+};
 export default async function Page({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
   if (!titles[section]) notFound();
@@ -34,11 +43,13 @@ export default async function Page({ params }: { params: Promise<{ section: stri
                 : 'read';
   return (
     <Shell identity={identity} active="consumables" activePath={`/consumables/${section}`}>
-      <Heading
-        eyebrow="CONSUMABLE ROOM"
-        title={titles[section]}
-        description="Satu stok R22 untuk seluruh pengguna sesuai hak tindakan Anda."
-      />
+      <Heading eyebrow="Ruang stok R22" title={titles[section]} description={descriptions[section]}>
+        {section === 'history' && canConsume(identity, 'receive') && (
+          <a className="button primary" href="/consumables/picklist">
+            Penerimaan baru
+          </a>
+        )}
+      </Heading>
       {canConsume(identity, action) ? (
         section === 'consume' || section === 'return' ? (
           <OrderCart identity={identity} type={section} />

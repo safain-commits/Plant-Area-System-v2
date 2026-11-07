@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Button, Input, Select, Overlay } from '@plant/ui';
+import { useEffect, useState, useRef } from 'react';
+import { Button, Input, Select, Overlay, TableSkeleton, EmptyState, useDebouncedValue } from '@plant/ui';
 import {
   formatDate,
   formatQuantity,
@@ -26,6 +26,9 @@ export function StockHistory({ identity }: { identity: Identity }) {
     [error, setError] = useState(''),
     [reload, setReload] = useState(0),
     [detail, setDetail] = useState<DocumentResult | null>(null);
+  const debouncedQuery = useDebouncedValue(query);
+  const detailRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => detailRequest.current?.abort(), []);
   useEffect(() => {
     const controller = new AbortController();
     const p = new URLSearchParams(window.location.search);
@@ -43,42 +46,44 @@ export function StockHistory({ identity }: { identity: Identity }) {
   useEffect(() => {
     setCursor(null);
     setBack([]);
-  }, [query, type, from, to]);
+  }, [debouncedQuery, type, from, to]);
   useEffect(() => {
     if (mode !== 'documents') return;
-    const c = new AbortController(),
-      timer = setTimeout(() => {
-        setBusy(true);
-        setError('');
-        const p = new URLSearchParams({ q: query });
-        if (type) p.set('type', type);
-        if (from) p.set('from', from);
-        if (to) p.set('to', to);
-        if (cursor) p.set('cursor', cursor);
-        stockApi('/documents?' + p, { signal: c.signal })
-          .then((d) => {
-            if (!c.signal.aborted) {
-              setItems(d.items);
-              setNext(d.nextCursor);
-            }
-          })
-          .catch((e) => {
-            if (!c.signal.aborted) setError(e.message);
-          })
-          .finally(() => {
-            if (!c.signal.aborted) setBusy(false);
-          });
-      }, 200);
+    const c = new AbortController();
+    setBusy(true);
+    setError('');
+    const p = new URLSearchParams({ q: debouncedQuery });
+    if (type) p.set('type', type);
+    if (from) p.set('from', from);
+    if (to) p.set('to', to);
+    if (cursor) p.set('cursor', cursor);
+    stockApi('/documents?' + p, { signal: c.signal })
+      .then((d) => {
+        if (!c.signal.aborted) {
+          setItems(d.items);
+          setNext(d.nextCursor);
+        }
+      })
+      .catch((e) => {
+        if (!c.signal.aborted) setError(e.message);
+      })
+      .finally(() => {
+        if (!c.signal.aborted) setBusy(false);
+      });
+
     return () => {
-      clearTimeout(timer);
       c.abort();
     };
-  }, [mode, query, type, from, to, cursor, reload]);
+  }, [mode, debouncedQuery, type, from, to, cursor, reload]);
   async function open(id: string) {
     try {
-      setDetail(await stockApi('/documents/' + id));
+      detailRequest.current?.abort();
+      const c = new AbortController();
+      detailRequest.current = c;
+      const d = await stockApi('/documents/' + id, { signal: c.signal });
+      if (!c.signal.aborted) setDetail(d);
     } catch (e) {
-      setError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
     }
   }
   return (
@@ -105,7 +110,6 @@ export function StockHistory({ identity }: { identity: Identity }) {
         <section className="panel">
           <div className="section-title">
             <div>
-              <p className="eyebrow">DOKUMEN R22</p>
               <h2>Order dan penerimaan</h2>
             </div>
             <Button className="secondary small" busy={busy} onClick={() => setReload((v) => v + 1)}>
@@ -169,7 +173,12 @@ export function StockHistory({ identity }: { identity: Identity }) {
               <span>Item / waktu</span>
             </div>
             {items.map((d) => (
-              <button type="button" key={d.id} className="stock-table-row" onClick={() => open(d.id)}>
+              <button
+                type="button"
+                key={d.id}
+                className={`stock-table-row${detail?.document.id === d.id ? ' selected' : ''}`}
+                onClick={() => open(d.id)}
+              >
                 <span>
                   <strong>{d.number}</strong>
                   <small>
@@ -191,13 +200,15 @@ export function StockHistory({ identity }: { identity: Identity }) {
                 </span>
               </button>
             ))}
-            {!items.length && (
-              <p className="empty">
-                {busy
-                  ? 'Memuat dokumen…'
-                  : 'Belum ada dokumen sesuai filter. Riwayat v1 tersedia pada tab Pergerakan stok.'}
-              </p>
-            )}
+            {!items.length &&
+              (busy ? (
+                <TableSkeleton rows={5} />
+              ) : (
+                <EmptyState
+                  title="Belum ada dokumen sesuai filter"
+                  description="Riwayat lama tersedia pada tab Pergerakan stok."
+                />
+              ))}
           </div>
           <div className="stock-pagination">
             <Button
@@ -227,7 +238,19 @@ export function StockHistory({ identity }: { identity: Identity }) {
           </div>
         </section>
       )}
-      <Overlay open={!!detail} onClose={() => setDetail(null)} title="Detail dokumen R22" kind="sheet">
+      <Overlay
+        open={!!detail}
+        onClose={() => {
+          detailRequest.current?.abort();
+          setDetail(null);
+        }}
+        title="Detail dokumen R22"
+        kind="sheet"
+        onNavigate={(direction) => {
+          const i = items.findIndex((d) => d.id === detail?.document.id);
+          if (i >= 0 && items[i + direction]) void open(items[i + direction].id);
+        }}
+      >
         {detail && (
           <>
             <span className="badge neutral">{stockDocumentLabels[detail.document.type]}</span>

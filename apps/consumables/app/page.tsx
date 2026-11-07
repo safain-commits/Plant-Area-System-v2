@@ -7,7 +7,7 @@ export default async function Page() {
   return (
     <Shell identity={identity} active="consumables">
       <Heading
-        eyebrow="MATERIAL CONTROL"
+        eyebrow="Ruang stok R22"
         title="Consumable Room"
         description="Stok, penerimaan, dan pemakaian material di ruang stok R22."
       />

@@ -1,6 +1,13 @@
 'use client';
+import { Icon } from './icon';
 import { countScale } from './chart-scale';
-export type ChartSeries = { key: string; label: string; color: string; hatch?: boolean };
+export type ChartSeries = {
+  key: string;
+  label: string;
+  color: string;
+  hatch?: boolean;
+  direction?: 'in' | 'out' | 'mixed';
+};
 export type ChartQuarter = { quarter: number; values: number[] };
 const number = (n: number) => n.toLocaleString('id-ID');
 const ranges = ['Jan–Mar', 'Apr–Jun', 'Jul–Sep', 'Okt–Des'];
@@ -26,7 +33,14 @@ export function QuarterlyChart({
       <div className="chart-legend" aria-label="Jenis transaksi">
         {series.map((s) => (
           <span key={s.key}>
-            <i style={{ background: s.color }} aria-hidden="true" />
+            <i
+              data-series={s.key}
+              className={s.hatch ? 'hatched' : undefined}
+              style={{ background: s.color }}
+              aria-hidden="true"
+            />
+            {s.direction && <Icon name={s.direction === 'out' ? 'issue' : 'receipt'} />}
+            {s.direction === 'out' ? '− ' : s.direction === 'mixed' ? '± ' : '+ '}
             {s.label}
           </span>
         ))}
@@ -74,11 +88,12 @@ export function QuarterlyChart({
                     return value === 0 ? null : (
                       <i
                         key={series[j].key}
-                        className={active === i && series[j].hatch ? 'hatched' : undefined}
+                        data-series={series[j].key}
+                        className={series[j].hatch ? 'hatched' : undefined}
                         style={{
                           bottom: `${(start / scale.maximum) * 100}%`,
                           height: `${(value / scale.maximum) * 100}%`,
-                          background: active === i ? series[j].color : 'var(--placeholder)',
+                          background: series[j].color,
                         }}
                       />
                     );
@@ -106,6 +121,7 @@ export function QuarterlyChart({
         <div>
           {series.map((s, j) => (
             <small key={s.key}>
+              {s.direction === 'out' ? '− ' : s.direction === 'mixed' ? '± ' : '+ '}
               {s.label}
               <b>{number(selected.values[j])}</b>
             </small>

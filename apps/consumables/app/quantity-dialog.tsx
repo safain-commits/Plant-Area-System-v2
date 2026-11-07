@@ -37,6 +37,7 @@ export function QuantityDialog({
     <Overlay open={!!material} onClose={onClose} title="Tambah jumlah material">
       {material && (
         <form
+          onInvalid={(e) => e.currentTarget.classList.add('was-submitted')}
           className="form-stack"
           onSubmit={(e) => {
             e.preventDefault();
@@ -55,7 +56,7 @@ export function QuantityDialog({
           }}
         >
           <div>
-            <p className="eyebrow">{material.mmid}</p>
+            <p className="fine">{material.mmid}</p>
             <h2>{material.commonName || material.description}</h2>
             <p className="muted">{material.description}</p>
           </div>
@@ -71,12 +72,7 @@ export function QuantityDialog({
             )}
           </div>
           <label>
-            <span>
-              Jumlah ({material.unit}){' '}
-              <span className="r22-required" aria-hidden="true">
-                *
-              </span>
-            </span>
+            <span>Jumlah ({material.unit}) </span>
             <Input
               autoFocus
               required

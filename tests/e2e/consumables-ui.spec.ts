@@ -493,7 +493,7 @@ test('sidebar and action card follow consumable roles while portal controls rema
     await expect(nav.getByRole('link', { name: 'Pengelolaan', exact: true })).toHaveCount(
       role === 'admin' ? 1 : 0,
     );
-    await expect(page.locator('.stock-action-card a')).toHaveAttribute(
+    await expect(page.locator('.stock-action-card a.primary')).toHaveAttribute(
       'href',
       role === 'viewer'
         ? '/consumables/stock'

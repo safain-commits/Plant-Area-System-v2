@@ -325,3 +325,21 @@
     --textMuted: var(--textSecondary);
   }
 }
+
+:root {
+  --duration-feedback: 600ms;
+}
+:root {
+  --series-hatch: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    var(--series-outline) 4px 5px,
+    transparent 5px 8px
+  );
+  --series-accent-hatch: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    var(--series-accent-outline) 4px 5px,
+    transparent 5px 8px
+  );
+}

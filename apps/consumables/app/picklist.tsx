@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import {
+  TableSkeleton,
+  EmptyState,
   Button,
   Input,
   Select,
@@ -27,6 +29,7 @@ import {
   type DocumentResult,
   type StockLineConflict,
 } from '@plant/contracts';
+import { useCartFeedback } from './use-cart-feedback';
 import { MaterialSearch } from './material-search';
 import { stockApi, StockApiError } from './r22-api';
 export function Picklist({ identity }: { identity: Identity }) {
@@ -39,6 +42,7 @@ export function Picklist({ identity }: { identity: Identity }) {
     [conflicts, setConflicts] = useState<StockLineConflict[]>([]),
     [success, setSuccess] = useState<DocumentResult | null>(null),
     [focus, setFocus] = useState('');
+  const feedback = useCartFeedback(draft, setDraft, setMessage);
   const confirm = useConfirmation(),
     prefill = useRef(''),
     key = cartKey(identity.id, 'picklist');
@@ -70,6 +74,7 @@ export function Picklist({ identity }: { identity: Identity }) {
       lines: [...v.lines, { material, quantity: '', mode: convertible ? 'sap' : 'base' }],
     }));
     setFocus(material.id);
+    feedback.added(material.id);
     setMessage(`${material.commonName || material.description} ditambahkan`);
   };
   useEffect(() => {
@@ -183,6 +188,7 @@ export function Picklist({ identity }: { identity: Identity }) {
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': id },
         body: JSON.stringify(body),
       });
+      feedback.clear();
       setSuccess(result);
       removeCart(key);
       setDraft(emptyCart());
@@ -224,12 +230,16 @@ export function Picklist({ identity }: { identity: Identity }) {
   if (loaded !== key)
     return (
       <section className="panel" role="status">
-        Memuat picklist…
+        <TableSkeleton rows={3} />
       </section>
     );
   return (
     <>
-      <form onSubmit={submit} className="r22-picklist">
+      <form
+        onInvalid={(e) => e.currentTarget.classList.add('was-submitted')}
+        onSubmit={submit}
+        className="r22-picklist"
+      >
         {error && (
           <p className="notice error" role="alert">
             {error}
@@ -238,7 +248,6 @@ export function Picklist({ identity }: { identity: Identity }) {
         <section className="panel">
           <div className="section-head">
             <div>
-              <p className="eyebrow">WAREHOUSE SAP → R22</p>
               <h2>Informasi picklist</h2>
             </div>
             <span className="badge neutral">Stok masuk</span>
@@ -246,12 +255,7 @@ export function Picklist({ identity }: { identity: Identity }) {
           <fieldset className="r22-fieldset" disabled={busy || loaded !== key}>
             <div className="form-grid">
               <label>
-                <span>
-                  No. Reservasi{' '}
-                  <span className="r22-required" aria-hidden="true">
-                    *
-                  </span>
-                </span>
+                <span>No. Reservasi </span>
                 <Input
                   required
                   maxLength={30}
@@ -260,12 +264,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                <span>
-                  WO No.{' '}
-                  <span className="r22-required" aria-hidden="true">
-                    *
-                  </span>
-                </span>
+                <span>WO No. </span>
                 <Input
                   required
                   maxLength={100}
@@ -274,7 +273,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                Equipment No. (opsional)
+                Nomor equipment (opsional)
                 <Input
                   maxLength={100}
                   value={draft.equipmentNo}
@@ -291,12 +290,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                <span>
-                  Cost Center{' '}
-                  <span className="r22-required" aria-hidden="true">
-                    *
-                  </span>
-                </span>
+                <span>Cost Center </span>
                 <Input
                   required
                   maxLength={40}
@@ -305,7 +299,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                Required Date (opsional)
+                Tanggal kebutuhan (opsional)
                 <Input
                   type="date"
                   value={draft.requiredDate}
@@ -313,7 +307,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label className="r22-span-all">
-                Work Description (opsional)
+                Keterangan pekerjaan (opsional)
                 <Textarea
                   maxLength={500}
                   value={draft.note}
@@ -340,26 +334,34 @@ export function Picklist({ identity }: { identity: Identity }) {
             <h2>
               Material picklist <span className="badge neutral">{draft.lines.length} item</span>
             </h2>
-            <small>Qty SAP dikonversi ke satuan terkecil R22</small>
+            <small>Jumlah SAP dikonversi ke satuan terkecil R22</small>
           </div>
           <div className="r22-picklist-table" role="table" aria-label="Material penerimaan picklist">
             <div className="r22-cart-head" role="row">
               <span>No.</span>
               <span>Material / UoM SAP</span>
-              <span>Req.Qty</span>
-              <span>Qty R22</span>
-              <span>Input</span>
+              <span>Jumlah diminta</span>
+              <span>Jumlah R22</span>
+              <span>Satuan input</span>
               <span>Aksi</span>
             </div>
             {!draft.lines.length && (
-              <p className="empty">Cari master material untuk menambahkan baris picklist.</p>
+              <EmptyState
+                title="Picklist masih kosong"
+                description="Cari master material untuk menambahkan baris penerimaan."
+              />
             )}
             {draft.lines.map((l, i) => {
               const result = preview(l),
                 m = l.material,
                 problem = conflicts.find((c) => c.materialId === m.id);
               return (
-                <div className={`r22-cart-row ${problem ? 'has-error' : ''}`} role="row" key={m.id}>
+                <div
+                  data-cart-material={m.id}
+                  className={`r22-cart-row ${problem ? 'has-error' : ''} ${feedback.highlight === m.id ? 'is-new' : ''}`}
+                  role="row"
+                  key={m.id}
+                >
                   <span className="r22-line-no">{i + 1}</span>
                   <div>
                     <strong>{m.commonName || m.description}</strong>
@@ -390,7 +392,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                     )}
                   </div>
                   <label className="r22-line-quantity">
-                    <span className="sr-only">Req.Qty {m.mmid}</span>
+                    <span className="sr-only">Jumlah diminta {m.mmid}</span>
                     <Input
                       required
                       data-r22-quantity={m.id}
@@ -439,7 +441,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                     className="secondary small"
                     aria-label={`Hapus ${m.mmid}`}
                     disabled={busy}
-                    onClick={() => update({ lines: draft.lines.filter((_, j) => j !== i) })}
+                    onClick={() => feedback.remove(i)}
                   >
                     Hapus
                   </Button>
@@ -460,7 +462,7 @@ export function Picklist({ identity }: { identity: Identity }) {
           </Button>
         </section>
       </form>
-      <Toast message={message} onDismiss={() => setMessage('')} />
+      <Toast message={message} onDismiss={feedback.dismiss} action={feedback.action} />
     </>
   );
 }

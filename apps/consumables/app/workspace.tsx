@@ -1,6 +1,16 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Textarea, Overlay, useConfirmation } from '@plant/ui';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Button,
+  Input,
+  Select,
+  Textarea,
+  Overlay,
+  useConfirmation,
+  TableSkeleton,
+  EmptyState,
+  useDebouncedValue,
+} from '@plant/ui';
 import { AddToOrder } from './add-to-order';
 import { AliasInput } from './alias-input';
 import {
@@ -86,9 +96,12 @@ export function ConsumablesWorkspace({
       });
     return () => c.abort();
   }, [refresh]);
+  const debouncedQuery = useDebouncedValue(query);
+  const detailRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => detailRequest.current?.abort(), []);
   const load = useCallback(
     async (signal: AbortSignal) => {
-      const p = new URLSearchParams({ q: query });
+      const p = new URLSearchParams({ q: debouncedQuery });
       if (cursor) p.set('cursor', cursor);
       if (availability) p.set('availability', availability);
       if (category) p.set('category', category);
@@ -106,41 +119,37 @@ export function ConsumablesWorkspace({
               : '/inventory';
       return get(path + '?' + p, signal);
     },
-    [view, query, cursor, availability, category, type, from, to, catalog, management, showInactive],
+    [view, debouncedQuery, cursor, availability, category, type, from, to, catalog, management, showInactive],
   );
   useEffect(() => {
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setBusy(true);
-      setError('');
-      load(controller.signal)
-        .then((d) => {
-          if (controller.signal.aborted) return;
-          setItems(d.items);
-          setNext(d.nextCursor);
-          setChecked(new Date().toISOString());
+    setBusy(true);
+    setError('');
+    load(controller.signal)
+      .then((d) => {
+        if (controller.signal.aborted) return;
+        setItems(d.items);
+        setNext(d.nextCursor);
+        setChecked(new Date().toISOString());
+        setReady(true);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) {
+          setError(e.message);
           setReady(true);
-        })
-        .catch((e) => {
-          if (!controller.signal.aborted) {
-            setError(e.message);
-            setItems([]);
-            setNext(null);
-          }
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setBusy(false);
-        });
-    }, 200);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(false);
+      });
     return () => {
       controller.abort();
-      clearTimeout(timer);
     };
   }, [load, refresh]);
   useEffect(() => {
     setCursor(null);
     setBack([]);
-  }, [query, availability, category, type, from, to, catalog, management, showInactive]);
+  }, [debouncedQuery, availability, category, type, from, to, catalog, management, showInactive]);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (['available', 'empty', 'uncounted', 'critical'].includes(p.get('availability') || ''))
@@ -160,9 +169,13 @@ export function ConsumablesWorkspace({
   }, [view]);
   async function openMaterial(id: string) {
     try {
-      setDetail(await get('/materials/' + id));
+      detailRequest.current?.abort();
+      const c = new AbortController();
+      detailRequest.current = c;
+      const value = await get('/materials/' + id, c.signal);
+      if (!c.signal.aborted) setDetail(value);
     } catch (e) {
-      setError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
     }
   }
   function saved(message = 'Perubahan tersimpan.') {
@@ -407,7 +420,13 @@ export function ConsumablesWorkspace({
           )}
           {view !== 'audit' && filters}
           {view === 'history' ? (
-            <MovementRows items={items as Movement[]} busy={busy} ready={ready} onSelect={setMovement} />
+            <MovementRows
+              items={items as Movement[]}
+              busy={busy}
+              ready={ready}
+              onSelect={setMovement}
+              selected={movement?.id}
+            />
           ) : view === 'audit' ? (
             <div className="stock-audit-list" aria-busy={busy} role="list">
               {(items as AuditItem[]).map((v) => (
@@ -439,7 +458,15 @@ export function ConsumablesWorkspace({
                   </details>
                 </article>
               ))}
-              {!items.length && <p className="empty">{ready ? 'Belum ada audit.' : 'Memuat audit?'}</p>}
+              {!items.length && (
+                <>
+                  {!ready ? (
+                    <TableSkeleton rows={5} />
+                  ) : (
+                    <EmptyState title="Belum ada audit." description="Coba kata kunci atau filter lain." />
+                  )}
+                </>
+              )}
             </div>
           ) : catalog ? (
             <MaterialRows
@@ -447,6 +474,7 @@ export function ConsumablesWorkspace({
               busy={busy}
               ready={ready}
               onSelect={(m) => void openMaterial(m.id)}
+              selected={catalog ? detail?.material.id : detail?.stock?.inventoryId}
             />
           ) : (
             <StockRows
@@ -454,6 +482,7 @@ export function ConsumablesWorkspace({
               busy={busy}
               ready={ready}
               onSelect={(m) => void openMaterial(m.id)}
+              selected={catalog ? detail?.material.id : detail?.stock?.inventoryId}
             />
           )}
           {paging}
@@ -466,9 +495,17 @@ export function ConsumablesWorkspace({
       )}
       <Overlay
         open={!!detail}
-        onClose={() => setDetail(null)}
+        onClose={() => {
+          detailRequest.current?.abort();
+          setDetail(null);
+        }}
         title={detail ? `${detail.material.mmid} · Detail material` : 'Detail material'}
-        kind="dialog"
+        kind="sheet"
+        onNavigate={(direction) => {
+          const i = items.findIndex((m) => m.id === detail?.material.id);
+          const next = items[i + direction];
+          if (i >= 0 && next) void openMaterial(next.id);
+        }}
       >
         {detail && (
           <>
@@ -482,7 +519,7 @@ export function ConsumablesWorkspace({
                 ['Satuan', detail.material.unit],
                 ['Kategori', detail.material.category],
                 ['MRP Type', detail.material.mrpType || '—'],
-                ['Critical part', detail.material.critical ? 'Ya' : 'Tidak'],
+                ['Material kritis', detail.material.critical ? 'Ya' : 'Tidak'],
                 [
                   'Isi per pack',
                   detail.material.packSize
@@ -517,11 +554,20 @@ export function ConsumablesWorkspace({
                 </article>
               ))
             )}
-            {admin && <a href="/consumables/manage">Kelola material dan stok ↗</a>}
+            {admin && <a href="/consumables/manage">Kelola material dan stok</a>}
           </>
         )}
       </Overlay>
-      <Overlay open={!!movement} onClose={() => setMovement(null)} title="Detail transaksi" kind="dialog">
+      <Overlay
+        open={!!movement}
+        onClose={() => setMovement(null)}
+        title="Detail transaksi"
+        kind="sheet"
+        onNavigate={(direction) => {
+          const i = items.findIndex((m) => m.id === movement?.id);
+          if (i >= 0 && items[i + direction]) setMovement(items[i + direction] as Movement);
+        }}
+      >
         {movement && (
           <>
             <span className="badge neutral">{labels[movement.type]}</span>
@@ -589,19 +635,34 @@ function StockRows({
             <strong>{m.commonName || m.description}</strong>
             {m.mmid} · {m.description}
             <small>
-              {m.critical ? ' · Critical' : ''}
+              {m.critical ? ' · Kritis' : ''}
               {!m.active || !m.inventoryActive ? ' · Nonaktif' : ''}
             </small>
           </span>
           <span>{m.rack || 'Belum diatur'}</span>
           <span>
-            <strong>{m.initialized ? quantity(m.quantity) : 'Belum dihitung'}</strong>
-            <small>{m.initialized ? m.unit : 'Konfirmasi saldo awal'}</small>
+            {m.initialized ? (
+              <strong>
+                {quantity(m.quantity)} <small>{m.unit}</small>
+              </strong>
+            ) : (
+              <span className="badge neutral">Belum dihitung</span>
+            )}
+            {!m.initialized && <small>Konfirmasi saldo awal</small>}
           </span>
         </button>
       ))}
       {!items.length && (
-        <p className="empty">{ready ? 'Tidak ada material sesuai filter.' : 'Memuat stok…'}</p>
+        <>
+          {!ready ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <EmptyState
+              title="Tidak ada material sesuai filter."
+              description="Coba kata kunci atau filter lain."
+            />
+          )}
+        </>
       )}
     </div>
   );
@@ -611,10 +672,12 @@ function MaterialRows({
   busy,
   ready,
   onSelect,
+  selected,
 }: {
   items: Material[];
   busy: boolean;
   ready: boolean;
+  selected?: string;
   onSelect: (m: Material) => void;
 }) {
   return (
@@ -625,7 +688,12 @@ function MaterialRows({
         <span>Satuan</span>
       </div>
       {items.map((m) => (
-        <button type="button" className="stock-table-row" key={m.id} onClick={() => onSelect(m)}>
+        <button
+          type="button"
+          className={`stock-table-row${selected === m.id ? ' selected' : ''}`}
+          key={m.id}
+          onClick={() => onSelect(m)}
+        >
           <strong>{m.mmid}</strong>
           <span>
             {m.description}
@@ -637,7 +705,15 @@ function MaterialRows({
           <span>{m.unit}</span>
         </button>
       ))}
-      {!items.length && <p className="empty">{ready ? 'Material tidak ditemukan.' : 'Memuat katalog…'}</p>}
+      {!items.length && (
+        <>
+          {!ready ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <EmptyState title="Material tidak ditemukan." description="Coba kata kunci atau filter lain." />
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -646,10 +722,12 @@ function MovementRows({
   busy,
   ready,
   onSelect,
+  selected,
 }: {
   items: Movement[];
   busy: boolean;
   ready: boolean;
+  selected?: string;
   onSelect: (m: Movement) => void;
 }) {
   return (
@@ -660,7 +738,12 @@ function MovementRows({
         <span>Jumlah</span>
       </div>
       {items.map((m) => (
-        <button type="button" className="stock-table-row" key={m.id} onClick={() => onSelect(m)}>
+        <button
+          type="button"
+          className={`stock-table-row${selected === m.id ? ' selected' : ''}`}
+          key={m.id}
+          onClick={() => onSelect(m)}
+        >
           <span>
             <strong>
               {m.mmid} · {m.description}
@@ -679,7 +762,16 @@ function MovementRows({
         </button>
       ))}
       {!items.length && (
-        <p className="empty">{ready ? 'Belum ada transaksi sesuai filter.' : 'Memuat riwayat…'}</p>
+        <>
+          {!ready ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <EmptyState
+              title="Belum ada transaksi sesuai filter."
+              description="Coba kata kunci atau filter lain."
+            />
+          )}
+        </>
       )}
     </div>
   );
@@ -756,12 +848,7 @@ function StockTransaction({
         </p>
       )}
       <label>
-        <span>
-          Jumlah fisik{' '}
-          <span className="r22-required" aria-hidden="true">
-            *
-          </span>
-        </span>
+        <span>Jumlah fisik </span>
         <Input
           required
           inputMode={item.decimalAllowed ? 'decimal' : 'numeric'}
@@ -771,12 +858,7 @@ function StockTransaction({
         />
       </label>
       <label>
-        <span>
-          Alasan / keterangan hitung fisik{' '}
-          <span className="r22-required" aria-hidden="true">
-            *
-          </span>
-        </span>
+        <span>Alasan / keterangan hitung fisik </span>
         <Textarea name="reason" required maxLength={500} />
       </label>
       <div className="stock-preview">
@@ -922,21 +1004,11 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
       )}
       <div className="form-grid">
         <label>
-          <span>
-            SAP/MMID{' '}
-            <span className="r22-required" aria-hidden="true">
-              *
-            </span>
-          </span>
+          <span>SAP/MMID </span>
           <Input name="mmid" required maxLength={80} defaultValue={material?.mmid} disabled={!!material} />
         </label>
         <label>
-          <span>
-            Nama asli / part description{' '}
-            <span className="r22-required" aria-hidden="true">
-              *
-            </span>
-          </span>
+          <span>Nama asli / part description </span>
           <Input name="description" required maxLength={160} defaultValue={material?.description} />
         </label>
         <label>
@@ -946,12 +1018,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
         </label>
         <AliasInput initial={material?.aliases || ''} />
         <label>
-          <span>
-            Satuan SAP{' '}
-            <span className="r22-required" aria-hidden="true">
-              *
-            </span>
-          </span>
+          <span>Satuan SAP </span>
           <Input
             name="sapUnit"
             required
@@ -962,12 +1029,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           />
         </label>
         <label>
-          <span>
-            Satuan R22 (terkecil){' '}
-            <span className="r22-required" aria-hidden="true">
-              *
-            </span>
-          </span>
+          <span>Satuan R22 (terkecil) </span>
           <Input
             name="unit"
             required
@@ -984,12 +1046,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           </small>
         </label>
         <label>
-          <span>
-            Kategori{' '}
-            <span className="r22-required" aria-hidden="true">
-              *
-            </span>
-          </span>
+          <span>Kategori </span>
           <Input name="category" required maxLength={100} defaultValue={material?.category} />
         </label>
         <label>
@@ -1022,7 +1079,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
         </label>
         <label>
           <input type="checkbox" name="critical" defaultChecked={material?.critical} />
-          Critical part
+          Material kritis
         </label>
         <label>
           <input type="checkbox" name="active" defaultChecked={material?.active ?? true} />

@@ -1592,3 +1592,7 @@ form.was-submitted :is(input, textarea):user-invalid {
     width: 44px;
   }
 }
+/* Apply pan intent at each scroll container, where the browser resolves touch-action. */
+.overlay-drawer :is(.overlay-content, .sidebar, nav) {
+  touch-action: pan-y;
+}

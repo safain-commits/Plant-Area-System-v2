@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useRef, useState, useId } from 'react';
 import {
+  TableSkeleton,
+  EmptyState,
   Button,
   Input,
   Textarea,
@@ -27,6 +29,7 @@ import {
   type StockLineConflict,
   type DocumentResult,
 } from '@plant/contracts';
+import { useCartFeedback } from './use-cart-feedback';
 import { MaterialSearch } from './material-search';
 import { QuantityDialog } from './quantity-dialog';
 import { stockApi, StockApiError } from './r22-api';
@@ -41,6 +44,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
     [message, setMessage] = useState('');
   const [selected, setSelected] = useState<MaterialSearchResult | null>(null),
     [suggestions, setSuggestions] = useState<string[]>([]);
+  const feedback = useCartFeedback(draft, setDraft, setMessage);
   const confirm = useConfirmation(),
     suggestionId = useId(),
     prefill = useRef('');
@@ -107,6 +111,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
           : [...v.lines, { material: m, quantity: q.replace(/\.?0+$/, '') }],
       };
     });
+    feedback.added(m.id);
     setMessage(`${m.commonName || m.description} ditambahkan`);
   };
   const title = type === 'consume' ? 'Consume Order' : 'Return Order';
@@ -158,6 +163,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
         body: JSON.stringify(body),
       });
+      feedback.clear();
       setSuccess(result);
       removeCart(storageKey);
       setDraft(emptyCart());
@@ -206,7 +212,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
   if (loaded !== storageKey)
     return (
       <section className="panel" role="status">
-        Memuat keranjang…
+        <TableSkeleton rows={3} />
       </section>
     );
   return (
@@ -219,25 +225,23 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
           </Button>
         </div>
       )}
-      <form onSubmit={submit} className="r22-order-layout">
+      <form
+        onInvalid={(e) => e.currentTarget.classList.add('was-submitted')}
+        onSubmit={submit}
+        className="r22-order-layout"
+      >
         <div className="r22-order-main">
           <section className="panel">
             <div className="section-head">
               <div>
-                <p className="eyebrow">R22 · {type === 'consume' ? 'PENGAMBILAN' : 'PENGEMBALIAN'}</p>
-                <h2>Informasi order</h2>
+                <h2>Informasi {title}</h2>
               </div>
               <span className="badge neutral">{type === 'consume' ? 'Stok keluar' : 'Stok masuk'}</span>
             </div>
             <fieldset disabled={busy || loaded !== storageKey} className="r22-fieldset">
               <div className="form-grid">
                 <label>
-                  <span>
-                    HAC/SAC / Functional Location{' '}
-                    <span className="r22-required" aria-hidden="true">
-                      *
-                    </span>
-                  </span>
+                  <span>HAC/SAC / Functional Location </span>
                   <Input
                     required
                     maxLength={30}
@@ -291,12 +295,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
               {canConsume(identity, 'onbehalf') && draft.onbehalf ? (
                 <div className="form-grid">
                   <label>
-                    <span>
-                      Nama peminta{' '}
-                      <span className="r22-required" aria-hidden="true">
-                        *
-                      </span>
-                    </span>
+                    <span>Nama peminta </span>
                     <Input
                       required
                       maxLength={100}
@@ -346,8 +345,10 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                         confirmLabel: 'Kosongkan',
                         variant: 'danger',
                       })
-                    )
+                    ) {
+                      feedback.clear();
                       update({ lines: [] });
+                    }
                   }}
                 >
                   Kosongkan
@@ -358,21 +359,22 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
               <div className="r22-cart-head" role="row">
                 <span>No.</span>
                 <span>Material</span>
-                <span>Qty</span>
+                <span>Jumlah</span>
                 <span>Satuan</span>
                 <span>Aksi</span>
               </div>
               {!draft.lines.length ? (
-                <div className="empty">
-                  <h3>Keranjang masih kosong</h3>
-                  <p>Cari material, tentukan jumlah, lalu tambahkan ke order.</p>
-                </div>
+                <EmptyState
+                  title="Keranjang masih kosong"
+                  description="Cari material, tentukan jumlah, lalu tambahkan ke order."
+                />
               ) : (
                 draft.lines.map((l, i) => {
                   const problem = conflicts.find((c) => c.materialId === l.material.id);
                   return (
                     <div
-                      className={`r22-cart-row ${problem ? 'has-error' : ''}`}
+                      data-cart-material={l.material.id}
+                      className={`r22-cart-row ${problem ? 'has-error' : ''} ${feedback.highlight === l.material.id ? 'is-new' : ''}`}
                       role="row"
                       key={l.material.id}
                     >
@@ -415,7 +417,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                         className="secondary small"
                         aria-label={`Hapus ${l.material.mmid}`}
                         disabled={busy}
-                        onClick={() => update({ lines: draft.lines.filter((_, j) => j !== i) })}
+                        onClick={() => feedback.remove(i)}
                       >
                         Hapus
                       </Button>
@@ -427,22 +429,24 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
           </section>
         </div>
         <aside className="panel r22-cart-summary">
-          <p className="eyebrow">FINALISASI ORDER</p>
-          <h2>{title}</h2>
-          <p className="display-lg">
-            {draft.lines.length} <small>item</small>
+          <p className="r22-sticky-context">
+            <strong>{draft.lines.length} item</strong>
+            {normalizeHec(draft.hec) || 'HAC/SAC belum diisi'}
           </p>
+          <h2>{title}</h2>
           <dl>
+            <dt>Jumlah item</dt>
+            <dd>{draft.lines.length} item</dd>
             <dt>HAC/SAC</dt>
             <dd>{normalizeHec(draft.hec) || 'Belum diisi'}</dd>
             <dt>Peminta</dt>
             <dd>{self || 'Belum diisi'}</dd>
           </dl>
           <p className="fine">
-            Seluruh item disimpan bersama. Stok diperiksa kembali oleh server saat submit.
+            Seluruh item disimpan bersama. Stok diperiksa kembali oleh server saat disimpan.
           </p>
           <Button className="primary" busy={busy} disabled={!draft.lines.length || loaded !== storageKey}>
-            Submit Order
+            Simpan order
           </Button>
           <small>Order langsung final setelah konfirmasi. Tidak ada reservasi stok.</small>
         </aside>
@@ -454,7 +458,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
         already={selected ? draft.lines.find((l) => l.material.id === selected.id)?.quantity || '0' : '0'}
         onAdd={add}
       />
-      <Toast message={message} onDismiss={() => setMessage('')} />
+      <Toast message={message} onDismiss={feedback.dismiss} action={feedback.action} />
     </>
   );
 }

@@ -322,7 +322,15 @@ export function Overlay({
   );
 }
 
-export function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+export function Toast({
+  message,
+  onDismiss,
+  action,
+}: {
+  message: string;
+  onDismiss: () => void;
+  action?: { label: string; onClick: () => void };
+}) {
   const [paused, setPaused] = useState(false);
   const dismiss = useRef(onDismiss),
     remaining = useRef(5000);
@@ -347,6 +355,10 @@ export function Toast({ message, onDismiss }: { message: string; onDismiss: () =
     <div
       className="toast"
       role="status"
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setPaused(false);
+      }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -354,6 +366,11 @@ export function Toast({ message, onDismiss }: { message: string; onDismiss: () =
         <Icon name="check" />
       </span>
       <p>{message}</p>
+      {action && (
+        <button type="button" className="secondary small" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
       <button
         type="button"
         className="icon-button ghost"

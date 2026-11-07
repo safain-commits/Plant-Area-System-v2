@@ -25,7 +25,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <Shell identity={identity} active="consumables" activePath="/consumables/history">
       <div className="r22-print-actions">
         <Heading
-          eyebrow="R22 · BUKTI TRANSAKSI"
+          eyebrow="R22 · Bukti transaksi"
           title={titles[d.type]}
           description="Dokumen final · jumlah dan identitas sesuai saat pencatatan"
         />
@@ -38,7 +38,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </div>
       <article className="panel r22-receipt">
         <header>
-          <p className="eyebrow">TQ-CMMS / CONSUMABLE ROOM</p>
+          <p className="fine">TQ-CMMS / Consumable Room</p>
           <h1>{titles[d.type]}</h1>
           <strong className="r22-document-number">{d.number}</strong>
           <p>{formatDate(d.createdAt)} WIB</p>
@@ -74,8 +74,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <tr>
                 <th>No.</th>
                 <th>MMID / Material</th>
-                {d.type === 'picklist' && <th>Qty SAP</th>}
-                <th>Qty R22</th>
+                {d.type === 'picklist' && <th>Jumlah SAP</th>}
+                <th>Jumlah R22</th>
                 <th>Satuan</th>
               </tr>
             </thead>
