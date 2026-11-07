@@ -338,12 +338,12 @@ export function Picklist({ identity }: { identity: Identity }) {
           </div>
           <div className="r22-picklist-table" role="table" aria-label="Material penerimaan picklist">
             <div className="r22-cart-head" role="row">
-              <span>No.</span>
-              <span>Material / Satuan SAP</span>
-              <span>Jumlah diminta</span>
-              <span>Jumlah R22</span>
-              <span>Satuan input</span>
-              <span>Aksi</span>
+              <span role="columnheader">No.</span>
+              <span role="columnheader">Material</span>
+              <span role="columnheader">Jumlah diminta</span>
+              <span role="columnheader">Satuan input</span>
+              <span role="columnheader">Jumlah R22</span>
+              <span role="columnheader">Aksi</span>
             </div>
             {!draft.lines.length && (
               <EmptyState
@@ -362,89 +362,113 @@ export function Picklist({ identity }: { identity: Identity }) {
                   role="row"
                   key={m.id}
                 >
-                  <span className="r22-line-no">{i + 1}</span>
-                  <div>
+                  <span className="r22-line-no" role="cell">
+                    {i + 1}
+                  </span>
+                  <div className="r22-picklist-material" role="cell">
                     <strong>{m.commonName || m.description}</strong>
-                    <small>
-                      {m.mmid} · {m.description}
+                    <small className="r22-picklist-description">
+                      <span>{m.mmid}</span> · {m.description}
                     </small>
-                    <small>
-                      Satuan SAP: {m.sapUnit} ·{' '}
-                      {m.packSize
-                        ? `1 ${m.sapUnit} = ${formatQuantity(m.packSize)} ${m.unit}`
-                        : m.sapUnit.toUpperCase() === m.unit.toUpperCase()
-                          ? `1 ${m.sapUnit} = 1 ${m.unit}`
-                          : 'Konversi belum diatur'}
-                    </small>
-                    {!m.inventoryId ? (
-                      <span className="badge neutral">Baru di stok R22, akan didaftarkan otomatis</span>
-                    ) : !m.initialized ? (
-                      <span className="error-text">Belum dihitung, hubungi admin</span>
-                    ) : (
+                    <div className="r22-picklist-meta">
                       <small>
-                        Stok: {formatQuantity(m.quantity)} {m.unit}
+                        {m.packSize
+                          ? `1 ${m.sapUnit} = ${formatQuantity(m.packSize)} ${m.unit}`
+                          : m.sapUnit.toUpperCase() === m.unit.toUpperCase()
+                            ? `1 ${m.sapUnit} = 1 ${m.unit}`
+                            : 'Konversi belum diatur'}
                       </small>
-                    )}
+                      {!m.inventoryId ? (
+                        <span className="badge neutral">Akan didaftarkan ke stok R22</span>
+                      ) : !m.initialized ? (
+                        <span className="error-text">Belum dihitung, hubungi admin</span>
+                      ) : (
+                        <small>
+                          Stok R22: {formatQuantity(m.quantity)} {m.unit}
+                        </small>
+                      )}
+                    </div>
                     {problem && (
                       <p className="error-text" role="alert">
                         {problem.error}
                       </p>
                     )}
                   </div>
-                  <label className="r22-line-quantity">
-                    <span className="sr-only">Jumlah diminta {m.mmid}</span>
-                    <Input
-                      required
-                      data-r22-quantity={m.id}
-                      value={l.quantity}
-                      disabled={busy}
-                      inputMode={l.mode === 'base' && !m.decimalAllowed ? 'numeric' : 'decimal'}
-                      onChange={(e) =>
-                        update({
-                          lines: draft.lines.map((v, j) =>
-                            i === j ? { ...v, quantity: e.target.value } : v,
-                          ),
-                        })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          document.querySelector<HTMLInputElement>('.r22-search input')?.focus();
+                  <div className="r22-picklist-quantity" role="cell">
+                    <label className="r22-line-quantity">
+                      <span className="r22-picklist-field-label" aria-hidden="true">
+                        Jumlah diminta
+                      </span>
+                      <span className="sr-only">Jumlah diminta {m.mmid}</span>
+                      <span className="r22-picklist-quantity-control">
+                        <Input
+                          required
+                          data-r22-quantity={m.id}
+                          value={l.quantity}
+                          disabled={busy}
+                          inputMode={l.mode === 'base' && !m.decimalAllowed ? 'numeric' : 'decimal'}
+                          onChange={(e) =>
+                            update({
+                              lines: draft.lines.map((v, j) =>
+                                i === j ? { ...v, quantity: e.target.value } : v,
+                              ),
+                            })
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              document.querySelector<HTMLInputElement>('.r22-search input')?.focus();
+                            }
+                          }}
+                        />
+                        <span className="r22-picklist-quantity-unit">
+                          {l.mode === 'base' ? m.unit : m.sapUnit}
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                  <div className="r22-picklist-unit" role="cell">
+                    <label>
+                      <span className="r22-picklist-field-label" aria-hidden="true">
+                        Satuan input
+                      </span>
+                      <span className="sr-only">Mode input {m.mmid}</span>
+                      <Select
+                        searchable={false}
+                        value={l.mode || 'sap'}
+                        disabled={busy}
+                        onChange={(e) =>
+                          update({
+                            lines: draft.lines.map((v, j) =>
+                              i === j ? { ...v, mode: e.target.value as 'base' | 'sap', quantity: '' } : v,
+                            ),
+                          })
                         }
-                      }}
-                    />
-                    <small>{l.mode === 'base' ? m.unit : m.sapUnit}</small>
-                  </label>
-                  <span className="r22-conversion-output">
-                    {result ? `= ${formatQuantity(result)} ${m.unit}` : '—'}
+                      >
+                        <option value="sap">SAP · {m.sapUnit}</option>
+                        <option value="base">R22 · {m.unit}</option>
+                      </Select>
+                    </label>
+                  </div>
+                  <div className="r22-conversion-output" role="cell">
+                    <span className="r22-picklist-field-label">Jumlah R22</span>
+                    <span className="r22-picklist-result">
+                      <strong>{result ? formatQuantity(result) : '—'}</strong>
+                      {result && <span>{m.unit}</span>}
+                    </span>
                     {l.quantity && !result && <small className="error-text">Periksa jumlah / konversi</small>}
-                  </span>
-                  <label>
-                    <span className="sr-only">Mode input {m.mmid}</span>
-                    <Select
-                      value={l.mode || 'sap'}
+                  </div>
+                  <div className="r22-picklist-action" role="cell">
+                    <Button
+                      type="button"
+                      className="secondary small"
+                      aria-label={`Hapus ${m.mmid}`}
                       disabled={busy}
-                      onChange={(e) =>
-                        update({
-                          lines: draft.lines.map((v, j) =>
-                            i === j ? { ...v, mode: e.target.value as 'base' | 'sap', quantity: '' } : v,
-                          ),
-                        })
-                      }
+                      onClick={() => feedback.remove(i)}
                     >
-                      <option value="sap">Satuan SAP</option>
-                      <option value="base">Satuan R22</option>
-                    </Select>
-                  </label>
-                  <Button
-                    type="button"
-                    className="secondary small"
-                    aria-label={`Hapus ${m.mmid}`}
-                    disabled={busy}
-                    onClick={() => feedback.remove(i)}
-                  >
-                    Hapus
-                  </Button>
+                      Hapus
+                    </Button>
+                  </div>
                 </div>
               );
             })}

@@ -142,7 +142,120 @@
   }
   .r22-picklist-table .r22-cart-head,
   .r22-picklist-table .r22-cart-row {
-    grid-template-columns: 28px minmax(0, 1fr) 100px 120px 130px 64px;
+    grid-template-columns:
+      var(--space-8) minmax(0, 1fr) minmax(9rem, 0.3fr) minmax(10rem, 0.35fr) minmax(8rem, 0.3fr)
+      4.5rem;
+    gap: var(--space-4);
+    padding-inline: var(--space-3);
+  }
+  .r22-picklist-table .r22-cart-head {
+    background: var(--surfaceSunken);
+    border-radius: var(--radius-menuItem);
+    border-bottom: 0;
+  }
+  .r22-picklist-table .r22-cart-head > :nth-child(5) {
+    text-align: right;
+  }
+  .r22-picklist-table .r22-cart-head > :last-child {
+    text-align: center;
+  }
+  .r22-picklist-table .r22-cart-row {
+    grid-template-areas: 'number material quantity unit result action';
+    padding-block: var(--space-5);
+  }
+  .r22-picklist-table .r22-cart-row > * {
+    min-width: 0;
+  }
+  .r22-picklist-table .r22-line-no {
+    grid-area: number;
+  }
+  .r22-picklist-material {
+    grid-area: material;
+    overflow-wrap: anywhere;
+  }
+  .r22-picklist-table .r22-picklist-material > strong {
+    font-weight: 600;
+  }
+  .r22-picklist-description > span {
+    font-variant-numeric: tabular-nums;
+  }
+  .r22-picklist-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-4);
+    margin-top: var(--space-2);
+  }
+  .r22-picklist-table .r22-picklist-meta small {
+    margin: 0;
+  }
+  .r22-picklist-meta .badge {
+    max-width: 100%;
+    height: auto;
+    padding-block: var(--space-half);
+    white-space: normal;
+  }
+  .r22-picklist-quantity {
+    grid-area: quantity;
+  }
+  .r22-picklist-quantity-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .r22-picklist-quantity-control .input-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+  .r22-picklist-quantity input {
+    padding-inline: var(--space-3);
+  }
+  .r22-picklist-quantity .input-clear {
+    display: none;
+  }
+  .r22-picklist-quantity-unit {
+    max-width: 35%;
+    color: var(--textSecondary);
+    font-size: var(--type-caption);
+    overflow-wrap: anywhere;
+  }
+  .r22-picklist-unit {
+    grid-area: unit;
+  }
+  .r22-picklist-unit .select-trigger > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .r22-picklist-field-label {
+    display: none;
+    color: var(--textSecondary);
+    font-size: var(--type-caption);
+    font-weight: 400;
+  }
+  .r22-picklist-table .r22-conversion-output {
+    grid-area: result;
+    display: grid;
+    gap: var(--space-1);
+  }
+  .r22-picklist-result {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    min-height: 44px;
+  }
+  .r22-picklist-table .r22-picklist-result strong {
+    font-size: var(--type-body);
+    font-weight: 600;
+  }
+  .r22-picklist-result > span {
+    color: var(--textSecondary);
+  }
+  .r22-picklist-action {
+    grid-area: action;
+    justify-self: end;
   }
   .r22-conversion-output {
     font-variant-numeric: tabular-nums;
@@ -200,31 +313,10 @@
     .r22-picklist .form-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .r22-picklist-table .r22-cart-row {
-      grid-template-columns: 24px minmax(0, 1fr) 100px;
-    }
-    .r22-picklist-table .r22-cart-head {
-      display: none;
-    }
-    .r22-picklist-table .r22-conversion-output {
-      grid-column: 2;
-    }
   }
   @media (max-width: 639px) {
     .r22-picklist .form-grid {
       grid-template-columns: minmax(0, 1fr);
-    }
-    .r22-picklist-table .r22-cart-row {
-      grid-template-columns: minmax(0, 1fr) 110px;
-    }
-    .r22-picklist-table .r22-cart-row > div {
-      grid-column: 1 / -1;
-    }
-    .r22-picklist-table .r22-conversion-output {
-      grid-column: 2;
-    }
-    .r22-picklist-table .r22-cart-row > label:not(.r22-line-quantity) {
-      grid-column: 1 / -1;
     }
     .r22-picklist-submit {
       display: grid;
@@ -446,26 +538,26 @@
     }
   }
   @media (max-width: 639px) {
-    .r22-cart-head {
+    .r22-cart-table .r22-cart-head {
       display: none;
     }
-    .r22-cart-row {
+    .r22-cart-table .r22-cart-row {
       grid-template-columns: minmax(0, 1fr) 64px;
       gap: var(--space-3);
     }
-    .r22-line-no {
+    .r22-cart-table .r22-line-no {
       display: none;
     }
-    .r22-cart-row > div {
+    .r22-cart-table .r22-cart-row > div {
       grid-column: 1 / -1;
     }
-    .r22-line-quantity {
+    .r22-cart-table .r22-line-quantity {
       grid-column: 1;
     }
-    .r22-cart-row > span:not(.r22-line-no) {
+    .r22-cart-table .r22-cart-row > span:not(.r22-line-no) {
       grid-column: 2;
     }
-    .r22-cart-row > .busy-button {
+    .r22-cart-table .r22-cart-row > .busy-button {
       grid-column: 1 / -1;
       min-height: 44px;
     }
@@ -1437,19 +1529,48 @@
       min-height: 44px;
     }
   }
-  @container r22-picklist (max-width: 767px) {
-    .r22-cart-head {
+  @container r22-picklist (max-width: 48rem) {
+    .r22-picklist-table .r22-cart-head {
       display: none;
     }
-    .r22-cart-row {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: var(--space-3);
+    .r22-picklist-table .r22-cart-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-areas: 'material material action' 'quantity unit result';
+      gap: var(--space-4);
+      align-items: start;
+      padding-inline: 0;
     }
     .r22-line-no {
       display: none;
     }
-    .r22-cart-row > div {
-      grid-column: 1 / -1;
+    .r22-picklist-field-label {
+      display: block;
+    }
+    .r22-picklist-table .r22-conversion-output,
+    .r22-picklist-result {
+      text-align: right;
+    }
+  }
+  @container r22-picklist (max-width: 36rem) {
+    .r22-picklist-table .r22-cart-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas: 'material material' 'quantity unit' 'result action';
+    }
+    .r22-picklist-table .r22-conversion-output {
+      text-align: left;
+    }
+    .r22-picklist-result {
+      justify-content: flex-start;
+      min-height: auto;
+    }
+    .r22-picklist-action {
+      align-self: end;
+    }
+  }
+  @container r22-picklist (max-width: 18rem) {
+    .r22-picklist-table .r22-cart-row {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: 'material' 'quantity' 'unit' 'result' 'action';
     }
   }
   @container stock-table (max-width: 639px) {
