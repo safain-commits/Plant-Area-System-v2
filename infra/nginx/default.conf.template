@@ -70,6 +70,8 @@ server {
         internal;
         proxy_pass http://auth_upstream/auth/internal/verify;
         proxy_pass_request_body off;
+        # Auth subrequests accept only the explicit cookie and service headers below.
+        proxy_pass_request_headers off;
         proxy_set_header Content-Length "";
         proxy_set_header Cookie $http_cookie;
         proxy_set_header X-Plant-Service-Token "${SERVICE_TOKEN}";
@@ -107,6 +109,8 @@ server {
         internal;
         proxy_pass http://auth_upstream/auth/internal/verify;
         proxy_pass_request_body off;
+        # Auth subrequests accept only the explicit cookie and service headers below.
+        proxy_pass_request_headers off;
         proxy_set_header Content-Length "";
         proxy_set_header Cookie $http_cookie;
         proxy_set_header X-Plant-Service-Token "${SERVICE_TOKEN}";
@@ -119,6 +123,8 @@ server {
         internal;
         proxy_pass http://auth_upstream/auth/internal/verify;
         proxy_pass_request_body off;
+        # Auth subrequests accept only the explicit cookie and service headers below.
+        proxy_pass_request_headers off;
         proxy_set_header Content-Length "";
         proxy_set_header Cookie $http_cookie;
         proxy_set_header X-Plant-Service-Token "${SERVICE_TOKEN}";

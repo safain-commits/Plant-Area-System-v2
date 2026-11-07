@@ -518,10 +518,10 @@ export function ConsumablesWorkspace({
                 ['Nama umum', detail.material.commonName || '—'],
                 ['Satuan', detail.material.unit],
                 ['Kategori', detail.material.category],
-                ['MRP Type', detail.material.mrpType || '—'],
+                ['Tipe MRP', detail.material.mrpType || '—'],
                 ['Material kritis', detail.material.critical ? 'Ya' : 'Tidak'],
                 [
-                  'Isi per pack',
+                  'Isi per kemasan',
                   detail.material.packSize
                     ? `${quantity(detail.material.packSize)} ${detail.material.unit}`
                     : 'Belum diatur',
@@ -581,7 +581,7 @@ export function ConsumablesWorkspace({
                 [
                   'Kemasan',
                   movement.packs
-                    ? `${movement.packs} pack × ${quantity(movement.packSize!)} ${movement.unit}`
+                    ? `${movement.packs} kemasan × ${quantity(movement.packSize!)} ${movement.unit}`
                     : 'Satuan dasar',
                 ],
                 ['Referensi', movement.reference || '—'],
@@ -1008,11 +1008,11 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           <Input name="mmid" required maxLength={80} defaultValue={material?.mmid} disabled={!!material} />
         </label>
         <label>
-          <span>Nama asli / part description </span>
+          <span>Nama asli / deskripsi material </span>
           <Input name="description" required maxLength={160} defaultValue={material?.description} />
         </label>
         <label>
-          Nama umum
+          Nama umum (opsional)
           <Input name="commonName" maxLength={160} defaultValue={material?.commonName} />
           <small>Nama yang dikenal di lapangan, mis. Baut M16.</small>
         </label>
@@ -1050,7 +1050,7 @@ function MaterialEditor({ material, saved }: { material: Material | null; saved:
           <Input name="category" required maxLength={100} defaultValue={material?.category} />
         </label>
         <label>
-          MRP Type
+          Tipe MRP (opsional)
           <Input name="mrpType" maxLength={30} defaultValue={material?.mrpType} />
         </label>
         <label>

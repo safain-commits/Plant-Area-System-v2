@@ -18,7 +18,9 @@ async function choose(select: Locator, value: string) {
   }, value);
   if (!label) throw Error('Option not found: ' + value);
   await select.click();
-  await select.page().getByRole('option', { name: label, exact: true }).click();
+  const option = select.page().getByRole('option', { name: label, exact: true });
+  await option.click();
+  await expect(option).toBeHidden();
 }
 async function openInstallation(page: import('@playwright/test').Page) {
   if (!(await page.locator('[data-sheet-trigger]:visible').count()))
@@ -77,6 +79,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   ).toBe(403);
   await page.goto('/');
   await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tema', exact: true })).toBeEnabled();
   await page.screenshot({ path: 'test-results/login-desktop.png', fullPage: true });
   await page.getByLabel('Email', { exact: true }).fill(process.env.BOOTSTRAP_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(temporary);
@@ -84,11 +87,13 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   await expect(page).toHaveURL(/\/auth\/change-password/);
   // Next may still be replacing a streamed subtree when the document URL first changes.
   await expect(page.getByLabel('Password sementara', { exact: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Tema', exact: true })).toBeEnabled();
   await page.getByLabel('Password sementara', { exact: true }).fill(temporary);
   await page.locator('input[name="newPassword"]').fill(password);
   await page.getByLabel('Ulangi password baru').fill(password);
   await page.getByRole('button', { name: 'Ganti password', exact: true }).click();
   await expect(page).toHaveURL(/\/auth\/login/);
+  await expect(page.getByRole('button', { name: 'Tema', exact: true })).toBeEnabled();
   await page.getByLabel('Email', { exact: true }).fill(process.env.BOOTSTRAP_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: /Masuk/ }).click();
@@ -186,13 +191,24 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
     await page.locator('.installation-form input[type="datetime-local"]').fill('2026-09-01T08:00');
     await page.getByRole('button', { name: 'Simpan 2 bag', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('2 posisi tersimpan');
+    await expect(page.getByRole('dialog', { name: 'Pencatatan penggantian', exact: true })).toBeHidden();
     await page.getByLabel('Cari WO, alasan, tanggal, atau koordinat').fill(reason);
     await expect(page.locator('.history-item')).toHaveCount(1);
     await expect(page.locator('.history-item')).toContainText('1 A16');
     await expect(page.locator('.history-item')).toContainText('16 H1');
     await expect(page.locator('.history-item')).toContainText('Brand/Pabrikan: Filtras');
     await expect(page.locator('#position-history')).toContainText('Brand/Pabrikan: Filtras');
-    await expect(page.locator('.installation-form [role=combobox]')).toHaveAttribute('value', '');
+    await openInstallation(page);
+    await expect(page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true })).toHaveAttribute(
+      'value',
+      '',
+    );
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Pencatatan penggantian', exact: true })).toBeHidden();
+    await page
+      .locator('.selection-bar')
+      .getByRole('button', { name: 'Bersihkan semua', exact: true })
+      .click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/${code}-desktop.png`, fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -254,6 +270,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   await page.locator('.installation-form input[type="datetime-local"]').fill('2026-09-01T08:00');
   await page.getByRole('button', { name: 'Simpan 2 bag', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('2 posisi tersimpan');
+  await expect(page.getByRole('dialog', { name: 'Pencatatan penggantian', exact: true })).toBeHidden();
   await page.getByLabel('Cari WO, alasan, tanggal, atau koordinat').fill(reason);
   await expect(page.locator('.history-item')).toHaveCount(1);
   await expect(page.locator('.history-item')).toContainText('Tanpa WO');

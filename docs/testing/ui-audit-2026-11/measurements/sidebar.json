@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/",
+    "layoutEvents": 1,
+    "maxLayoutMs": 0.29,
+    "totalLayoutMs": 0.29,
+    "transitions": {
+      "shell": "all",
+      "sidebar": "all",
+      "shellDuration": "0s",
+      "sidebarDuration": "0s"
+    }
+  },
+  {
+    "path": "/consumables",
+    "layoutEvents": 1,
+    "maxLayoutMs": 0.366,
+    "totalLayoutMs": 0.366,
+    "transitions": {
+      "shell": "all",
+      "sidebar": "all",
+      "shellDuration": "0s",
+      "sidebarDuration": "0s"
+    }
+  }
+]

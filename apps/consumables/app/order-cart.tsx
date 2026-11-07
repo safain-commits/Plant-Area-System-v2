@@ -241,7 +241,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
             <fieldset disabled={busy || loaded !== storageKey} className="r22-fieldset">
               <div className="form-grid">
                 <label>
-                  <span>HAC/SAC / Functional Location </span>
+                  <span>HAC/SAC / Lokasi fungsional </span>
                   <Input
                     required
                     maxLength={30}
@@ -259,7 +259,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                   </datalist>
                 </label>
                 <label>
-                  WO Number (opsional)
+                  Nomor WO (opsional)
                   <Input value={draft.wo} maxLength={100} onChange={(e) => update({ wo: e.target.value })} />
                 </label>
                 {type === 'return' && (
@@ -289,7 +289,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                     checked={draft.onbehalf}
                     onChange={(e) => update({ onbehalf: e.target.checked })}
                   />
-                  Input untuk client lain
+                  Catat untuk pengguna lain
                 </label>
               )}
               {canConsume(identity, 'onbehalf') && draft.onbehalf ? (
@@ -314,7 +314,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                 </div>
               ) : (
                 <p className="fine">
-                  Dicatat sebagai: <strong>{identity.name}</strong> · Self-service
+                  Dicatat sebagai: <strong>{identity.name}</strong> · Mandiri
                 </p>
               )}
             </fieldset>

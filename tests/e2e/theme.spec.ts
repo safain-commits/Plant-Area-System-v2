@@ -69,7 +69,9 @@ async function select(page: Page, name: string | RegExp, value: string) {
   );
   if (!label) throw Error('Unknown option');
   await trigger.click();
-  await page.getByRole('option', { name: label, exact: true }).click();
+  const option = page.getByRole('option', { name: label, exact: true });
+  await option.click();
+  await expect(option).toBeHidden();
 }
 async function login(page: Page) {
   const r = await page.request.post('/auth/api/sign-in/email', {

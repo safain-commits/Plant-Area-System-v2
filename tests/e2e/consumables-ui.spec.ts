@@ -122,7 +122,9 @@ async function signIn(page: Page) {
 }
 async function select(page: Page, label: string, value: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
-  await page.getByRole('option', { name: value, exact: true }).click();
+  const option = page.getByRole('option', { name: value, exact: true });
+  await option.click();
+  await expect(option).toBeHidden();
 }
 async function theme(page: Page, value: string) {
   await page.getByRole('button', { name: 'Tema', exact: true }).click();

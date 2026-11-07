@@ -9,7 +9,7 @@ export function AliasInput({ initial = '' }: { initial?: string }) {
       .filter(Boolean);
   return (
     <label className="r22-span-all">
-      Alias / kata kunci
+      Alias / kata kunci (opsional)
       <Input
         name="aliases"
         maxLength={500}

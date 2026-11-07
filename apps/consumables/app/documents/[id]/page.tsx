@@ -45,20 +45,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </header>
         <dl className="stock-detail-grid">
           {[
-            ['HAC/SAC / Functional Location', d.hec || d.functionalLocation || '—'],
-            ['WO Number', d.wo || '—'],
+            ['HAC/SAC / Lokasi fungsional', d.hec || d.functionalLocation || '—'],
+            ['Nomor WO', d.wo || '—'],
             ['Keterangan', d.note || '—'],
             ['Peminta', d.requesterName + (d.requesterNik ? ' · ' + d.requesterNik : '')],
             ['Pencatat', d.actorName],
-            ['Kanal', d.channel === 'cashier' ? 'R22 Cashier' : 'Self-service'],
+            ['Kanal', d.channel === 'cashier' ? 'R22 Cashier' : 'Mandiri'],
             ...(d.sourceRef ? [['Consume Order asal', d.sourceRef]] : []),
             ...(d.type === 'picklist'
               ? [
-                  ['No. Reservasi', d.reservationNo],
-                  ['Equipment No.', d.equipmentNo || '—'],
-                  ['Functional Location SAP', d.functionalLocation || '—'],
-                  ['Cost Center', d.costCenter || '—'],
-                  ['Required Date', d.requiredDate || '—'],
+                  ['Nomor reservasi', d.reservationNo],
+                  ['Nomor equipment', d.equipmentNo || '—'],
+                  ['Lokasi fungsional SAP', d.functionalLocation || '—'],
+                  ['Pusat biaya', d.costCenter || '—'],
+                  ['Tanggal kebutuhan', d.requiredDate || '—'],
                 ]
               : []),
           ].map(([label, value]) => (

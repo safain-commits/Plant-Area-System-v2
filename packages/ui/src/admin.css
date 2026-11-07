@@ -1,0 +1,52 @@
+@layer components {
+  /* admin: consolidated platform rules; component refinements follow. */
+
+  .user-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: var(--space-4);
+  }
+  .user-row summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .user-row summary small {
+    display: block;
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+  }
+  .user-row[open] summary {
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-5);
+  }
+  .user-row .form-stack {
+    margin-top: var(--space-5);
+  }
+  .audit-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .audit-table th,
+  .audit-table td {
+    text-align: left;
+    padding: var(--space-3) var(--space-2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .audit-table th {
+    letter-spacing: 0.5px;
+  }
+  @media (max-width: 767px) {
+    .user-row {
+      padding: var(--space-4);
+    }
+    .user-row summary {
+      font-size: var(--type-caption);
+    }
+  }
+}

@@ -139,8 +139,8 @@ export function Picklist({ identity }: { identity: Identity }) {
     try {
       if (!draft.lines.length || draft.lines.length > 100) throw Error('Pilih 1–100 material unik.');
       if (!draft.reservationNo.trim() || !draft.wo.trim())
-        throw Error('No. Reservasi dan WO No. wajib diisi.');
-      if (!draft.costCenter.trim()) throw Error('Cost Center wajib diisi.');
+        throw Error('Nomor reservasi dan Nomor WO wajib diisi.');
+      if (!draft.costCenter.trim()) throw Error('Pusat biaya wajib diisi.');
       const body = {
         reservationNo: draft.reservationNo.trim(),
         wo: draft.wo.trim(),
@@ -255,7 +255,7 @@ export function Picklist({ identity }: { identity: Identity }) {
           <fieldset className="r22-fieldset" disabled={busy || loaded !== key}>
             <div className="form-grid">
               <label>
-                <span>No. Reservasi </span>
+                <span>Nomor reservasi </span>
                 <Input
                   required
                   maxLength={30}
@@ -264,7 +264,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                <span>WO No. </span>
+                <span>Nomor WO </span>
                 <Input
                   required
                   maxLength={100}
@@ -281,7 +281,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                Functional Location (opsional)
+                Lokasi fungsional (opsional)
                 <Input
                   maxLength={100}
                   value={draft.functionalLocation}
@@ -290,7 +290,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                 />
               </label>
               <label>
-                <span>Cost Center </span>
+                <span>Pusat biaya </span>
                 <Input
                   required
                   maxLength={40}
@@ -339,7 +339,7 @@ export function Picklist({ identity }: { identity: Identity }) {
           <div className="r22-picklist-table" role="table" aria-label="Material penerimaan picklist">
             <div className="r22-cart-head" role="row">
               <span>No.</span>
-              <span>Material / UoM SAP</span>
+              <span>Material / Satuan SAP</span>
               <span>Jumlah diminta</span>
               <span>Jumlah R22</span>
               <span>Satuan input</span>
@@ -369,7 +369,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                       {m.mmid} · {m.description}
                     </small>
                     <small>
-                      UoM SAP: {m.sapUnit} ·{' '}
+                      Satuan SAP: {m.sapUnit} ·{' '}
                       {m.packSize
                         ? `1 ${m.sapUnit} = ${formatQuantity(m.packSize)} ${m.unit}`
                         : m.sapUnit.toUpperCase() === m.unit.toUpperCase()
@@ -432,7 +432,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                         })
                       }
                     >
-                      <option value="sap">UoM SAP</option>
+                      <option value="sap">Satuan SAP</option>
                       <option value="base">Satuan R22</option>
                     </Select>
                   </label>

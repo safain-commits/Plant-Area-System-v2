@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useId, useState } from 'react';
+import { Fragment, useEffect, useRef, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './icon';
 import { record, velocity, rubberband, shouldDismiss, spring, type Sample } from './gesture';
@@ -33,6 +33,11 @@ export function Overlay({
     last = useRef<HTMLElement | null>(null),
     id = useId();
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [present, setPresent] = useState(open);
+  const previousOpen = useRef(false),
+    generation = useRef(0);
+  if (open && !previousOpen.current) generation.current++;
+  previousOpen.current = open;
   const backdropPress = useRef(false),
     closingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelSpring = useRef<(() => void) | null>(null),
@@ -58,8 +63,14 @@ export function Overlay({
   useEffect(() => setContainer(document.body), []);
   const finish = () => {
     const dialog = ref.current;
-    if (!dialog || openRef.current) return;
+    if (!dialog || openRef.current || !dialog.open) return;
+    if (closingTimer.current) {
+      clearTimeout(closingTimer.current);
+      closingTimer.current = null;
+    }
     dialog.close();
+    retained.current = null;
+    setPresent(false);
     dialog.removeAttribute('data-closing');
     dialog.style.removeProperty('transform');
     position.current = 0;
@@ -74,6 +85,7 @@ export function Overlay({
     if (closingTimer.current) clearTimeout(closingTimer.current);
     cancelSpring.current?.();
     if (open) {
+      setPresent(true);
       if (!dialog.open) {
         last.current = anchor?.current ?? (document.activeElement as HTMLElement);
         dialog.dataset.entering = '';
@@ -198,8 +210,23 @@ export function Overlay({
     };
     const complete = () => {
       delete dialog.dataset.dragging;
-      if (dismiss) closeRef.current();
-      else dialog.style.removeProperty('transform');
+      if (dismiss) {
+        closeRef.current();
+        // A saving form may veto dismissal. Keep that dialog reachable.
+        requestAnimationFrame(() => {
+          if (!openRef.current || !dialog.open) return;
+          const restore = () => {
+            delete dialog.dataset.dragging;
+            dialog.style.removeProperty('transform');
+            position.current = 0;
+          };
+          if (matchMedia('(prefers-reduced-motion: reduce)').matches) restore();
+          else {
+            dialog.dataset.dragging = '';
+            cancelSpring.current = spring({ from: position.current, to: 0, update, complete: restore });
+          }
+        });
+      } else dialog.style.removeProperty('transform');
     };
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       update(target);
@@ -315,7 +342,7 @@ export function Overlay({
             </button>
           )}
         </div>
-        {open ? children : retained.current}
+        <Fragment key={generation.current}>{open ? children : present ? retained.current : null}</Fragment>
       </div>
     </dialog>,
     container,

@@ -1,0 +1,10 @@
+{
+  "map": {
+    "rules": 192,
+    "declarationsPreserved": true
+  },
+  "brand": {
+    "rules": 10,
+    "declarationsPreserved": true
+  }
+}

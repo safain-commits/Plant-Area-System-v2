@@ -1,8 +1,11 @@
 @import './tokens.css';
-@import './legacy.css';
+@import './base.css';
+@import './auth.css';
+@import './admin.css';
 @import './refresh.css';
 @import './workspace.css';
 @import './dashboard.css';
+@import './map-base.css';
 @import './map.css';
 @import './consumables.css';
 @import './brand.css';

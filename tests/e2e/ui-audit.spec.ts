@@ -103,6 +103,26 @@ async function start(page: Page, motion: 'reduce' | 'no-preference' = 'reduce') 
 test('portal uses symmetric summaries, a contextual badge and no full dashboard', async ({ page }) => {
   await start(page);
   await page.setViewportSize({ width: 1280, height: 900 });
+  const bag = await (await client.get('/bag-filter/api/dashboard')).json();
+  await page.route('**/bag-filter/api/dashboard*', (route) =>
+    route.fulfill({
+      json: {
+        ...bag,
+        recent: [
+          {
+            id: randomUUID(),
+            equipmentCode: 'L61-BF1',
+            wo: 'W'.repeat(100),
+            reason: 'Data sintetis',
+            brand: null,
+            actorName: actor.name,
+            positionCount: 500,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      },
+    }),
+  );
   await page.goto('/');
   await expect(page.locator('.application-summary')).toHaveCount(2);
   await expect(
@@ -118,6 +138,8 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
   expect(Math.abs(cards[0].top - cards[1].top)).toBeLessThan(1);
   expect(Math.abs(cards[0].height - cards[1].height)).toBeLessThan(1);
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(1350);
+  await page.setViewportSize({ width: 375, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });
 test('filters and pagination fetch while browser timers are paused, retaining the current rows', async ({
   page,
@@ -197,10 +219,10 @@ test('cart undo restores only the removed row and the mobile save action stays v
   await expect(page.getByRole('button', { name: 'Simpan order', exact: true })).toBeInViewport();
   await page.getByRole('button', { name: `Hapus ${inventory[0].mmid}`, exact: true }).click();
   await expect(page.locator('.r22-cart-row')).toHaveCount(1);
-  await page.getByLabel('HAC/SAC / Functional Location').fill('451-BU2');
+  await page.getByLabel('HAC/SAC / Lokasi fungsional').fill('451-BU2');
   await page.getByRole('button', { name: 'Urungkan', exact: true }).click();
   await expect(page.locator('.r22-cart-row')).toHaveCount(2);
-  await expect(page.getByLabel('HAC/SAC / Functional Location')).toHaveValue('451-BU2');
+  await expect(page.getByLabel('HAC/SAC / Lokasi fungsional')).toHaveValue('451-BU2');
   await expect(page.locator('.r22-cart-row').first().locator('input')).toHaveValue('2');
 });
 test('menu exit preserves focus, anchored origin and a visible intermediate presentation', async ({
@@ -212,6 +234,7 @@ test('menu exit preserves focus, anchored origin and a visible intermediate pres
   await trigger.click();
   const menu = page.getByRole('dialog', { name: 'Tema', exact: true });
   await expect(menu).toBeVisible();
+  await expect(menu).toHaveCSS('opacity', '1');
   expect(await menu.evaluate((el) => el.style.getPropertyValue('--anchor-origin'))).toMatch(
     /top (left|right)/,
   );
@@ -294,14 +317,117 @@ test.describe('gesture regression', () => {
     await touch('touchMove', 200);
     await touch('touchEnd');
     await page.waitForTimeout(400);
-    await test
-      .info()
-      .attach('gesture-pointer-samples', {
-        body: JSON.stringify(await page.evaluate(() => (window as any).__gestureSamples)),
-        contentType: 'application/json',
-      });
+    await test.info().attach('gesture-pointer-samples', {
+      body: JSON.stringify(await page.evaluate(() => (window as any).__gestureSamples)),
+      contentType: 'application/json',
+    });
     await expect(drawer).toBeHidden();
     await expect(trigger).toBeFocused();
     await cdp.detach();
   });
+});
+
+test('large browser text and accessibility media retain usable Portal, tables and long carts', async ({
+  page,
+}) => {
+  await start(page);
+  await page.addInitScript(
+    ({ userId, material, blank }) => {
+      const lines = Array.from({ length: 20 }, (_, i) => ({
+        material: {
+          ...material,
+          id: `font-${i}`,
+          mmid: `FONT-${i}`,
+          description: `Material uji ukuran teks ${i}`,
+        },
+        quantity: '1',
+        mode: 'base',
+      }));
+      for (const type of ['consume', 'picklist'])
+        sessionStorage.setItem(
+          `r22-cart:${userId}:${type}`,
+          JSON.stringify({ ...blank, hec: '452-BU1', lines }),
+        );
+    },
+    { userId, material: inventory[0], blank: emptyCart() },
+  );
+  const cdp = await page.context().newCDPSession(page);
+  for (const theme of ['light', 'dark']) {
+    await page.addInitScript((value) => localStorage.setItem('plant-ui-theme', value), theme);
+    for (const width of [375, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const path of [
+        '/',
+        '/consumables',
+        '/consumables/stock',
+        '/consumables/consume',
+        '/consumables/picklist',
+      ]) {
+        await page.goto(path);
+        await expect(page.locator('.shell:not(.shell-skeleton) h1').first()).toBeVisible();
+        await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+          `${path} at ${width}px, ${theme}`,
+        ).toBeTruthy();
+        if (path.endsWith('/consume') && width === 375)
+          await expect(page.getByRole('button', { name: 'Simpan order', exact: true })).toBeInViewport();
+      }
+    }
+  }
+  await cdp.send('Emulation.setEmulatedMedia', {
+    features: [
+      { name: 'prefers-reduced-motion', value: 'reduce' },
+      { name: 'prefers-reduced-transparency', value: 'reduce' },
+      { name: 'prefers-contrast', value: 'more' },
+    ],
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Tema', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Tema', exact: true });
+  await expect(menu).toHaveCSS('backdrop-filter', 'none');
+  expect(await menu.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toContain('rgba');
+  const borderContrast = await menu.evaluate((el) => {
+    const color = (value: string) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    const luminance = (c: number[]) =>
+      c
+        .map((v) => v / 255)
+        .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+        .reduce((n, v, i) => n + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const style = getComputedStyle(el),
+      a = luminance(color(style.borderTopColor)),
+      b = luminance(color(style.backgroundColor));
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  });
+  expect(borderContrast).toBeGreaterThanOrEqual(3);
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await page.goto('/consumables/consume');
+  await page.getByRole('combobox', { name: /Cari material/ }).fill(`UI-AUDIT-${userId}`);
+  const results = page.locator('.r22-search-options');
+  await expect(results).toBeVisible();
+  await expect(results).toHaveCSS('backdrop-filter', 'none');
+  expect(await results.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toContain('rgba');
+
+  expect(
+    await page.evaluate(() =>
+      [
+        'prefers-reduced-motion: reduce',
+        'prefers-reduced-transparency: reduce',
+        'prefers-contrast: more',
+      ].every((query) => matchMedia(`(${query})`).matches),
+    ),
+  ).toBeTruthy();
+  await cdp.detach();
+});
+
+test('RSC page requests keep their grants without forwarding framework headers into auth subrequests', async ({
+  page,
+}) => {
+  await start(page);
+  for (const path of ['/', '/bag-filter', '/consumables/stock']) {
+    const response = await page.request.get(path, { headers: { RSC: '1' } });
+    expect(response.status(), path).toBe(200);
+    expect(response.headers()['content-type'], path).toContain('text/x-component');
+  }
 });

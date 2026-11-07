@@ -1,0 +1,50 @@
+[
+  {
+    "theme": "light",
+    "token": "series-outline",
+    "against": "surface",
+    "ratio": 5.74
+  },
+  {
+    "theme": "light",
+    "token": "series-accent-outline",
+    "against": "surface",
+    "ratio": 5.14
+  },
+  {
+    "theme": "light",
+    "token": "textPrimary",
+    "against": "surface",
+    "ratio": 19.68
+  },
+  {
+    "theme": "light",
+    "token": "textSecondary",
+    "against": "surface",
+    "ratio": 9.29
+  },
+  {
+    "theme": "dark",
+    "token": "series-outline",
+    "against": "surface",
+    "ratio": 12.32
+  },
+  {
+    "theme": "dark",
+    "token": "series-accent-outline",
+    "against": "surface",
+    "ratio": 12.62
+  },
+  {
+    "theme": "dark",
+    "token": "textPrimary",
+    "against": "surface",
+    "ratio": 17.5
+  },
+  {
+    "theme": "dark",
+    "token": "textSecondary",
+    "against": "surface",
+    "ratio": 12.32
+  }
+]

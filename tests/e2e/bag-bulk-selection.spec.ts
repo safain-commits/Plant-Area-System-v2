@@ -76,7 +76,9 @@ async function login(page: Page, index = 0) {
 }
 async function choose(page: Page, name: string, label: string) {
   await page.getByRole('combobox', { name, exact: true }).click();
-  await page.getByRole('option', { name: label, exact: true }).click();
+  const option = page.getByRole('option', { name: label, exact: true });
+  await option.click();
+  await expect(option).toBeHidden();
 }
 async function openBulk(page: Page) {
   await page.getByRole('button', { name: 'Pilih banyak', exact: true }).click();

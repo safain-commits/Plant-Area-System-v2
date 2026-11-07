@@ -132,7 +132,7 @@ test('single R22 stock: opening, persistent Consume/Return carts, print, correct
     { userId },
   );
   await page.goto('/consumables/consume');
-  await page.getByLabel('HAC/SAC / Functional Location').fill('tq.452-bu1');
+  await page.getByLabel('HAC/SAC / Lokasi fungsional').fill('tq.452-bu1');
   await page.getByRole('combobox', { name: /Cari material/ }).fill(mmid);
   const modal = page.getByRole('dialog', { name: 'Tambah jumlah material' });
   await expect(modal).toBeVisible();
@@ -140,7 +140,7 @@ test('single R22 stock: opening, persistent Consume/Return carts, print, correct
   await page.screenshot({ path: '.test-runtime/r22-quantity-modal-1440.png', fullPage: true });
   await modal.getByRole('button', { name: 'Tambah ke keranjang' }).click();
   await expect(modal).toBeHidden();
-  await page.getByLabel('WO Number (opsional)').fill('R22-BROWSER-WO');
+  await page.getByLabel('Nomor WO (opsional)').fill('R22-BROWSER-WO');
   await expect
     .poll(() =>
       page.evaluate(
@@ -150,11 +150,11 @@ test('single R22 stock: opening, persistent Consume/Return carts, print, correct
     )
     .toBe('R22-BROWSER-WO');
   await page.reload();
-  await expect(page.getByLabel('HAC/SAC / Functional Location')).toHaveValue('452-BU1');
+  await expect(page.getByLabel('HAC/SAC / Lokasi fungsional')).toHaveValue('452-BU1');
   await expect(page.locator('.r22-cart-table')).toContainText(mmid);
   await page.getByRole('button', { name: 'Tema', exact: true }).click();
   await page.getByRole('button', { name: 'Gelap', exact: true }).click();
-  await expect(page.getByLabel('WO Number (opsional)')).toHaveValue('R22-BROWSER-WO');
+  await expect(page.getByLabel('Nomor WO (opsional)')).toHaveValue('R22-BROWSER-WO');
   await page.screenshot({ path: '.test-runtime/r22-consume-1440.png', fullPage: true });
   await page.getByRole('button', { name: /Simpan order/ }).click();
   await expect(page.getByRole('dialog')).toContainText('HAC/SAC 452-BU1');
@@ -163,8 +163,8 @@ test('single R22 stock: opening, persistent Consume/Return carts, print, correct
   await expect(page.locator('.r22-success')).toContainText('HAC/SAC 452-BU1');
   await page.getByRole('link', { name: 'Lihat / Cetak bukti' }).click();
   await expect(page.locator('.r22-receipt')).toContainText('452-BU1');
-  await expect(page.locator('.r22-receipt dt')).toContainText(['HAC/SAC / Functional Location']);
-  await expect(page.locator('.r22-receipt')).not.toContainText('Lokasi');
+  await expect(page.locator('.r22-receipt dt')).toContainText(['HAC/SAC / Lokasi fungsional']);
+  await expect(page.locator('.r22-receipt dt').filter({ hasText: /^Lokasi$/ })).toHaveCount(0);
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.shell:not(.shell-skeleton) .sidebar')).toBeHidden();
   await page.screenshot({ path: '.test-runtime/r22-receipt-print.png', fullPage: true });
@@ -175,7 +175,7 @@ test('single R22 stock: opening, persistent Consume/Return carts, print, correct
   await modal.getByLabel('Jumlah (PCS)', { exact: true }).fill('2');
   await modal.getByRole('button', { name: 'Tambah ke keranjang' }).click();
   await expect(modal).toBeHidden();
-  await page.getByLabel('HAC/SAC / Functional Location').fill('452-BU1');
+  await page.getByLabel('HAC/SAC / Lokasi fungsional').fill('452-BU1');
   await page.getByRole('button', { name: /Simpan order/ }).click();
   await page.getByRole('button', { name: 'Finalisasi Pengembalian', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Return Order tersimpan');
@@ -246,8 +246,8 @@ test('20-line SAP picklist, retry and K3 auto enrollment use the single room', a
   await page.context().addCookies((await client.storageState()).cookies);
   await page.goto('/consumables/picklist');
   // Add all lines through the accessible catalog search, preserving real API responses.
-  await page.getByLabel('No. Reservasi', { exact: true }).fill('RES-' + suffix);
-  await page.getByLabel('WO No.', { exact: true }).fill('WO-' + suffix);
+  await page.getByLabel('Nomor reservasi', { exact: true }).fill('RES-' + suffix);
+  await page.getByLabel('Nomor WO', { exact: true }).fill('WO-' + suffix);
   for (let i = 0; i < 20; i++) {
     await page.getByRole('combobox', { name: /Cari material/ }).fill(`PICK-${suffix}-${i}`);
     await expect(page.locator('[data-r22-quantity]')).toHaveCount(i + 1);
@@ -260,14 +260,14 @@ test('20-line SAP picklist, retry and K3 auto enrollment use the single room', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy();
   await page.screenshot({ path: '.test-runtime/r22-picklist-390.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const costCenter = page.getByRole('textbox', { name: /^Cost Center\b/ });
+  const costCenter = page.getByRole('textbox', { name: /^Pusat biaya\b/ });
   await expect(costCenter).toHaveAttribute('required', '');
   await page.getByRole('button', { name: /Terima Picklist/ }).click();
   await expect(costCenter).toBeFocused();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await costCenter.fill('   ');
   await page.getByRole('button', { name: /Terima Picklist/ }).click();
-  await expect(page.locator('.r22-picklist .notice[role="alert"]')).toHaveText('Cost Center wajib diisi.');
+  await expect(page.locator('.r22-picklist .notice[role="alert"]')).toHaveText('Pusat biaya wajib diisi.');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await costCenter.fill('40420');
   await page.getByRole('button', { name: /Terima Picklist/ }).click();
