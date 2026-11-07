@@ -1,0 +1,13 @@
+{
+  "exclude": [
+    "docs/testing/"
+  ],
+  "approved_css_sources": [
+    "packages/ui/src/styles.css",
+    "packages/ui/src/tokens.css"
+  ],
+  "css_extraction": "Explicit semantic supplement, CSS AST parsing is unsupported in graphifyy 0.9.103.",
+  "css_fragment": ".graphify_css_tokens.json",
+  "excluded_testing_nodes": 529,
+  "retained_shared_contract": "AppError"
+}

@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-11-07T15:00:37.380002+00:00",
+  "nodes": {
+    "packages_contracts_src_index_apperror": {
+      "code_fingerprint": "ad75fb514f1807165d1dd6b3a6456db4ec1a6dfa8b1f010a76208ff19f871b4f",
+      "label": "AppError",
+      "last": "2026-11-07T14:55:36.516014+00:00",
+      "provenance": [
+        {
+          "date": "2026-11-07T14:55:36.516014+00:00",
+          "outcome": "useful",
+          "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
+        }
+      ],
+      "score": 0.999919547,
+      "source_file": "packages/contracts/src/index.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "packages_ui_src_styles": {
+      "code_fingerprint": "f3148bc53ae38b74405aca21378bf0a4b99eab595af84ec9047952a047f06606",
+      "label": "styles.css",
+      "last": "2026-11-07T14:55:36.516014+00:00",
+      "provenance": [
+        {
+          "date": "2026-11-07T14:55:36.516014+00:00",
+          "outcome": "useful",
+          "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
+        }
+      ],
+      "score": 0.999919547,
+      "source_file": "packages/ui/src/styles.css",
+      "status": "tentative",
+      "uses": 1
+    },
+    "packages_ui_src_tokens": {
+      "code_fingerprint": "272438ffc02122777248afcc3c2a476074b70a4b5ef9f8eedfef2db449c0ed7c",
+      "label": "tokens.css",
+      "last": "2026-11-07T14:55:36.516014+00:00",
+      "provenance": [
+        {
+          "date": "2026-11-07T14:55:36.516014+00:00",
+          "outcome": "useful",
+          "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
+        }
+      ],
+      "score": 0.999919547,
+      "source_file": "packages/ui/src/tokens.css",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}
