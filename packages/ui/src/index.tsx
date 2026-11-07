@@ -54,3 +54,5 @@ export {
 } from './r22-cart';
 
 export { ShellSkeleton, TableSkeleton, EmptyState } from './skeleton';
+
+export { PortalAttention } from './portal-attention';

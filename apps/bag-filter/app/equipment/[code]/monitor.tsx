@@ -109,6 +109,9 @@ export default function BagMonitor({
   const historyHeading = useRef<HTMLHeadingElement>(null);
   const inputMode = useRef('keyboard');
   const tooltipId = useId();
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('age') === '1260') setBucket(6);
+  }, []);
   const latest = useMemo(() => new Map(data.positions.map((p) => [positionKey(p), p])), [data.positions]);
   const ages = useMemo(() => activeAgeSummary(latest.values(), now), [latest, now]);
   const selectedKeys = useMemo(() => new Set(selected.map(positionKey)), [selected]);

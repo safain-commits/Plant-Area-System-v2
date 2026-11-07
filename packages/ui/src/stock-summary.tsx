@@ -4,6 +4,7 @@ import { canConsume, type Identity, type StockDashboard } from '@plant/contracts
 import { Select } from './fields';
 import { Button } from './button';
 import { Icon } from './icon';
+import { ApplicationSummary } from './application-summary';
 import { AnimatedNumber } from './dashboard';
 import { QuarterlyChart, type ChartSeries } from './quarterly-chart';
 import { StockActivity, movementLabels } from './stock-activity';
@@ -68,24 +69,12 @@ export function StockSummary({
     return () => c.abort();
   }, [year, reload]);
   const compact = variant === 'compact';
-  const heading = compact && (
-    <div className="section-title">
-      <div>
-        <p className="eyebrow">MATERIAL CONTROL</p>
-        <h2>Consumable Room</h2>
-      </div>
-      <a href="/consumables">
-        Buka aplikasi <Icon name="arrow" />
-      </a>
-    </div>
-  );
   if (!data)
     return (
       <section
         className={`stock-summary ${compact ? 'is-compact' : ''}`}
         aria-label="Ringkasan Consumable Room"
       >
-        {heading}
         {error ? (
           <div className="panel dashboard-error" role="alert">
             <Icon name="info" />
@@ -140,13 +129,25 @@ export function StockSummary({
     ['Tersedia', data.available],
     ['Stok nol', data.empty],
   ] as const;
+  if (compact)
+    return (
+      <ApplicationSummary
+        className="stock-summary is-compact"
+        title="Consumable Room"
+        icon="box"
+        href="/consumables"
+        metrics={metrics}
+        readOnly={identity?.grants.find((g) => g.appId === 'consumables')?.role === 'viewer'}
+      >
+        <StockActivity items={data.recent} compact />
+      </ApplicationSummary>
+    );
   return (
     <section
       className={`stock-summary ${compact ? 'is-compact' : ''}`}
       aria-label="Ringkasan Consumable Room"
       aria-busy={busy}
     >
-      {heading}
       {error && (
         <div className="notice error stock-refresh-error" role="alert">
           <span>{error}</span>
@@ -155,188 +156,154 @@ export function StockSummary({
           </Button>
         </div>
       )}
-      {compact ? (
-        <div className="stock-portal-grid">
-          <div className="panel stock-overview">
-            <div className="section-head">
-              <h3>Stok dalam cakupan Anda</h3>
-              <Icon name="box" />
+      <div className="dashboard-grid stock-dashboard">
+        <div className="dashboard-main">
+          <section className="panel hero-chart-card">
+            <div className="chart-panel">
+              <div className="section-head">
+                <div>
+                  <p className="eyebrow">AKTIVITAS MATERIAL</p>
+                  <span className="display-xl">
+                    <AnimatedNumber value={total} />
+                    <small> transaksi</small>
+                  </span>
+                </div>
+                <label className="sr-label">
+                  Tahun
+                  <Select
+                    aria-label="Tahun transaksi stok"
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                  >
+                    {Array.from({ length: data.currentYear - 1999 }, (_, i) => data.currentYear - i).map(
+                      (y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ),
+                    )}
+                  </Select>
+                </label>
+              </div>
+              <p className="muted">Per kuartal berdasarkan waktu pencatatan (WIB).</p>
+              <QuarterlyChart
+                year={data.year}
+                quarters={data.series.map((q) => ({
+                  quarter: q.quarter,
+                  values: kinds.map((key) => q[key]),
+                }))}
+                series={series}
+                active={active}
+                onSelect={setActive}
+              />
+              <p className="fine">
+                {busy
+                  ? `Memuat tahun ${year}…`
+                  : data.year === data.currentYear
+                    ? 'Tahun berjalan: data sampai saat ini.'
+                    : `Data tahun kalender ${data.year}.`}
+              </p>
+              <p className="fine stock-chart-note">
+                Order dihitung per dokumen; saldo awal dan koreksi per pencatatan. Kuantitas berbeda satuan
+                tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
+              </p>
+              {!!data.legacyMovementCount && (
+                <p className="fine">
+                  {n(data.legacyMovementCount)} transaksi v1 tanpa dokumen tersedia pada tab Pergerakan stok.
+                </p>
+              )}
             </div>
-            <div className="stock-compact-metrics">
+            <div className="kpi-rail">
               {metrics.map(([label, value]) => (
                 <div className="metric-block" key={label}>
                   <span>{label}</span>
                   <strong>
                     <AnimatedNumber value={value} />
                   </strong>
+                  <small>Stok R22 · saat ini</small>
                 </div>
               ))}
             </div>
-            <div className="stock-overview-footer">
-              <span>
-                Critical stok nol <strong>{n(data.criticalEmpty)}</strong>
-              </span>
-              <span>
-                Belum dihitung <strong>{n(data.uncounted)}</strong>
-              </span>
-              <a href="/consumables/stock">
-                Cek stok <Icon name="arrow" />
+          </section>
+          <div className="dashboard-row two-columns stock-followups">
+            <section className="panel">
+              <div className="section-head">
+                <h2>Kesiapan saldo awal</h2>
+                <Icon name="box" />
+              </div>
+              <p className="stock-counted">
+                <strong>{n(counted)}</strong>
+                <span>/ {n(data.operational)}</span>
+              </p>
+              <div
+                className="progress-track"
+                role="progressbar"
+                aria-label="Saldo awal telah dihitung"
+                aria-valuenow={counted}
+                aria-valuemin={0}
+                aria-valuemax={data.operational || 1}
+                aria-valuetext={
+                  data.operational
+                    ? `${n(counted)} dari ${n(data.operational)} material dikelola`
+                    : 'Belum ada material operasional'
+                }
+              >
+                <i style={{ transform: `scaleX(${percent / 100})` }} />
+              </div>
+              <p className="fine">
+                {data.operational
+                  ? `${percent.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% material dikelola telah dikonfirmasi.`
+                  : 'Daftarkan material ke stok R22 untuk mulai menghitung stok.'}
+              </p>
+              <a className="stock-inline-link" href="/consumables/stock?availability=uncounted">
+                Lihat yang belum dihitung <Icon name="arrow" />
               </a>
-            </div>
-          </div>
-          <StockActivity items={data.recent} compact />
-        </div>
-      ) : (
-        <div className="dashboard-grid stock-dashboard">
-          <div className="dashboard-main">
-            <section className="panel hero-chart-card">
-              <div className="chart-panel">
-                <div className="section-head">
-                  <div>
-                    <p className="eyebrow">AKTIVITAS MATERIAL</p>
-                    <span className="display-xl">
-                      <AnimatedNumber value={total} />
-                      <small> transaksi</small>
-                    </span>
-                  </div>
-                  <label className="sr-label">
-                    Tahun
-                    <Select
-                      aria-label="Tahun transaksi stok"
-                      value={year}
-                      onChange={(e) => setYear(Number(e.target.value))}
-                    >
-                      {Array.from({ length: data.currentYear - 1999 }, (_, i) => data.currentYear - i).map(
-                        (y) => (
-                          <option key={y} value={y}>
-                            {y}
-                          </option>
-                        ),
-                      )}
-                    </Select>
-                  </label>
-                </div>
-                <p className="muted">Per kuartal berdasarkan waktu pencatatan (WIB).</p>
-                <QuarterlyChart
-                  year={data.year}
-                  quarters={data.series.map((q) => ({
-                    quarter: q.quarter,
-                    values: kinds.map((key) => q[key]),
-                  }))}
-                  series={series}
-                  active={active}
-                  onSelect={setActive}
-                />
-                <p className="fine">
-                  {busy
-                    ? `Memuat tahun ${year}…`
-                    : data.year === data.currentYear
-                      ? 'Tahun berjalan: data sampai saat ini.'
-                      : `Data tahun kalender ${data.year}.`}
-                </p>
-                <p className="fine stock-chart-note">
-                  Order dihitung per dokumen; saldo awal dan koreksi per pencatatan. Kuantitas berbeda satuan
-                  tidak dijumlahkan. KPI stok menunjukkan kondisi saat ini.
-                </p>
-                {!!data.legacyMovementCount && (
-                  <p className="fine">
-                    {n(data.legacyMovementCount)} transaksi v1 tanpa dokumen tersedia pada tab Pergerakan
-                    stok.
-                  </p>
-                )}
-              </div>
-              <div className="kpi-rail">
-                {metrics.map(([label, value]) => (
-                  <div className="metric-block" key={label}>
-                    <span>{label}</span>
-                    <strong>
-                      <AnimatedNumber value={value} />
-                    </strong>
-                    <small>Stok R22 · saat ini</small>
-                  </div>
-                ))}
-              </div>
             </section>
-            <div className="dashboard-row two-columns stock-followups">
-              <section className="panel">
-                <div className="section-head">
-                  <h2>Kesiapan saldo awal</h2>
-                  <Icon name="box" />
-                </div>
-                <p className="stock-counted">
-                  <strong>{n(counted)}</strong>
-                  <span>/ {n(data.operational)}</span>
-                </p>
-                <div
-                  className="progress-track"
-                  role="progressbar"
-                  aria-label="Saldo awal telah dihitung"
-                  aria-valuenow={counted}
-                  aria-valuemin={0}
-                  aria-valuemax={data.operational || 1}
-                  aria-valuetext={
-                    data.operational
-                      ? `${n(counted)} dari ${n(data.operational)} material dikelola`
-                      : 'Belum ada material operasional'
-                  }
-                >
-                  <i style={{ transform: `scaleX(${percent / 100})` }} />
-                </div>
-                <p className="fine">
-                  {data.operational
-                    ? `${percent.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% material dikelola telah dikonfirmasi.`
-                    : 'Daftarkan material ke stok R22 untuk mulai menghitung stok.'}
-                </p>
-                <a className="stock-inline-link" href="/consumables/stock?availability=uncounted">
-                  Lihat yang belum dihitung <Icon name="arrow" />
+            <section className="panel">
+              <div className="section-head">
+                <h2>Perlu perhatian</h2>
+                <Icon name="info" />
+              </div>
+              <div className="stock-attention">
+                <a href="/consumables/stock?availability=critical">
+                  <span>Critical stok nol</span>
+                  <strong className={data.criticalEmpty ? 'stock-warning-value' : ''}>
+                    {n(data.criticalEmpty)}
+                  </strong>
+                  <small>Saldo nol terkonfirmasi</small>
                 </a>
-              </section>
-              <section className="panel">
-                <div className="section-head">
-                  <h2>Perlu perhatian</h2>
-                  <Icon name="info" />
-                </div>
-                <div className="stock-attention">
-                  <a href="/consumables/stock?availability=critical">
-                    <span>Critical stok nol</span>
-                    <strong className={data.criticalEmpty ? 'stock-warning-value' : ''}>
-                      {n(data.criticalEmpty)}
-                    </strong>
-                    <small>Saldo nol terkonfirmasi</small>
-                  </a>
-                  <a href="/consumables/stock?availability=uncounted">
-                    <span>Belum dihitung</span>
-                    <strong>{n(data.uncounted)}</strong>
-                    <small>Menunggu saldo awal fisik</small>
-                  </a>
-                </div>
-                {identity && canConsume(identity, 'manage') && (
-                  <a className="stock-inline-link" href="/consumables/manage">
-                    Kelola daftar stok <Icon name="arrow" />
-                  </a>
-                )}
-              </section>
-            </div>
-          </div>
-          <aside className="dashboard-rail stock-rail" aria-label="Aksi dan aktivitas material">
-            <section className="feature-widget stock-action-card">
-              <div className="feature-contours" aria-hidden="true" />
-              <p className="eyebrow">MATERIAL CONTROL</p>
-              <Icon name={action.icon} className="stock-feature-icon" />
-              <h2>
-                Material siap,
-                <br />
-                pekerjaan lancar.
-              </h2>
-              <p>Telusuri stok dan catat pergerakan material di ruang stok R22.</p>
-              <a href={action.href}>
-                {action.label} <Icon name="arrow" />
-              </a>
+                <a href="/consumables/stock?availability=uncounted">
+                  <span>Belum dihitung</span>
+                  <strong>{n(data.uncounted)}</strong>
+                  <small>Menunggu saldo awal fisik</small>
+                </a>
+              </div>
+              {identity && canConsume(identity, 'manage') && (
+                <a className="stock-inline-link" href="/consumables/manage">
+                  Kelola daftar stok <Icon name="arrow" />
+                </a>
+              )}
             </section>
-            <StockActivity items={data.recent} />
-          </aside>
+          </div>
         </div>
-      )}
+        <aside className="dashboard-rail stock-rail" aria-label="Aksi dan aktivitas material">
+          <section className="feature-widget stock-action-card">
+            <div className="feature-contours" aria-hidden="true" />
+            <p className="eyebrow">MATERIAL CONTROL</p>
+            <Icon name={action.icon} className="stock-feature-icon" />
+            <h2>
+              Material siap,
+              <br />
+              pekerjaan lancar.
+            </h2>
+            <p>Telusuri stok dan catat pergerakan material di ruang stok R22.</p>
+            <a href={action.href}>
+              {action.label} <Icon name="arrow" />
+            </a>
+          </section>
+          <StockActivity items={data.recent} />
+        </aside>
+      </div>
     </section>
   );
 }

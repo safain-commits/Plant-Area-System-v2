@@ -240,11 +240,11 @@ test('nested manufacturer menu dismisses without closing or losing the replaceme
   await expect(brand).toHaveText('Filtras');
 });
 
-test('outside pointer click on Tema closes the portal year menu before opening another menu', async ({
+test('outside pointer click on Tema closes the Bag Filter year menu before opening another menu', async ({
   page,
 }) => {
   await start(page);
-  await page.goto('/');
+  await page.goto('/bag-filter');
   const theme = page.getByRole('button', { name: 'Tema', exact: true });
   for (const preference of ['Terang', 'Gelap']) {
     await theme.click();

@@ -8,12 +8,36 @@ export const movementLabels = {
   adjustment: 'Koreksi',
 } as const;
 export function StockActivity({ items, compact = false }: { items: StockDocument[]; compact?: boolean }) {
-  return (
-    <section className="panel recent-card stock-activity">
-      <div className="section-head">
-        <h2>Aktivitas terbaru</h2>
-        <Icon name="clock" />
+  if (compact)
+    return (
+      <div className="summary-activity-list">
+        {items.length ? (
+          items.slice(0, 3).map((d) => (
+            <a key={d.id} href={`/consumables/history?document=${encodeURIComponent(d.id)}`}>
+              <span>
+                <strong>{d.number}</strong>
+                <small>
+                  {stockDocumentLabels[d.type]} · {d.hec || 'R22'} · {formatDate(d.createdAt)} WIB
+                </small>
+              </span>
+              <span>{d.lineCount} item</span>
+            </a>
+          ))
+        ) : (
+          <p className="muted">Belum ada dokumen di stok R22.</p>
+        )}
       </div>
+    );
+  return (
+    <section
+      className={compact ? 'stock-activity summary-stock-activity' : 'panel recent-card stock-activity'}
+    >
+      {!compact && (
+        <div className="section-head">
+          <h2>Aktivitas terbaru</h2>
+          <Icon name="clock" />
+        </div>
+      )}
       <div className="activity-scroll" tabIndex={0} role="region" aria-label="Aktivitas material terbaru">
         {!items.length ? (
           <div className="empty">
@@ -49,9 +73,11 @@ export function StockActivity({ items, compact = false }: { items: StockDocument
           ))
         )}
       </div>
-      <a className="stock-history-link" href="/consumables/history">
-        Lihat riwayat <Icon name="arrow" />
-      </a>
+      {!compact && (
+        <a className="stock-history-link" href="/consumables/history">
+          Lihat riwayat <Icon name="arrow" />
+        </a>
+      )}
     </section>
   );
 }

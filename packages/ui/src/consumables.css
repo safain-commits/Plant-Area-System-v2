@@ -545,9 +545,6 @@
     display: table-header-group;
   }
 }
-.stock-summary.is-compact {
-  margin-top: var(--space-6);
-}
 .stock-summary > .section-title {
   margin-top: 0;
 }

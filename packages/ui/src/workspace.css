@@ -818,7 +818,6 @@
 }
 .page-content {
   view-transition-name: app-content;
-  contain: layout;
 }
 .sidebar-label {
   transition: opacity var(--duration-fast) var(--ease-standard);

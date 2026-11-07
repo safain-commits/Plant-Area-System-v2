@@ -219,6 +219,7 @@ export class AppError extends Error {
 export const appCatalog = [
   {
     id: 'bag-filter',
+    icon: 'filter',
     name: 'Bag Filter',
     description: 'Peta umur bag, pencatatan penggantian, dan riwayat per koordinat.',
     path: '/bag-filter',
@@ -226,6 +227,7 @@ export const appCatalog = [
   },
   {
     id: 'consumables',
+    icon: 'box',
     name: 'Consumable Room',
     description: 'Stok, penerimaan, dan pemakaian material.',
     path: '/consumables',

@@ -92,7 +92,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   await page.getByLabel('Email', { exact: true }).fill(process.env.BOOTSTRAP_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: /Masuk/ }).click();
-  await expect(page.getByRole('heading', { name: /Selamat datang/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Selamat (pagi|siang|sore|malam)/ })).toBeVisible();
   await page.screenshot({ path: 'test-results/portal-desktop.png', fullPage: true });
   const cookies = await page.context().cookies();
   const cookie = cookies.find((c) => c.name.includes('session_token'));
@@ -218,10 +218,7 @@ test('SSO, first password change, gateway isolation, map, batch, mobile, permiss
   await expect(page.getByText('Belum ada pemasangan atau penggantian.', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.goto('/');
-  await page
-    .locator('.app-card')
-    .filter({ has: page.getByRole('heading', { name: 'Bag Filter', exact: true }) })
-    .click();
+  await page.getByRole('link', { name: 'Buka Bag Filter', exact: true }).click();
   await expect(page).toHaveURL(/\/bag-filter$/);
   await page.route(
     '**/bag-filter/api/equipment/561-BF1/batches?*',

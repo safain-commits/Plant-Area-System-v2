@@ -237,6 +237,9 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await login(page);
   await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Ringkasan Bag Filter', exact: true })).toBeVisible();
+  await expect(page.locator('.portal-hub .bar-chart')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Buka Bag Filter', exact: true }).click();
   await expect(page.locator('.hero-chart-card')).toBeVisible();
   const api = await (await page.request.get('/bag-filter/api/dashboard')).json();
   expect(api.total).toBe(18784);
@@ -327,7 +330,7 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
           expect(order).toEqual(['overview-title', 'overview-labels', 'overview-matrix']);
       }
       if (['/', '/bag-filter/equipment/l61-bf1', '/auth/change-password'].includes(path)) {
-        if (path === '/') await expect(page.locator('.hero-chart-card')).toBeVisible();
+        if (path === '/') await expect(page.locator('.application-summary')).toBeVisible();
         await page.screenshot({
           path: 'test-results/refresh-' + theme + '-' + path.replaceAll('/', '_') + '-desktop.png',
           fullPage: true,
@@ -392,7 +395,22 @@ test('bag ranges, drag, keyboard, legend, sheet draft, calendar and contrast', a
   await page.getByRole('button', { name: 'Selesai', exact: true }).click();
   await page.getByRole('button', { name: 'Tutup Pencatatan penggantian' }).click();
   await choose(page, 'dark');
-  await expect(cells.first()).toHaveCSS('background-color', before);
+  const expected = await cells
+    .first()
+    .evaluate((el) =>
+      el.classList.contains('is-empty') ? getComputedStyle(el).getPropertyValue('--empty-bag').trim() : '',
+    );
+  if (expected) {
+    const fill = await cells.first().evaluate((el) => {
+      const probe = document.createElement('span');
+      probe.style.color = getComputedStyle(el).getPropertyValue('--empty-bag');
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+    await expect(cells.first()).toHaveCSS('background-color', fill);
+  } else await expect(cells.first()).toHaveCSS('background-color', before);
   await page.locator('[data-sheet-trigger]:visible').click();
   await expect(page.getByLabel('Alasan penggantian / pemasangan awal')).toHaveValue('Draft UI refresh');
   await expect(page.getByRole('combobox', { name: 'Brand/Pabrikan', exact: true })).toHaveText('Filtras');
