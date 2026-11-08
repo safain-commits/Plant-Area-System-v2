@@ -145,7 +145,15 @@ export function ThemeToggle() {
       >
         <Icon name={theme.preference === 'system' ? 'monitor' : theme.resolved === 'dark' ? 'moon' : 'sun'} />
       </button>
-      <Overlay open={open} onClose={() => setOpen(false)} title="Tema" kind="menu" anchor={anchor} hideTitle>
+      <Overlay
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Tema"
+        kind="menu"
+        placement="bottom-end"
+        anchor={anchor}
+        hideTitle
+      >
         <div className="menu-list" role="group" aria-label="Pilih tema">
           {(['light', 'dark', 'system'] as const).map((value, i) => (
             <button

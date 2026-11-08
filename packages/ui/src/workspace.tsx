@@ -594,7 +594,9 @@ export function Workspace({
         onClose={() => setNotifications(false)}
         title="Aktivitas aplikasi"
         kind="menu"
+        placement="bottom-end"
         anchor={notificationButton}
+        className="overlay-menu-activity"
       >
         {noticeError && (
           <div className="notice error" role="alert">
@@ -607,7 +609,7 @@ export function Workspace({
         {!items.length ? (
           <p className="empty">Belum ada aktivitas aplikasi dalam cakupan Anda.</p>
         ) : (
-          <div className="activity-scroll">
+          <div className="activity-scroll scroll-fade">
             {items.map((item) => (
               <a
                 href={batchLink(item)}
@@ -642,7 +644,9 @@ export function Workspace({
         onClose={() => setAccount(false)}
         title={identity.name}
         kind="menu"
+        placement="bottom-end"
         anchor={accountButton}
+        className="overlay-menu-account"
       >
         <p className="fine">{identity.email}</p>
         <a href="/profile" className="menu-item">

@@ -656,7 +656,30 @@
     width: 320px;
     border-radius: var(--radius-overlay);
     max-height: 400px;
-    animation-duration: var(--duration-fast);
+  }
+  @media (min-width: 640px) {
+    .overlay-menu-account {
+      width: auto;
+      min-width: max(var(--trigger-width, 0px), 260px);
+      max-width: min(320px, calc(100vw - 16px));
+    }
+    .overlay-menu-activity {
+      width: min(380px, calc(100vw - 16px));
+      max-height: min(480px, calc(100dvh - var(--anchor-top, 96px) - 16px));
+      overflow: hidden;
+    }
+    .overlay-menu-activity > .overlay-content {
+      display: flex;
+      flex-direction: column;
+      max-height: inherit;
+      overflow: hidden;
+    }
+    .overlay-menu-activity .activity-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      overflow-y: auto;
+    }
   }
   .overlay-menu::backdrop {
     background: transparent;
@@ -1442,6 +1465,20 @@
     opacity: 1;
     transform: none;
   }
+  .overlay-menu {
+    --menu-duration: var(--duration-fast);
+    transition:
+      opacity var(--menu-duration) var(--ease-standard),
+      transform var(--menu-duration) var(--ease-standard);
+    transition:
+      opacity var(--menu-duration) var(--ease-standard),
+      transform var(--menu-duration) var(--ease-standard),
+      display var(--menu-duration) allow-discrete,
+      overlay var(--menu-duration) allow-discrete;
+  }
+  .overlay-menu[data-closing] {
+    --menu-duration: 100ms;
+  }
   .overlay::backdrop {
     opacity: 0;
     transition: opacity var(--duration-moderate) var(--ease-standard);
@@ -1515,8 +1552,10 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .overlay {
+    .overlay,
+    .overlay-menu {
       --overlay-exit: none;
+      --menu-duration: var(--duration-instant);
       transition-duration: var(--duration-instant);
     }
     .overlay-sheet,

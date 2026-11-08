@@ -24,7 +24,7 @@ export function Overlay({
   kind?: 'dialog' | 'menu' | 'sheet' | 'command' | 'drawer';
   anchor?: React.RefObject<HTMLElement | null>;
   hideTitle?: boolean;
-  placement?: 'bottom' | 'right';
+  placement?: 'bottom' | 'bottom-end' | 'right';
   className?: string;
   showHandle?: boolean;
   onNavigate?: (direction: -1 | 1) => void;
@@ -110,35 +110,66 @@ export function Overlay({
     if (open) {
       setPresent(true);
       if (kind === 'menu') dialog.dataset.focusInput = menuInput.current;
-      if (!dialog.open) {
+      const wasClosed = !dialog.open;
+      if (wasClosed) {
         last.current = anchor?.current ?? (document.activeElement as HTMLElement);
         dialog.dataset.entering = '';
         dialog.showModal();
-        // Force the entry presentation once; reopening an exit preserves its current transform.
-        dialog.getBoundingClientRect();
-        delete dialog.dataset.entering;
       }
       delete dialog.dataset.closing;
       dialog.style.removeProperty('transform');
       position.current = 0;
-      if (kind === 'menu' && anchor?.current && innerWidth >= 640) {
-        const rect = anchor.current.getBoundingClientRect();
-        const width = dialog.getBoundingClientRect().width;
-        const desiredLeft = placement === 'right' ? rect.right + 8 : rect.left;
-        const left = Math.max(8, Math.min(innerWidth - width - 8, desiredLeft));
-        const top = Math.max(
-          8,
-          Math.min(
-            innerHeight - dialog.getBoundingClientRect().height - 8,
-            placement === 'right' ? rect.top : rect.bottom + 8,
-          ),
-        );
+      const updatePosition = () => {
+        const trigger = anchor?.current;
+        if (!dialog.open || kind !== 'menu' || !trigger) return;
+        if (innerWidth < 640) {
+          dialog.style.removeProperty('--anchor-top');
+          dialog.style.removeProperty('--anchor-left');
+          dialog.style.removeProperty('--anchor-origin');
+          dialog.style.removeProperty('--trigger-width');
+          return;
+        }
+        const rect = trigger.getBoundingClientRect();
+        const vw = document.documentElement.clientWidth || innerWidth;
+        const vh = document.documentElement.clientHeight || innerHeight;
+        dialog.style.setProperty('--trigger-width', `${rect.width}px`);
+        const desiredTop = placement === 'right' ? rect.top : rect.bottom + 8;
+        dialog.style.setProperty('--anchor-top', `${Math.max(8, desiredTop)}px`);
+        const width = dialog.offsetWidth;
+        const height = dialog.offsetHeight;
+        const desiredLeft =
+          placement === 'right'
+            ? rect.right + 8
+            : placement === 'bottom-end'
+              ? rect.right - width
+              : rect.left;
+        const left = Math.max(8, Math.min(vw - width - 8, desiredLeft));
+        const top = Math.max(8, Math.min(vh - height - 8, desiredTop));
+        const origin =
+          placement === 'right'
+            ? `0px ${rect.top + rect.height / 2 - top}px`
+            : `${rect.left + rect.width / 2 - left}px 0px`;
         dialog.style.setProperty('--anchor-top', `${top}px`);
         dialog.style.setProperty('--anchor-left', `${left}px`);
-        dialog.style.setProperty(
-          '--anchor-origin',
-          placement === 'right' ? 'left top' : left < desiredLeft ? 'top right' : 'top left',
-        );
+        dialog.style.setProperty('--anchor-origin', origin);
+      };
+      updatePosition();
+      if (wasClosed) {
+        // Force the entry presentation once after positioning; reopening an exit preserves its current transform.
+        dialog.getBoundingClientRect();
+        delete dialog.dataset.entering;
+      }
+      if (kind === 'menu' && anchor?.current) {
+        const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updatePosition) : null;
+        observer?.observe(dialog);
+        window.addEventListener('resize', updatePosition);
+        window.visualViewport?.addEventListener('resize', updatePosition);
+        return () => {
+          observer?.disconnect();
+          window.removeEventListener('resize', updatePosition);
+          window.visualViewport?.removeEventListener('resize', updatePosition);
+          if (closingTimer.current) clearTimeout(closingTimer.current);
+        };
       }
     } else if (dialog.open) {
       dialog.getBoundingClientRect();
@@ -146,9 +177,10 @@ export function Overlay({
       dialog.style.removeProperty('transform');
       dialog.dataset.closing = '';
       const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const duration = getComputedStyle(dialog).getPropertyValue(
-        reduced ? '--duration-instant' : '--duration-moderate',
-      );
+      const duration =
+        getComputedStyle(dialog).getPropertyValue(
+          reduced ? '--duration-instant' : kind === 'menu' ? '--menu-duration' : '--duration-moderate',
+        ) || (kind === 'menu' ? '100ms' : '280ms');
       const ms = parseFloat(duration) * (duration.trim().endsWith('ms') ? 1 : 1000);
       closingTimer.current = setTimeout(finish, ms + 32);
     }
