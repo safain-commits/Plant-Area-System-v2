@@ -389,9 +389,9 @@ test('premium dashboard, bounded activity, responsive sidebar, themes and Bag Fi
   await expect(page.getByRole('button', { name: 'Menu Consumable Room', exact: true })).toBeFocused();
   await page.keyboard.press('Control+b');
   await page.goto('/');
-  await expect(page.locator('.stock-summary.is-compact')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Ringkasan Consumable Room', exact: true })).toBeVisible();
   await expect(page.locator('.sidebar .nav-children')).toHaveCount(0);
-  await expect(page.locator('.stock-summary .quarter-chart')).toHaveCount(0);
+  await expect(page.locator('.quarter-chart')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
