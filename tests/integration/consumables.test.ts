@@ -356,11 +356,15 @@ test('portal summary returns lightweight R22 metrics, signal and role-filtered a
   const viewerSummary = await stockPortalSummary(viewer);
   assert.equal(viewerSummary.appId, 'consumables');
   assert.equal(viewerSummary.action, undefined);
-  assert.equal(viewerSummary.signal?.scale, 'series');
-  assert.equal(viewerSummary.signal?.segments.length, 3);
-  assert.equal(viewerSummary.metrics[0].value, d.operational);
-  assert.equal(viewerSummary.metrics[1].value, d.available);
-  assert.equal(viewerSummary.metrics[2].value, d.empty);
+  assert.equal(viewerSummary.headline.total, d.operational);
+  assert.equal(viewerSummary.headline.value, d.available);
+  assert.equal(viewerSummary.headline.unit, 'material');
+  assert.equal(viewerSummary.metrics.length, 2);
+  assert.equal(viewerSummary.metrics[0].key, 'empty');
+  assert.equal(viewerSummary.metrics[0].value, d.empty);
+  assert.equal(viewerSummary.metrics[1].key, 'uncounted');
+  assert.equal(viewerSummary.activity.weeks.length, 12);
+  assert.equal(viewerSummary.activity.unitSingular, 'dokumen');
   const operatorSummary = await stockPortalSummary({
     ...actor,
     grants: [{ appId: 'consumables', role: 'operator' }],

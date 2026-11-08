@@ -114,12 +114,17 @@ test('dashboard and activity use current installations and exact equipment scope
   const viewerSummary = await portalSummary(viewerActor, now);
   assert.equal(viewerSummary.appId, 'bag-filter');
   assert.equal(viewerSummary.action, undefined);
-  assert.equal(viewerSummary.metrics[0].value, 2048);
-  assert.equal(viewerSummary.metrics[1].value, state.recorded);
-  assert.equal(viewerSummary.signal?.scale, 'age');
-  assert.equal(viewerSummary.signal?.segments.length, 7);
+  assert.equal(viewerSummary.headline.total, 2048);
+  assert.equal(viewerSummary.headline.value, state.recorded);
+  assert.equal(viewerSummary.headline.unit, 'posisi');
+  assert.equal(viewerSummary.metrics.length, 2);
+  assert.equal(viewerSummary.metrics[0].key, 'older1260');
+  assert.equal(viewerSummary.metrics[1].key, 'neverInstalled');
+  assert.equal(viewerSummary.activity.weeks.length, 12);
+  assert.equal(viewerSummary.activity.unitSingular, 'batch');
   assert.ok(viewerSummary.recent.length <= 5);
-  assert.ok(viewerSummary.recent.every((r) => r.meta.startsWith('L61-BF1 · ')));
+  assert.ok(viewerSummary.recent.every((r) => r.title === 'Penggantian L61-BF1'));
+  assert.ok(viewerSummary.recent.every((r) => r.unit === 'bag'));
   const operatorSummary = await portalSummary(operatorActor, now);
   assert.deepEqual(operatorSummary.action, {
     label: 'Catat penggantian',

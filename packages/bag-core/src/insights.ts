@@ -7,6 +7,7 @@ import {
   ageStops,
   bagAgeScaleDays,
   hasPermission,
+  wibWeekStarts,
   type EquipmentCode,
   type Identity,
   type PortalSummary,
@@ -157,34 +158,80 @@ export async function portalSummary(actor: Identity, now = Date.now()): Promise<
   const readOnly = grant.role === 'viewer';
   const primaryEquipment = (perEquipment.find((e) => e.older1260 > 0) ?? perEquipment[0])?.code;
   const recentRows = await activity(codes, '', 5);
+
+  const weeks = wibWeekStarts(now, 12);
+  const weekCounts: Record<string, number> = Object.fromEntries(weeks.map((w) => [w.start, 0]));
+  if (catalog.length) {
+    const list = scope(catalog.map((e) => e.code));
+    const [batches] = await getBagDb().execute(
+      sql`SELECT installed_at AS installedAt FROM replacement_batches b WHERE equipment_code IN (${list}) AND NOT EXISTS (SELECT 1 FROM batch_cancellations c WHERE c.batch_id=b.id) AND installed_at >= ${new Date(weeks[0].startMs)} AND installed_at < ${new Date(weeks[11].endMs)} AND installed_at <= ${new Date(now + 60000)}`,
+    );
+    for (const b of batches as unknown as { installedAt: Date | string }[]) {
+      const t = Date.parse(iso(b.installedAt));
+      const targetWeek = weeks.find((w) => t >= w.startMs && t < w.endMs);
+      if (targetWeek) weekCounts[targetWeek.start]++;
+    }
+  }
+
+  const pct = total > 0 ? ((installed / total) * 100).toFixed(1).replace('.', ',') : '0,0';
+
   return {
     appId: 'bag-filter',
     updatedAt: recentRows[0]?.createdAt ?? new Date(now).toISOString(),
+    headline: {
+      label: 'Terpasang',
+      value: installed,
+      total,
+      unit: 'posisi',
+      caption:
+        total > 0 ? `${pct}% posisi mempunyai catatan pemasangan aktif.` : 'Belum ada posisi bag tercatat.',
+      href: '/bag-filter',
+    },
     metrics: [
-      { key: 'total', label: 'Total posisi', value: total },
-      { key: 'installed', label: 'Terpasang', value: installed },
       {
         key: 'older1260',
         label: `Umur ≥ ${bagAgeScaleDays.toLocaleString('id-ID')} hari`,
         value: older1260,
+        tone: older1260 > 0 ? 'danger' : 'neutral',
         ...(primaryEquipment
           ? { href: `/bag-filter/equipment/${primaryEquipment.toLowerCase()}?age=${bagAgeScaleDays}` }
           : {}),
       },
+      {
+        key: 'neverInstalled',
+        label: 'Belum tercatat',
+        value: total - installed,
+        tone: 'neutral',
+        href: '/bag-filter',
+      },
     ],
-    signal: {
-      label: 'Distribusi umur bag terpasang',
-      scale: 'age',
-      segments: ageStops.map((stop, i) => ({
-        key: `age-${stop.days}`,
-        label:
-          i === ageStops.length - 1
-            ? `≥ ${stop.days.toLocaleString('id-ID')} hari`
-            : `${stop.days}–${ageStops[i + 1].days - 1} hari`,
-        value: distribution[i],
-        tone: ageTones[i],
+    attention: perEquipment
+      .filter((e) => e.older1260 > 0)
+      .map((e) => ({
+        key: `bag-age-${e.code}`,
+        group: {
+          key: 'bag-age',
+          label: `Bag ≥ ${bagAgeScaleDays.toLocaleString('id-ID')} hari`,
+          unit: 'bag',
+        },
+        label: `${e.code} · bag ≥ ${bagAgeScaleDays.toLocaleString('id-ID')} hari`,
+        value: e.older1260,
+        severity: 'danger' as const,
+        href: `/bag-filter/equipment/${e.code.toLowerCase()}?age=${bagAgeScaleDays}`,
       })),
+    activity: {
+      unitSingular: 'batch',
+      weeks: weeks.map((w) => ({ start: w.start, count: weekCounts[w.start] })),
     },
+    recent: recentRows.slice(0, 5).map((item) => ({
+      id: item.id,
+      title: `Penggantian ${item.equipmentCode}`,
+      meta: `${item.brand || 'Pabrikan belum diisi'} · ${item.actorName}${item.wo ? ` · WO ${item.wo}` : ''}`,
+      at: item.createdAt,
+      href: `/bag-filter/equipment/${item.equipmentCode.toLowerCase()}?batch=${encodeURIComponent(item.id)}`,
+      value: item.positionCount,
+      unit: 'bag',
+    })),
     ...(readOnly || !primaryEquipment
       ? {}
       : {
@@ -194,21 +241,5 @@ export async function portalSummary(actor: Identity, now = Date.now()): Promise<
             icon: 'plus',
           },
         }),
-    attention: perEquipment
-      .filter((e) => e.older1260 > 0)
-      .map((e) => ({
-        key: `bag-age-${e.code}`,
-        label: `${e.code} · bag ≥ ${bagAgeScaleDays.toLocaleString('id-ID')} hari`,
-        value: e.older1260,
-        severity: 'danger' as const,
-        href: `/bag-filter/equipment/${e.code.toLowerCase()}?age=${bagAgeScaleDays}`,
-      })),
-    recent: recentRows.slice(0, 5).map((item) => ({
-      id: item.id,
-      title: item.wo || 'Tanpa WO',
-      meta: `${item.equipmentCode} · ${item.positionCount.toLocaleString('id-ID')} bag`,
-      at: item.createdAt,
-      href: `/bag-filter/equipment/${item.equipmentCode.toLowerCase()}?batch=${encodeURIComponent(item.id)}`,
-    })),
   };
 }

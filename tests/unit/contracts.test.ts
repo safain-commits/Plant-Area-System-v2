@@ -14,6 +14,8 @@ import {
   bagColor,
   wibInput,
   wibToIso,
+  wibWeekStarts,
+  formatRelativeWib,
   safeReturnTo,
   hasPermission,
   replacementSchema,
@@ -209,4 +211,79 @@ test('appCatalog includes icon on every entry and portalSummary on active apps',
       assert.equal('portalSummary' in app, false);
     }
   }
+});
+
+test('wibWeekStarts generates exactly 12 weeks ending with current WIB week, handling year boundary and boundaries', () => {
+  // Monday 2026-11-09 02:08:00 WIB (UTC 2026-11-08 19:08:00Z)
+  const now = Date.parse('2026-11-08T19:08:00Z');
+  const weeks = wibWeekStarts(now, 12);
+  assert.equal(weeks.length, 12);
+
+  // Latest week should be Monday 2026-11-09
+  assert.equal(weeks[11].start, '2026-11-09');
+  assert.equal(weeks[11].startMs, Date.parse('2026-11-08T17:00:00Z'));
+  assert.equal(weeks[11].endMs, Date.parse('2026-11-15T17:00:00Z'));
+
+  // Ensure every week starts on a Monday in WIB and spans exactly 7 days
+  for (let i = 0; i < weeks.length; i++) {
+    const w = weeks[i];
+    assert.equal(w.endMs - w.startMs, 7 * 86_400_000);
+    const mondayWib = new Date(w.startMs + 7 * 3_600_000);
+    assert.equal(mondayWib.getUTCDay(), 1); // 1 = Monday
+    if (i > 0) {
+      assert.equal(weeks[i].startMs, weeks[i - 1].endMs);
+    }
+  }
+
+  // Transaction at 23:59:59 WIB on Sunday 2026-11-08 (UTC 2026-11-08 16:59:59Z)
+  const sundayNightTx = Date.parse('2026-11-08T16:59:59Z');
+  const weekForSunday = weeks.findIndex((w) => sundayNightTx >= w.startMs && sundayNightTx < w.endMs);
+  assert.equal(weekForSunday, 10); // Previous week (starts 2026-11-02)
+
+  // Transaction at 00:00:00 WIB on Monday 2026-11-09 (UTC 2026-11-08 17:00:00Z)
+  const mondayMidnightTx = Date.parse('2026-11-08T17:00:00Z');
+  const weekForMonday = weeks.findIndex((w) => mondayMidnightTx >= w.startMs && mondayMidnightTx < w.endMs);
+  assert.equal(weekForMonday, 11); // Current week (starts 2026-11-09)
+
+  // Year boundary test: Thursday 2026-01-01 10:00:00 WIB (UTC 2026-01-01 03:00:00Z)
+  const newYearNow = Date.parse('2026-01-01T03:00:00Z');
+  const newYearWeeks = wibWeekStarts(newYearNow, 12);
+  assert.equal(newYearWeeks.length, 12);
+  // Current week Monday was Dec 29, 2025
+  assert.equal(newYearWeeks[11].start, '2025-12-29');
+  assert.equal(newYearWeeks[10].start, '2025-12-22');
+});
+
+test('formatRelativeWib handles WIB calendar days, time intervals, and labels', () => {
+  // Monday 2026-11-09 14:30:00 WIB (UTC 2026-11-09 07:30:00Z)
+  const baseNow = Date.parse('2026-11-09T07:30:00Z');
+
+  // Just now (< 1 min)
+  assert.equal(formatRelativeWib(baseNow - 30_000, baseNow), 'Baru saja');
+
+  // 15 mins ago
+  assert.equal(formatRelativeWib(baseNow - 15 * 60_000, baseNow), '15 menit lalu');
+
+  // Today earlier (e.g. 09:15 WIB, 5h 15m ago)
+  assert.equal(formatRelativeWib(baseNow - 5 * 3_600_000 - 15 * 60_000, baseNow), 'Hari ini 09.15');
+
+  // Yesterday 21:16 WIB (Sunday 2026-11-08 21:16 WIB = UTC 2026-11-08 14:16Z)
+  const yesterday2116 = Date.parse('2026-11-08T14:16:00Z');
+  assert.equal(formatRelativeWib(yesterday2116, baseNow), 'Kemarin 21.16');
+
+  // 2 days ago (Saturday 2026-11-07)
+  const twoDaysAgo = Date.parse('2026-11-07T05:00:00Z');
+  assert.equal(formatRelativeWib(twoDaysAgo, baseNow), '2 hari lalu');
+
+  // 6 days ago (Tuesday 2026-11-03)
+  const sixDaysAgo = Date.parse('2026-11-03T05:00:00Z');
+  assert.equal(formatRelativeWib(sixDaysAgo, baseNow), '6 hari lalu');
+
+  // Older in same year (e.g. 2026-10-15)
+  const oct15 = Date.parse('2026-10-15T05:00:00Z');
+  assert.equal(formatRelativeWib(oct15, baseNow), '15 Okt');
+
+  // Previous year (e.g. 2025-11-09)
+  const prevYear = Date.parse('2025-11-09T05:00:00Z');
+  assert.equal(formatRelativeWib(prevYear, baseNow), '9 Nov 2025');
 });

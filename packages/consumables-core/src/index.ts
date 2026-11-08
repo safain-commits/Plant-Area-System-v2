@@ -10,6 +10,7 @@ import {
   allowsDecimals,
   normalizeAliases,
   stockDocumentLabels,
+  wibWeekStarts,
   type Identity,
   type PortalSummary,
   type StockAction,
@@ -568,34 +569,58 @@ export async function stockPortalSummary(actor: Identity, now = Date.now()): Pro
       ? { label: 'Penerimaan Picklist', href: '/consumables/picklist', icon: 'receipt' as const }
       : undefined;
   const docs = (await listDocuments(actor, new URLSearchParams({ limit: '5' }))).items;
+
+  const weeks = wibWeekStarts(now, 12);
+  const weekCounts: Record<string, number> = Object.fromEntries(weeks.map((w) => [w.start, 0]));
+  const docRows = await rows<{ createdAt: Date | string }>(
+    db(),
+    sql`SELECT v.created_at AS createdAt FROM stock_documents v WHERE ${scope(actor, sql`v.location_id`)} AND v.created_at >= ${new Date(weeks[0].startMs)} AND v.created_at < ${new Date(weeks[11].endMs)} AND v.created_at <= ${new Date(now + 60000)}`,
+  );
+  for (const d of docRows) {
+    const t = Date.parse(d.createdAt instanceof Date ? d.createdAt.toISOString() : String(d.createdAt));
+    const targetWeek = weeks.find((w) => t >= w.startMs && t < w.endMs);
+    if (targetWeek) weekCounts[targetWeek.start]++;
+  }
+
+  const pct = operational > 0 ? ((available / operational) * 100).toFixed(1).replace('.', ',') : '0,0';
+
   return {
     appId: 'consumables',
     updatedAt: docs[0]?.createdAt ?? new Date(now).toISOString(),
-    metrics: [
-      { key: 'operational', label: 'Material dikelola', value: operational, href: '/consumables/stock' },
-      {
-        key: 'available',
-        label: 'Tersedia',
-        value: available,
-        href: '/consumables/stock?availability=available',
-      },
-      { key: 'empty', label: 'Stok nol', value: empty, href: '/consumables/stock?availability=empty' },
-    ],
-    signal: {
-      label: 'Komposisi stok R22',
-      scale: 'series',
-      segments: [
-        { key: 'available', label: 'Tersedia', value: available, tone: 'accent' },
-        { key: 'empty', label: 'Stok nol', value: empty, tone: criticalEmpty > 0 ? 'danger' : 'warning' },
-        { key: 'uncounted', label: 'Belum dihitung', value: uncounted, tone: 'neutral' },
-      ],
+    headline: {
+      label: 'Tersedia',
+      value: available,
+      total: operational,
+      unit: 'material',
+      caption: operational > 0 ? `${pct}% material dikelola mempunyai stok.` : 'Belum ada material dikelola.',
+      href: '/consumables/stock',
     },
-    ...(action ? { action } : {}),
+    metrics: [
+      {
+        key: 'empty',
+        label: 'Stok nol',
+        value: empty,
+        href: '/consumables/stock?availability=empty',
+        tone: criticalEmpty > 0 ? 'danger' : empty > 0 ? 'warning' : 'neutral',
+      },
+      {
+        key: 'uncounted',
+        label: 'Belum dihitung',
+        value: uncounted,
+        href: '/consumables/stock?availability=uncounted',
+        tone: 'neutral',
+      },
+    ],
     attention: [
       ...(criticalEmpty > 0
         ? [
             {
               key: 'r22-critical-empty',
+              group: {
+                key: 'r22-critical',
+                label: 'Kritis, stok nol',
+                unit: 'material',
+              },
               label: 'Kritis, stok nol',
               value: criticalEmpty,
               severity: 'danger' as const,
@@ -607,6 +632,11 @@ export async function stockPortalSummary(actor: Identity, now = Date.now()): Pro
         ? [
             {
               key: 'r22-uncounted',
+              group: {
+                key: 'r22-uncounted',
+                label: 'Belum dihitung',
+                unit: 'material',
+              },
               label: 'Material belum dihitung',
               value: uncounted,
               severity: 'warning' as const,
@@ -615,13 +645,20 @@ export async function stockPortalSummary(actor: Identity, now = Date.now()): Pro
           ]
         : []),
     ],
+    activity: {
+      unitSingular: 'dokumen',
+      weeks: weeks.map((w) => ({ start: w.start, count: weekCounts[w.start] })),
+    },
     recent: docs.slice(0, 5).map((d) => ({
       id: d.id,
-      title: d.number,
-      meta: `${stockDocumentLabels[d.type]} · ${d.hec || 'R22'} · ${d.lineCount.toLocaleString('id-ID')} item`,
+      title: `${stockDocumentLabels[d.type]} · ${d.hec || 'R22'}`,
+      meta: `${d.number} · ${d.actorName}`,
       at: d.createdAt,
       href: `/consumables/history?document=${encodeURIComponent(d.id)}`,
+      value: d.lineCount,
+      unit: 'item',
     })),
+    ...(action ? { action } : {}),
   };
 }
 export async function discovery(actor: Identity, q: string) {

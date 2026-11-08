@@ -145,6 +145,97 @@ export function wibToIso(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error('Tanggal WIB tidak valid.');
   return new Date(`${value}:00+07:00`).toISOString();
 }
+
+export type WibWeek = {
+  start: string; // YYYY-MM-DD (Senin WIB)
+  label: string; // '3 Nov'
+  startMs: number; // timestamp ms for Monday 00:00:00+07:00
+  endMs: number; // timestamp ms for next Monday 00:00:00+07:00
+};
+
+export function wibWeekStarts(now = Date.now(), count = 12): WibWeek[] {
+  const WIB_OFFSET_MS = 7 * 3_600_000;
+  const wibTime = now + WIB_OFFSET_MS;
+  const wibDate = new Date(wibTime);
+  const day = wibDate.getUTCDay(); // 0 = Sun, 1 = Mon, ...
+  const daysFromMonday = (day + 6) % 7;
+  const currentMondayUtcDate = wibDate.getUTCDate() - daysFromMonday;
+  const year = wibDate.getUTCFullYear();
+  const month = wibDate.getUTCMonth();
+
+  const shortMonthFormatter = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
+  });
+
+  const weeks: WibWeek[] = [];
+  for (let i = 0; i < count; i++) {
+    const weeksAgo = count - 1 - i;
+    const weekMondayWibMs = Date.UTC(year, month, currentMondayUtcDate - weeksAgo * 7, 0, 0, 0, 0);
+    const startMs = weekMondayWibMs - WIB_OFFSET_MS;
+    const endMs = startMs + 7 * 86_400_000;
+
+    const wDate = new Date(weekMondayWibMs);
+    const y = wDate.getUTCFullYear();
+    const m = String(wDate.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(wDate.getUTCDate()).padStart(2, '0');
+    const start = `${y}-${m}-${d}`;
+    const label = shortMonthFormatter.format(new Date(startMs));
+
+    weeks.push({ start, label, startMs, endMs });
+  }
+  return weeks;
+}
+
+export function formatRelativeWib(date: string | number | Date, now = Date.now()): string {
+  const targetMs = typeof date === 'string' ? Date.parse(date) : date instanceof Date ? date.getTime() : date;
+  if (!Number.isFinite(targetMs)) return '';
+
+  const WIB_OFFSET_MS = 7 * 3_600_000;
+  const targetWibMs = targetMs + WIB_OFFSET_MS;
+  const nowWibMs = now + WIB_OFFSET_MS;
+
+  const targetDate = new Date(targetWibMs);
+  const nowDate = new Date(nowWibMs);
+
+  const diffMs = Math.max(0, now - targetMs);
+
+  if (diffMs < 60_000) return 'Baru saja';
+  if (diffMs < 3_600_000) {
+    const mins = Math.floor(diffMs / 60_000);
+    return `${mins} menit lalu`;
+  }
+
+  const targetMidnightMs = Date.UTC(
+    targetDate.getUTCFullYear(),
+    targetDate.getUTCMonth(),
+    targetDate.getUTCDate(),
+  );
+  const nowMidnightMs = Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate());
+  const diffDays = Math.round((nowMidnightMs - targetMidnightMs) / 86_400_000);
+
+  const hours = String(targetDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(targetDate.getUTCMinutes()).padStart(2, '0');
+  const timeStr = `${hours}.${minutes}`;
+
+  if (diffDays === 0) {
+    return `Hari ini ${timeStr}`;
+  }
+  if (diffDays === 1) {
+    return `Kemarin ${timeStr}`;
+  }
+  if (diffDays >= 2 && diffDays <= 6) {
+    return `${diffDays} hari lalu`;
+  }
+  const day = targetDate.getUTCDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthName = months[targetDate.getUTCMonth()];
+  if (targetDate.getUTCFullYear() === nowDate.getUTCFullYear()) {
+    return `${day} ${monthName}`;
+  }
+  return `${day} ${monthName} ${targetDate.getUTCFullYear()}`;
+}
 export const positionSchema = z
   .object({
     side: z.enum(sides),
@@ -288,16 +379,69 @@ export type PortalIconName =
   | 'info'
   | 'logout';
 export type PortalTone = 'neutral' | 'accent' | 'warning' | 'danger';
+export type PortalMetricTone = 'neutral' | 'warning' | 'danger';
+export type PortalAttentionSeverity = 'warning' | 'danger';
+
+export type PortalAttentionGroup = {
+  key: string;
+  label: string;
+  unit: string;
+};
+
+export type PortalAttentionItem = {
+  key: string;
+  group: PortalAttentionGroup;
+  label: string;
+  value: number;
+  severity: PortalAttentionSeverity;
+  href: string;
+};
+
+export type PortalSummaryHeadline = {
+  label: string;
+  value: number;
+  total: number;
+  unit: string;
+  caption: string;
+  href?: string;
+};
+
+export type PortalSummaryMetric = {
+  key: string;
+  label: string;
+  value: number;
+  unit?: string;
+  href?: string;
+  tone?: PortalMetricTone;
+};
+
+export type PortalSummaryActivityWeek = {
+  start: string; // YYYY-MM-DD (Senin WIB)
+  count: number;
+};
+
+export type PortalSummaryActivity = {
+  unitSingular: string; // 'batch' | 'dokumen'
+  weeks: PortalSummaryActivityWeek[]; // tepat 12, lama → baru
+};
+
+export type PortalSummaryRecent = {
+  id: string;
+  title: string;
+  meta: string;
+  at: string;
+  href: string;
+  value?: number;
+  unit?: string;
+};
+
 export type PortalSummary = {
   appId: AppId;
   updatedAt: string;
-  metrics: { key: string; label: string; value: number; unit?: string; href?: string }[];
-  signal?: {
-    label: string;
-    scale: 'age' | 'series';
-    segments: { key: string; label: string; value: number; tone?: PortalTone }[];
-  };
-  attention: { key: string; label: string; value: number; severity: 'warning' | 'danger'; href: string }[];
-  recent: { id: string; title: string; meta: string; at: string; href: string }[];
+  headline: PortalSummaryHeadline;
+  metrics: PortalSummaryMetric[]; // maks 2
+  attention: PortalAttentionItem[];
+  activity: PortalSummaryActivity;
+  recent: PortalSummaryRecent[]; // maks 5
   action?: { label: string; href: string; icon: PortalIconName };
 };
