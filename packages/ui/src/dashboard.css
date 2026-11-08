@@ -805,10 +805,15 @@
     justify-content: space-between;
     margin: 0;
   }
+  .portal-app-card .section-head > .app-icon {
+    flex-shrink: 0;
+  }
   .portal-app-card .section-head h2 {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
     font-size: var(--type-title);
     line-height: var(--leading-title);
     font-weight: var(--weight-semibold);
