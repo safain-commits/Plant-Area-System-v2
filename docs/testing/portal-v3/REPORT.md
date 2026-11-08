@@ -153,3 +153,4 @@ Implementasi dibagi menjadi 3 commit terstruktur sesuai panduan:
 1. **Aksi Cepat Terpusat di Rail**: Tombol aksi dipindahkan ke widget lime di rail kanan agar kartu aplikasi murni berfungsi sebagai pemantau status. Footer kartu hanya memuat tautan "Buka {Aplikasi} →".
 2. **Budget Warna Lime**: Satu-satunya permukaan lime di Portal adalah widget Aksi Cepat. Slot aktif chart dan progress bar kartu memakai aksen lime bergaris (hatch).
 3. **Distribusi Umur Bag**: Distribusi umur 7 kelompok tidak ditampilkan di Portal (sudah diwakili oleh grup perhatian "Bag ≥ 1.260 hari") guna menjaga ketenangan dan fokus visual.
+4. **Penyelarasan Header KPI Rail**: Header `.kpi-rail .section-head h2` distilasi dengan `display: inline-flex; align-items: center; gap: var(--space-2)` dan ikon info 16×16 px berwajah `var(--textSecondary)` untuk memastikan simetri sumbu vertikal (selisih pusat 0 px) dan jarak horizontal 8 px terhadap teks "Perlu perhatian".
