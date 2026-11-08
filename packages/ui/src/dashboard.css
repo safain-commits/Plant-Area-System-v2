@@ -746,6 +746,8 @@
   }
   .portal-hub .heading {
     margin-bottom: 0;
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
   .portal-date-slot {
     align-self: flex-start;

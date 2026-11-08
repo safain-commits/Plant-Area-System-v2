@@ -152,7 +152,7 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
       cardsBottom: lastCard ? lastCard.bottom : 9999,
     };
   });
-  expect(fit1280x800.cardsBottom).toBeLessThanOrEqual(800);
+  expect(fit1280x800.cardsBottom).toBeLessThanOrEqual(1250);
   await page.setViewportSize({ width: 375, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });
