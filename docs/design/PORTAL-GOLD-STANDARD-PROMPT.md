@@ -108,7 +108,7 @@ Breakpoint lain mengikuti `layout.breakpoints` di JSONC, yang sama persis dengan
 - [ ] Hanya ada satu permukaan lime (widget Aksi cepat). Tidak ada lavender, `--highlight`, atau badge hijau dekoratif.
 - [ ] Angka perhatian > 0 memakai `--negativeText`, dan nilai 0 memakai teks normal dengan kalimat "Tidak ada yang perlu ditindaklanjuti".
 - [ ] Tidak ada judul aktivitas "Tanpa WO". Setiap baris punya nilai dan satuan di kanan.
-- [ ] Pada 1280×800 dengan 2 aplikasi aktif, heading, hero, dan kartu aplikasi terlihat tanpa scroll.
+- [ ] Pada 1280×800 dengan 2 aplikasi aktif, heading, hero (chart + perhatian), dan widget Aksi cepat terlihat penuh di atas lipatan (≤ 800 px tanpa scroll); kartu aplikasi dan "Segera hadir" berada di bawah lipatan dan diakses dengan scroll.
 - [ ] CLS Portal ≤ 0,02 (Slow 4G, cache kosong).
 - [ ] Viewer tidak melihat aksi tulis, dan scope data sesuai grant.
 - [ ] Fixture 5 aplikasi rapi tanpa mengubah `apps/portal/app/page.tsx` atau CSS Portal.

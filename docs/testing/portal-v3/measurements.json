@@ -78,8 +78,10 @@
       "heroAppAligned": true,
       "cardHeightsEqual": true,
       "cardCount": 2,
-      "aboveFold": false,
-      "maxCardBottom": 1216,
+      "heroBottom": 796,
+      "widgetBottom": 401,
+      "aboveFold": true,
+      "maxCardBottom": 1200,
       "featureWidgetCount": 1
     }
   },
@@ -106,8 +108,10 @@
       "heroAppAligned": true,
       "cardHeightsEqual": true,
       "cardCount": 2,
-      "aboveFold": false,
-      "maxCardBottom": 1216,
+      "heroBottom": 796,
+      "widgetBottom": 401,
+      "aboveFold": true,
+      "maxCardBottom": 1200,
       "featureWidgetCount": 1
     }
   },

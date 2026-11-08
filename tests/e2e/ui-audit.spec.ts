@@ -146,13 +146,19 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
   expect(Math.abs(cards[0].top - cards[1].top)).toBeLessThan(1);
   expect(Math.abs(cards[0].height - cards[1].height)).toBeLessThan(1);
   const fit1280x800 = await page.evaluate(() => {
+    const hero = document.querySelector('.portal-hub .hero-chart-card')?.getBoundingClientRect();
+    const widget = document.querySelector('.portal-quick-actions')?.getBoundingClientRect();
     const cardList = Array.from(document.querySelectorAll('.application-summary'));
     const lastCard = cardList[cardList.length - 1]?.getBoundingClientRect();
     return {
+      heroBottom: hero ? hero.bottom : 9999,
+      widgetBottom: widget ? widget.bottom : 9999,
       cardsBottom: lastCard ? lastCard.bottom : 9999,
     };
   });
-  expect(fit1280x800.cardsBottom).toBeLessThanOrEqual(1250);
+  expect(fit1280x800.heroBottom).toBeLessThanOrEqual(800);
+  expect(fit1280x800.widgetBottom).toBeLessThanOrEqual(800);
+  expect(fit1280x800.cardsBottom).toBeLessThanOrEqual(1220);
   await page.setViewportSize({ width: 375, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });

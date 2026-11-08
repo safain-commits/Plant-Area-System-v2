@@ -37,7 +37,7 @@
         "gradien selain widget Aksi cepat",
       ],
     },
-    "density": "1280×800 dengan 2 aplikasi aktif: heading + hero + kartu aplikasi terlihat tanpa scroll; 'Segera hadir' boleh di bawah lipatan",
+    "density": "1280×800 dengan 2 aplikasi aktif: heading + hero (chart + perhatian) + aksi cepat terlihat penuh di atas lipatan (≤ 800 px tanpa scroll); kartu aplikasi dan 'Segera hadir' di bawah lipatan dan diakses dengan scroll, konsisten dengan Bag Filter",
   },
 
   // ───────────────────────── TATA LETAK ─────────────────────────

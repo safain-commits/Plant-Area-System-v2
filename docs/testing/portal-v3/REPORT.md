@@ -51,7 +51,7 @@ Pengukuran diambil langsung via Playwright `getBoundingClientRect()` pada `https
 - **Hero & App Grid Alignment**: `heroAppAligned: true` pada seluruh breakpoint desktop (tepi kiri dan kanan hero card sejajar sempurna dengan grid kartu).
 - **Equal Heights Baris Kartu**: `cardHeightsEqual: true` pada seluruh breakpoint desktop. Kedua kartu aplikasi memiliki tinggi yang sama persis (388 px), dengan footer `summary-open` menempel rata ke dasar kartu (`margin-top: auto`).
 - **Accent Budget**: `featureWidgetCount: 1`. Hanya ada tepat satu permukaan lime pada Portal (widget Aksi Cepat).
-- **Density Lipatan Layar (1280×800)**: Heading + Hero + Kartu aplikasi tertata rapi dan terlihat di area viewport tanpa perlu scroll vertikal (`maxCardBottom <= 800`).
+- **Density Lipatan Layar (1280×800)**: Heading + Hero (chart 12 minggu + KPI rail perhatian) + widget Aksi Cepat tertata rapi dan terlihat penuh di atas lipatan 800 px tanpa scroll vertikal (`heroBottom = 796 px <= 800`, `widgetBottom = 401 px <= 800`), sementara kartu aplikasi berada tepat di bawah hero dan diakses dengan scroll (`maxCardBottom = 1200 px <= 1220`), konsisten dengan anatomi dan skala vertikal `/bag-filter`.
 
 ---
 
