@@ -1223,13 +1223,21 @@
     border-radius: var(--radius-input);
   }
 
-  @media (max-width: 1023px) {
-    .hero-chart-card .bar-slots > .bar-slot:nth-child(even) > small {
+  .portal-hub .hero-chart-card .bar-slots,
+  .portal-hub .hero-chart-card .bar-slot {
+    overflow: visible;
+  }
+  .portal-hub .hero-chart-card .bar-slot small {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1365px) {
+    .portal-hub .hero-chart-card .bar-slots > .bar-slot:nth-last-child(even) > small {
       visibility: hidden;
     }
   }
   @media (max-width: 767px) {
-    .hero-chart-card .bar-slots > .bar-slot:nth-child(-n + 4) {
+    .portal-hub .hero-chart-card .bar-slots > .bar-slot:nth-child(-n + 4) {
       display: none;
     }
     .portal-app-card {
