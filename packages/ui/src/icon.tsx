@@ -22,6 +22,9 @@ const paths = {
   plus: 'M12 4v16M4 12h16',
   calendar: 'M4 5h16v16H4zM8 2v6m8-6v6M4 11h16',
   filter: 'M3 4h18l-7 8v7l-4 2v-9Z',
+  drawing: 'M6 3h8l4 4v14H6Zm8 0v4h4M9 12h6m-6 4h4',
+  rca: 'M3 12h14m0 0 4-4m-4 4 4 4M7 6l4 6-4 6m6-12 4 6-4 6',
+  cost: 'M12 3H5a2 2 0 0 0-2 2v7l9 9 9-9-9-9ZM8 8h.01',
   info: 'M12 11v6m0-10v1M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
   logout: 'M10 17v4H3V3h7v4m4 1 4 4-4 4m-6-4h13',
 } as const;

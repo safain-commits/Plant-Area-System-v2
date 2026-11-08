@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  appCatalog,
   equipment,
   positionKey,
   positionLabel,
@@ -198,4 +199,14 @@ test('login return destination cannot become an external redirect', () => {
     safeReturnTo('/bag-filter/equipment/561-BF1?tab=history'),
     '/bag-filter/equipment/561-BF1?tab=history',
   );
+});
+test('appCatalog includes icon on every entry and portalSummary on active apps', () => {
+  for (const app of appCatalog) {
+    assert.ok(app.icon.length > 0);
+    if (app.status === 'active') {
+      assert.equal(app.portalSummary, `${app.path}/api/portal-summary`);
+    } else {
+      assert.equal('portalSummary' in app, false);
+    }
+  }
 });

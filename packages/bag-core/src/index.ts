@@ -17,7 +17,7 @@ import { cancellationMetadata, type CancellationColumns } from './cancellation';
 export { cancelReplacement } from './cancellation';
 export { getBagDb, closeBagDb } from './database';
 export * as bagSchema from './schema';
-export { dashboard, activity } from './insights';
+export { dashboard, activity, portalSummary } from './insights';
 
 export function canonicalReplacement(input: unknown) {
   const parsed = replacementSchema.safeParse(input);

@@ -223,6 +223,7 @@ export const appCatalog = [
     name: 'Bag Filter',
     description: 'Peta umur bag, pencatatan penggantian, dan riwayat per koordinat.',
     path: '/bag-filter',
+    portalSummary: '/bag-filter/api/portal-summary',
     status: 'active',
   },
   {
@@ -231,24 +232,72 @@ export const appCatalog = [
     name: 'Consumable Room',
     description: 'Stok, penerimaan, dan pemakaian material.',
     path: '/consumables',
+    portalSummary: '/consumables/api/portal-summary',
     status: 'active',
   },
   {
     id: 'drawings',
+    icon: 'drawing',
     name: 'Drawing Database',
     description: 'Request, pemeriksaan, dan revisi drawing.',
     status: 'planned',
   },
   {
     id: 'rca',
+    icon: 'rca',
     name: 'Root Cause Analysis',
     description: 'Analisis penyebab dan tindak lanjut perbaikan.',
     status: 'planned',
   },
   {
     id: 'part-cost',
+    icon: 'cost',
     name: 'Part Cost',
     description: 'Estimasi biaya pembuatan sparepart.',
     status: 'planned',
   },
 ] as const;
+
+export type AppId = (typeof appCatalog)[number]['id'];
+export type PortalIconName =
+  | 'box'
+  | 'receipt'
+  | 'issue'
+  | 'home'
+  | 'grid'
+  | 'user'
+  | 'settings'
+  | 'search'
+  | 'bell'
+  | 'sun'
+  | 'moon'
+  | 'monitor'
+  | 'chevron'
+  | 'collapse'
+  | 'menu'
+  | 'x'
+  | 'check'
+  | 'arrow'
+  | 'clock'
+  | 'plus'
+  | 'calendar'
+  | 'filter'
+  | 'drawing'
+  | 'rca'
+  | 'cost'
+  | 'info'
+  | 'logout';
+export type PortalTone = 'neutral' | 'accent' | 'warning' | 'danger';
+export type PortalSummary = {
+  appId: AppId;
+  updatedAt: string;
+  metrics: { key: string; label: string; value: number; unit?: string; href?: string }[];
+  signal?: {
+    label: string;
+    scale: 'age' | 'series';
+    segments: { key: string; label: string; value: number; tone?: PortalTone }[];
+  };
+  attention: { key: string; label: string; value: number; severity: 'warning' | 'danger'; href: string }[];
+  recent: { id: string; title: string; meta: string; at: string; href: string }[];
+  action?: { label: string; href: string; icon: PortalIconName };
+};

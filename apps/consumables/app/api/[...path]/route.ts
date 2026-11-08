@@ -9,6 +9,7 @@ import {
   movementDetail,
   auditList,
   stockDashboard,
+  stockPortalSummary,
   discovery,
   reconcile,
   saveMaterial,
@@ -56,6 +57,7 @@ export async function GET(request: Request, context: Context) {
     if (path.length === 2 && path[0] === 'movements') return json(await movementDetail(a, path[1]));
     if (s === 'audit') return json(await auditList(a, p));
     if (s === 'reconciliation') return json(await reconcile(a));
+    if (s === 'portal-summary') return json(await stockPortalSummary(a));
     if (s === 'dashboard')
       return json(await stockDashboard(a, p.has('year') ? Number(p.get('year')) : undefined));
     if (s === 'activity') return json(await listDocuments(a, new URLSearchParams({ limit: '12' })));

@@ -9,6 +9,7 @@ import {
   auditHistory,
   dashboard,
   activity,
+  portalSummary,
 } from '@plant/bag-core';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path: string[] }> };
@@ -18,9 +19,10 @@ export async function GET(request: Request, context: Context) {
   try {
     const path = (await context.params).path,
       params = new URL(request.url).searchParams;
-    if (['dashboard', 'activity', 'discovery'].includes(path.join('/'))) {
+    if (['dashboard', 'portal-summary', 'activity', 'discovery'].includes(path.join('/'))) {
       const actor = await apiIdentity(request, 'read');
       const codes = actor.grants.find((g) => g.appId === 'bag-filter')!.equipment;
+      if (path[0] === 'portal-summary') return json(await portalSummary(actor));
       if (path[0] === 'dashboard') {
         const now = Date.now();
         const year = params.has('year')

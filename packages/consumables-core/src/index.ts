@@ -9,7 +9,9 @@ import {
   decimalString,
   allowsDecimals,
   normalizeAliases,
+  stockDocumentLabels,
   type Identity,
+  type PortalSummary,
   type StockAction,
   type Material,
   type InventoryItem,
@@ -547,6 +549,79 @@ export async function stockDashboard(
     series,
     legacyMovementCount: Number(legacy.count),
     recent: (await listDocuments(actor, new URLSearchParams({ limit: '8' }))).items,
+  };
+}
+export async function stockPortalSummary(actor: Identity, now = Date.now()): Promise<PortalSummary> {
+  requireStock(actor, 'read');
+  const [counts] = await rows<Record<string, number | string>>(
+    db(),
+    sql`SELECT COUNT(*) AS operational,COALESCE(SUM(i.initialized=1 AND i.quantity>0),0) AS available,COALESCE(SUM(i.initialized=1 AND i.quantity=0),0) AS \`empty\`,COALESCE(SUM(i.initialized=1 AND i.quantity=0 AND m.critical=1),0) AS criticalEmpty,COALESCE(SUM(i.initialized=0),0) AS uncounted FROM ${joinInv} WHERE ${scope(actor, sql`i.location_id`)} AND i.active=1 AND m.active=1 AND l.active=1`,
+  );
+  const operational = Number(counts.operational),
+    available = Number(counts.available),
+    empty = Number(counts.empty),
+    criticalEmpty = Number(counts.criticalEmpty),
+    uncounted = Number(counts.uncounted);
+  const action = canConsume(actor, 'issue')
+    ? { label: 'Consume Order', href: '/consumables/consume', icon: 'issue' as const }
+    : canConsume(actor, 'receive')
+      ? { label: 'Penerimaan Picklist', href: '/consumables/picklist', icon: 'receipt' as const }
+      : undefined;
+  const docs = (await listDocuments(actor, new URLSearchParams({ limit: '5' }))).items;
+  return {
+    appId: 'consumables',
+    updatedAt: docs[0]?.createdAt ?? new Date(now).toISOString(),
+    metrics: [
+      { key: 'operational', label: 'Material dikelola', value: operational, href: '/consumables/stock' },
+      {
+        key: 'available',
+        label: 'Tersedia',
+        value: available,
+        href: '/consumables/stock?availability=available',
+      },
+      { key: 'empty', label: 'Stok nol', value: empty, href: '/consumables/stock?availability=empty' },
+    ],
+    signal: {
+      label: 'Komposisi stok R22',
+      scale: 'series',
+      segments: [
+        { key: 'available', label: 'Tersedia', value: available, tone: 'accent' },
+        { key: 'empty', label: 'Stok nol', value: empty, tone: criticalEmpty > 0 ? 'danger' : 'warning' },
+        { key: 'uncounted', label: 'Belum dihitung', value: uncounted, tone: 'neutral' },
+      ],
+    },
+    ...(action ? { action } : {}),
+    attention: [
+      ...(criticalEmpty > 0
+        ? [
+            {
+              key: 'r22-critical-empty',
+              label: 'Kritis, stok nol',
+              value: criticalEmpty,
+              severity: 'danger' as const,
+              href: '/consumables/stock?availability=critical',
+            },
+          ]
+        : []),
+      ...(uncounted > 0
+        ? [
+            {
+              key: 'r22-uncounted',
+              label: 'Material belum dihitung',
+              value: uncounted,
+              severity: 'warning' as const,
+              href: '/consumables/stock?availability=uncounted',
+            },
+          ]
+        : []),
+    ],
+    recent: docs.slice(0, 5).map((d) => ({
+      id: d.id,
+      title: d.number,
+      meta: `${stockDocumentLabels[d.type]} · ${d.hec || 'R22'} · ${d.lineCount.toLocaleString('id-ID')} item`,
+      at: d.createdAt,
+      href: `/consumables/history?document=${encodeURIComponent(d.id)}`,
+    })),
   };
 }
 export async function discovery(actor: Identity, q: string) {

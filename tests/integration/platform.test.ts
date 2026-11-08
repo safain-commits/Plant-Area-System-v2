@@ -14,6 +14,7 @@ import {
   bagSchema,
   dashboard,
   activity,
+  portalSummary,
 } from '@plant/bag-core';
 import {
   getAuthDb,
@@ -102,6 +103,33 @@ test('dashboard and activity use current installations and exact equipment scope
   assert.equal(events.length, 2);
   assert.ok(events.every((e) => e.equipmentCode === 'L61-BF1'));
   assert.ok(!(await activity(['L62-BF1'], reason)).length);
+  const viewerActor: Identity = {
+    ...actor,
+    grants: [{ appId: 'bag-filter', role: 'viewer', equipment: ['L61-BF1'] }],
+  };
+  const operatorActor: Identity = {
+    ...actor,
+    grants: [{ appId: 'bag-filter', role: 'operator', equipment: ['L61-BF1'] }],
+  };
+  const viewerSummary = await portalSummary(viewerActor, now);
+  assert.equal(viewerSummary.appId, 'bag-filter');
+  assert.equal(viewerSummary.action, undefined);
+  assert.equal(viewerSummary.metrics[0].value, 2048);
+  assert.equal(viewerSummary.metrics[1].value, state.recorded);
+  assert.equal(viewerSummary.signal?.scale, 'age');
+  assert.equal(viewerSummary.signal?.segments.length, 7);
+  assert.ok(viewerSummary.recent.length <= 5);
+  assert.ok(viewerSummary.recent.every((r) => r.meta.startsWith('L61-BF1 · ')));
+  const operatorSummary = await portalSummary(operatorActor, now);
+  assert.deepEqual(operatorSummary.action, {
+    label: 'Catat penggantian',
+    href: '/bag-filter/equipment/l61-bf1',
+    icon: 'plus',
+  });
+  await assert.rejects(
+    portalSummary({ ...actor, grants: [] }, now),
+    (e) => e instanceof AppError && e.status === 403,
+  );
   assert.deepEqual((await dashboard([], year, now)).perEquipment, []);
   await assert.rejects(dashboard(['L61-BF1'], 1999));
   await assert.rejects(activity([], 'x'.repeat(201)));

@@ -12,6 +12,7 @@ import {
   listMaterials,
   listMovements,
   stockDashboard,
+  stockPortalSummary,
   reconcile,
   getConsumablesDb,
   closeConsumablesDb,
@@ -345,6 +346,34 @@ test('quarter and date filters use WIB boundaries rather than UTC dates', async 
   assert.equal(d.legacyMovementCount, 4);
   assert.equal(day.items.length, 1);
   assert.equal(day.items[0].createdAt, '2002-03-31T17:00:00.000Z');
+});
+test('portal summary returns lightweight R22 metrics, signal and role-filtered action', async () => {
+  const viewer: Identity = {
+    ...actor,
+    grants: [{ appId: 'consumables', role: 'viewer' }],
+  };
+  const d = await stockDashboard(viewer);
+  const viewerSummary = await stockPortalSummary(viewer);
+  assert.equal(viewerSummary.appId, 'consumables');
+  assert.equal(viewerSummary.action, undefined);
+  assert.equal(viewerSummary.signal?.scale, 'series');
+  assert.equal(viewerSummary.signal?.segments.length, 3);
+  assert.equal(viewerSummary.metrics[0].value, d.operational);
+  assert.equal(viewerSummary.metrics[1].value, d.available);
+  assert.equal(viewerSummary.metrics[2].value, d.empty);
+  const operatorSummary = await stockPortalSummary({
+    ...actor,
+    grants: [{ appId: 'consumables', role: 'operator' }],
+  });
+  assert.deepEqual(operatorSummary.action, {
+    label: 'Consume Order',
+    href: '/consumables/consume',
+    icon: 'issue',
+  });
+  await assert.rejects(
+    stockPortalSummary({ ...actor, grants: [] }),
+    (e) => e instanceof AppError && e.status === 403,
+  );
 });
 after(async () => {
   await closeConsumablesDb();
