@@ -55,6 +55,6 @@ export {
 
 export { ShellSkeleton, TableSkeleton, EmptyState } from './skeleton';
 
-export { PortalAttention } from './portal-attention';
+export { PortalAppCard, PortalHub, type PortalCatalogApp, type PortalTestFixture } from './portal-app-card';
 
 export { useDebouncedValue } from './use-debounced-value';

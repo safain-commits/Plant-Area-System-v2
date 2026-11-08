@@ -102,22 +102,26 @@ async function start(page: Page, motion: 'reduce' | 'no-preference' = 'reduce') 
 }
 test('portal uses symmetric summaries, a contextual badge and no full dashboard', async ({ page }) => {
   await start(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
-  const bag = await (await client.get('/bag-filter/api/dashboard')).json();
-  await page.route('**/bag-filter/api/dashboard*', (route) =>
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const dashboardRequests: string[] = [];
+  const summaryRequests: string[] = [];
+  page.on('request', (req) => {
+    const u = req.url();
+    if (u.includes('/api/dashboard')) dashboardRequests.push(u);
+    if (u.includes('/api/portal-summary')) summaryRequests.push(u);
+  });
+  const bag = await (await client.get('/bag-filter/api/portal-summary')).json();
+  await page.route('**/bag-filter/api/portal-summary*', (route) =>
     route.fulfill({
       json: {
         ...bag,
         recent: [
           {
             id: randomUUID(),
-            equipmentCode: 'L61-BF1',
-            wo: 'W'.repeat(100),
-            reason: 'Data sintetis',
-            brand: null,
-            actorName: actor.name,
-            positionCount: 500,
-            createdAt: new Date().toISOString(),
+            title: 'W'.repeat(100),
+            meta: 'L61-BF1 · 500 bag',
+            at: new Date().toISOString(),
+            href: '/bag-filter/equipment/l61-bf1',
           },
         ],
       },
@@ -129,7 +133,12 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
     page.locator('.portal-hub .feature-widget, .portal-hub .bar-chart, .portal-hub .quarter-chart'),
   ).toHaveCount(0);
   await expect(page.locator('.portal-hub .eyebrow')).toHaveCount(1);
+  await expect(page.locator('.portal-date')).toContainText('WIB');
   await expect(page.getByText('Hanya lihat', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-app-id="bag-filter"] .portal-card-action')).toHaveCount(0);
+  await expect(page.locator('[data-app-id="consumables"] .portal-card-action')).toBeVisible();
+  expect(dashboardRequests).toHaveLength(0);
+  expect(summaryRequests).toHaveLength(2);
   const cards = await page
     .locator('.application-summary')
     .evaluateAll((els) =>
@@ -137,9 +146,216 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
     );
   expect(Math.abs(cards[0].top - cards[1].top)).toBeLessThan(1);
   expect(Math.abs(cards[0].height - cards[1].height)).toBeLessThan(1);
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(1350);
+  const fit1280x800 = await page.evaluate(() => {
+    const planned = document.querySelector('.portal-planned')?.getBoundingClientRect();
+    return {
+      scrollHeight: document.documentElement.scrollHeight,
+      plannedBottom: planned ? planned.bottom : 9999,
+    };
+  });
+  expect(fit1280x800.scrollHeight).toBeLessThanOrEqual(800);
+  expect(fit1280x800.plannedBottom).toBeLessThanOrEqual(800);
   await page.setViewportSize({ width: 375, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors and preserves >=3:1 signal contrast', async ({
+  page,
+}) => {
+  await start(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  const mockCatalog = [
+    {
+      id: 'bag-filter',
+      icon: 'filter',
+      name: 'Bag Filter',
+      description: 'Peta umur bag.',
+      path: '/bag-filter',
+      portalSummary: '/bag-filter/api/portal-summary',
+      status: 'active',
+    },
+    {
+      id: 'consumables',
+      icon: 'box',
+      name: 'Consumable Room',
+      description: 'Stok material R22.',
+      path: '/consumables',
+      portalSummary: '/consumables/api/portal-summary',
+      status: 'active',
+    },
+    {
+      id: 'drawings',
+      icon: 'drawing',
+      name: 'Drawing Database',
+      description: 'Request, pemeriksaan, dan revisi drawing.',
+      path: '/drawings',
+      portalSummary: '/drawings/api/portal-summary',
+      status: 'active',
+    },
+    {
+      id: 'rca',
+      icon: 'rca',
+      name: 'Root Cause Analysis',
+      description: 'Analisis penyebab dan tindak lanjut perbaikan.',
+      path: '/rca',
+      portalSummary: '/rca/api/portal-summary',
+      status: 'active',
+    },
+    {
+      id: 'part-cost',
+      icon: 'cost',
+      name: 'Part Cost',
+      description: 'Estimasi biaya pembuatan sparepart.',
+      path: '/part-cost',
+      portalSummary: '/part-cost/api/portal-summary',
+      status: 'active',
+    },
+  ] as const;
+
+  let rcaShouldFail = true;
+  await page.route('**/drawings/api/portal-summary', (route) =>
+    route.fulfill({
+      json: {
+        appId: 'drawings',
+        updatedAt: '2026-11-08T10:00:00.000Z',
+        metrics: [{ key: 'revisions', label: 'Revisi aktif', value: 14 }],
+        attention: [],
+        recent: [
+          {
+            id: 'drw-1',
+            title: 'DWG-561-04',
+            meta: 'Revisi B · Disetujui',
+            at: '2026-11-08T09:30:00.000Z',
+            href: '/drawings',
+          },
+        ],
+      },
+    }),
+  );
+  await page.route('**/rca/api/portal-summary', (route) =>
+    rcaShouldFail
+      ? route.fulfill({ status: 503, json: { error: 'Layanan RCA sedang pemeliharaan.' } })
+      : route.fulfill({
+          json: {
+            appId: 'rca',
+            updatedAt: '2026-11-08T10:00:00.000Z',
+            metrics: [
+              { key: 'open', label: 'Investigasi aktif', value: 2 },
+              { key: 'closed', label: 'Selesai bulan ini', value: 9 },
+            ],
+            attention: [],
+            recent: [],
+          },
+        }),
+  );
+  await page.route('**/part-cost/api/portal-summary', (route) =>
+    route.fulfill({
+      json: {
+        appId: 'part-cost',
+        updatedAt: '2026-11-08T10:00:00.000Z',
+        metrics: [
+          { key: 'estimates', label: 'Estimasi minggu ini', value: 7 },
+          { key: 'pending', label: 'Menunggu review', value: 1 },
+        ],
+        attention: [
+          {
+            key: 'cost-review',
+            label: 'Estimasi menunggu review',
+            value: 1,
+            severity: 'warning',
+            href: '/part-cost',
+          },
+        ],
+        recent: [],
+        action: { label: 'Buat estimasi', href: '/part-cost', icon: 'cost' },
+      },
+    }),
+  );
+
+  for (const activeCount of [0, 1, 2, 3, 5]) {
+    const catalog = mockCatalog.map((item, i) =>
+      i < activeCount
+        ? item
+        : {
+            id: item.id,
+            icon: item.icon,
+            name: item.name,
+            description: item.description,
+            status: 'planned' as const,
+          },
+    );
+    const grants = mockCatalog.slice(0, activeCount).map((item, i) => ({
+      appId: item.id,
+      role: (i === 0 ? 'viewer' : 'operator') as 'viewer' | 'operator',
+    }));
+    await page.addInitScript(
+      (fx) => {
+        window.__PORTAL_TEST_FIXTURE__ = fx;
+      },
+      { catalog, grants },
+    );
+    await page.goto('/');
+    if (activeCount === 0) {
+      await expect(page.locator('.portal-no-access')).toBeVisible();
+      await expect(page.locator('.application-summary')).toHaveCount(0);
+    } else {
+      await expect(page.locator('.application-summary')).toHaveCount(activeCount);
+      await expect(page.locator('.portal-feed-filters')).toHaveCount(activeCount >= 3 ? 1 : 0);
+    }
+    if (activeCount === 3) {
+      await expect(page.locator('[data-app-id="drawings"] .summary-metrics dd')).toHaveCount(1);
+      await expect(page.locator('[data-app-id="drawings"] .portal-signal')).toHaveCount(0);
+    }
+    if (activeCount === 5) {
+      const rcaCard = page.locator('[data-app-id="rca"]');
+      await expect(rcaCard.locator('.portal-card-error')).toContainText('Layanan RCA sedang pemeliharaan.');
+      await expect(page.locator('[data-app-id="part-cost"] .summary-metrics dd')).toHaveCount(2);
+      rcaShouldFail = false;
+      await rcaCard.getByRole('button', { name: 'Coba lagi' }).click();
+      await expect(rcaCard.locator('.summary-metrics dd')).toHaveCount(2);
+    }
+  }
+
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((t) => {
+      document.documentElement.dataset.theme = t;
+    }, theme);
+    const signalCheck = await page.evaluate(() => {
+      const parse = (value: string) => {
+        const m = value.match(/\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, 0];
+        return m.slice(0, 3);
+      };
+      const lum = ([r, g, b]: number[]) => {
+        const c = [r, g, b].map((v) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      };
+      const ratio = (a: number[], b: number[]) => {
+        const l1 = lum(a),
+          l2 = lum(b);
+        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      };
+      const card = document.querySelector('.portal-app-card') as HTMLElement;
+      const bar = card.querySelector('.portal-signal-bar') as HTMLElement;
+      const surfaceRgb = parse(getComputedStyle(card).backgroundColor);
+      const segs = Array.from(bar.querySelectorAll('.portal-signal-seg')) as HTMLElement[];
+      const minContrast = Math.min(
+        ...segs.map((seg) => {
+          const cs = getComputedStyle(seg);
+          const fillRatio = ratio(parse(cs.backgroundColor), surfaceRgb);
+          const shadowRgb = cs.boxShadow.match(/rgb\([^)]+\)/)?.[0];
+          const borderRatio = shadowRgb ? ratio(parse(shadowRgb), surfaceRgb) : 0;
+          return Math.max(fillRatio, borderRatio);
+        }),
+      );
+      return { gap: getComputedStyle(bar).columnGap, minContrast };
+    });
+    expect(signalCheck.gap).toBe('2px');
+    expect(signalCheck.minContrast).toBeGreaterThanOrEqual(3);
+  }
 });
 test('filters and pagination fetch while browser timers are paused, retaining the current rows', async ({
   page,

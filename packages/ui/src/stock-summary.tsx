@@ -4,7 +4,6 @@ import { canConsume, type Identity, type StockDashboard } from '@plant/contracts
 import { Select } from './fields';
 import { Button } from './button';
 import { Icon } from './icon';
-import { ApplicationSummary } from './application-summary';
 import { AnimatedNumber } from './dashboard';
 import { QuarterlyChart, type ChartSeries } from './quarterly-chart';
 import { StockActivity, movementLabels } from './stock-activity';
@@ -26,13 +25,7 @@ const series: ChartSeries[] = kinds.map((key, i) => ({
 }));
 const n = (value: number) => value.toLocaleString('id-ID');
 
-export function StockSummary({
-  identity,
-  variant = 'full',
-}: {
-  identity?: Identity;
-  variant?: 'full' | 'compact';
-}) {
+export function StockSummary({ identity }: { identity?: Identity }) {
   const [year, setYear] = useState(new Date(Date.now() + 7 * 3600000).getUTCFullYear()),
     [data, setData] = useState<StockDashboard | null>(null),
     [error, setError] = useState(''),
@@ -63,13 +56,9 @@ export function StockSummary({
       });
     return () => c.abort();
   }, [year, reload]);
-  const compact = variant === 'compact';
   if (!data)
     return (
-      <section
-        className={`stock-summary ${compact ? 'is-compact' : ''}`}
-        aria-label="Ringkasan Consumable Room"
-      >
+      <section className="stock-summary" aria-label="Ringkasan Consumable Room">
         {error ? (
           <div className="panel dashboard-error" role="alert">
             <Icon name="info" />
@@ -81,30 +70,21 @@ export function StockSummary({
           </div>
         ) : (
           <div
-            className={`stock-loading ${compact ? 'stock-portal-grid' : 'dashboard-grid'}`}
+            className="stock-loading dashboard-grid"
             role="status"
             aria-label="Memuat ringkasan Consumable Room"
           >
-            {compact ? (
-              <>
+            <div className="dashboard-main">
+              <div className="panel skeleton stock-loading-hero" />
+              <div className="dashboard-row two-columns stock-loading-followups">
                 <div className="panel skeleton" />
                 <div className="panel skeleton" />
-              </>
-            ) : (
-              <>
-                <div className="dashboard-main">
-                  <div className="panel skeleton stock-loading-hero" />
-                  <div className="dashboard-row two-columns stock-loading-followups">
-                    <div className="panel skeleton" />
-                    <div className="panel skeleton" />
-                  </div>
-                </div>
-                <div className="dashboard-rail stock-rail">
-                  <div className="panel skeleton stock-loading-action" />
-                  <div className="panel skeleton stock-loading-activity" />
-                </div>
-              </>
-            )}
+              </div>
+            </div>
+            <div className="dashboard-rail stock-rail">
+              <div className="panel skeleton stock-loading-action" />
+              <div className="panel skeleton stock-loading-activity" />
+            </div>
             <span className="sr-only">Memuat ringkasan Consumable Room…</span>
           </div>
         )}
@@ -124,25 +104,8 @@ export function StockSummary({
     ['Tersedia', data.available],
     ['Stok nol', data.empty],
   ] as const;
-  if (compact)
-    return (
-      <ApplicationSummary
-        className="stock-summary is-compact"
-        title="Consumable Room"
-        icon="box"
-        href="/consumables"
-        metrics={metrics}
-        readOnly={identity?.grants.find((g) => g.appId === 'consumables')?.role === 'viewer'}
-      >
-        <StockActivity items={data.recent} compact />
-      </ApplicationSummary>
-    );
   return (
-    <section
-      className={`stock-summary ${compact ? 'is-compact' : ''}`}
-      aria-label="Ringkasan Consumable Room"
-      aria-busy={busy}
-    >
+    <section className="stock-summary" aria-label="Ringkasan Consumable Room" aria-busy={busy}>
       {error && (
         <div className="notice error stock-refresh-error" role="alert">
           <span>{error}</span>

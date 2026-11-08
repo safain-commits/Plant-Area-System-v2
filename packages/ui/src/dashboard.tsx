@@ -3,7 +3,6 @@ import { useEffect, useState, useRef } from 'react';
 import { ageStops, bagBrands, formatDate, bagAgeScaleDays } from '@plant/contracts';
 import { Select } from './fields';
 import { Icon } from './icon';
-import { ApplicationSummary } from './application-summary';
 type Data = {
   serverTime: string;
   year: number;
@@ -70,13 +69,7 @@ export function AnimatedNumber({ value }: { value: number }) {
     </span>
   );
 }
-export function Dashboard({
-  variant = 'full',
-  readOnly = false,
-}: {
-  variant?: 'full' | 'compact';
-  readOnly?: boolean;
-}) {
+export function Dashboard() {
   const [year, setYear] = useState<number | null>(null),
     [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(''),
@@ -134,41 +127,6 @@ export function Dashboard({
           <div className="panel skeleton" key={i} />
         ))}
       </div>
-    );
-  if (variant === 'compact')
-    return (
-      <ApplicationSummary
-        title="Bag Filter"
-        icon="filter"
-        href="/bag-filter"
-        readOnly={readOnly}
-        metrics={[
-          ['Total posisi', data.total],
-          ['Terpasang', data.installed],
-          ['Umur ≥ 1.260 hari', data.older1260],
-        ]}
-      >
-        <div className="summary-activity-list">
-          {data.recent.length ? (
-            data.recent.slice(0, 3).map((item) => (
-              <a
-                key={item.id}
-                href={`/bag-filter/equipment/${item.equipmentCode.toLowerCase()}?batch=${item.id}`}
-              >
-                <span>
-                  <strong>{item.wo || 'Tanpa WO'}</strong>
-                  <small>
-                    {item.equipmentCode} · {formatDate(item.createdAt)} WIB
-                  </small>
-                </span>
-                <span>{n(item.positionCount)} bag</span>
-              </a>
-            ))
-          ) : (
-            <p className="muted">Belum ada aktivitas batch.</p>
-          )}
-        </div>
-      </ApplicationSummary>
     );
   const percent = data.total ? (data.installed / data.total) * 100 : 0,
     max = Math.max(4, Math.ceil(Math.max(...data.series.map((s) => s.total)) / 4) * 4),

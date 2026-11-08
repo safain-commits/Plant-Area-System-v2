@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-11-07T15:00:37.380002+00:00",
+  "generated_at": "2026-11-08T13:14:22.909860+00:00",
   "nodes": {
     "packages_contracts_src_index_apperror": {
-      "code_fingerprint": "ad75fb514f1807165d1dd6b3a6456db4ec1a6dfa8b1f010a76208ff19f871b4f",
+      "code_fingerprint": "2d210b45bc206de805f5ffaa08ac6590cac29f93156e29ce51030f49d0349b57",
       "label": "AppError",
       "last": "2026-11-07T14:55:36.516014+00:00",
       "provenance": [
@@ -12,7 +12,7 @@
           "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
         }
       ],
-      "score": 0.999919547,
+      "score": 0.978748352,
       "source_file": "packages/contracts/src/index.ts",
       "status": "tentative",
       "uses": 1
@@ -28,13 +28,13 @@
           "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
         }
       ],
-      "score": 0.999919547,
+      "score": 0.978748352,
       "source_file": "packages/ui/src/styles.css",
       "status": "tentative",
       "uses": 1
     },
     "packages_ui_src_tokens": {
-      "code_fingerprint": "272438ffc02122777248afcc3c2a476074b70a4b5ef9f8eedfef2db449c0ed7c",
+      "code_fingerprint": "16aa551ef58428a41f526d4c55acee8a61e2449532bb5ef203295d21256a0648",
       "label": "tokens.css",
       "last": "2026-11-07T14:55:36.516014+00:00",
       "provenance": [
@@ -44,7 +44,7 @@
           "q": "`packages/ui/src/tokens.css` seharusnya jangan dilewati. lalu docs\\testing dan `AppError` apakah itu penting sehingga harus dimasukkan dalam graph?"
         }
       ],
-      "score": 0.999919547,
+      "score": 0.978748352,
       "source_file": "packages/ui/src/tokens.css",
       "status": "tentative",
       "uses": 1
