@@ -129,14 +129,13 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
   );
   await page.goto('/');
   await expect(page.locator('.application-summary')).toHaveCount(2);
-  await expect(
-    page.locator('.portal-hub .feature-widget, .portal-hub .bar-chart, .portal-hub .quarter-chart'),
-  ).toHaveCount(0);
-  await expect(page.locator('.portal-hub .eyebrow')).toHaveCount(1);
-  await expect(page.locator('.portal-date')).toContainText('WIB');
+  await expect(page.locator('.portal-hub .feature-widget')).toHaveCount(1);
+  await expect(page.locator('.portal-hub .bar-chart')).toHaveCount(1);
+  await expect(page.locator('.portal-hub .quarter-chart')).toHaveCount(0);
+  await expect(page.locator('.portal-heading .eyebrow')).toHaveText('TQ-CMMS / PORTAL');
+  await expect(page.locator('.portal-date-slot')).toContainText('WIB');
   await expect(page.getByText('Hanya lihat', { exact: true })).toBeVisible();
-  await expect(page.locator('[data-app-id="bag-filter"] .portal-card-action')).toHaveCount(0);
-  await expect(page.locator('[data-app-id="consumables"] .portal-card-action')).toBeVisible();
+  await expect(page.locator('.portal-quick-actions')).toContainText('Consume Order');
   expect(dashboardRequests).toHaveLength(0);
   expect(summaryRequests).toHaveLength(2);
   const cards = await page
@@ -147,14 +146,13 @@ test('portal uses symmetric summaries, a contextual badge and no full dashboard'
   expect(Math.abs(cards[0].top - cards[1].top)).toBeLessThan(1);
   expect(Math.abs(cards[0].height - cards[1].height)).toBeLessThan(1);
   const fit1280x800 = await page.evaluate(() => {
-    const planned = document.querySelector('.portal-planned')?.getBoundingClientRect();
+    const cardList = Array.from(document.querySelectorAll('.application-summary'));
+    const lastCard = cardList[cardList.length - 1]?.getBoundingClientRect();
     return {
-      scrollHeight: document.documentElement.scrollHeight,
-      plannedBottom: planned ? planned.bottom : 9999,
+      cardsBottom: lastCard ? lastCard.bottom : 9999,
     };
   });
-  expect(fit1280x800.scrollHeight).toBeLessThanOrEqual(800);
-  expect(fit1280x800.plannedBottom).toBeLessThanOrEqual(800);
+  expect(fit1280x800.cardsBottom).toBeLessThanOrEqual(800);
   await page.setViewportSize({ width: 375, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });
@@ -219,8 +217,23 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
       json: {
         appId: 'drawings',
         updatedAt: '2026-11-08T10:00:00.000Z',
-        metrics: [{ key: 'revisions', label: 'Revisi aktif', value: 14 }],
+        headline: {
+          label: 'Revisi aktif',
+          value: 14,
+          total: 20,
+          unit: 'drawing',
+          caption: '14 dari 20 revisi aktif sedang diproses.',
+          href: '/drawings',
+        },
+        metrics: [{ key: 'revisions', label: 'Revisi aktif', value: 14, tone: 'neutral' }],
         attention: [],
+        activity: {
+          unitSingular: 'revisi',
+          weeks: Array.from({ length: 12 }, (_, i) => ({
+            start: `2026-11-${String(i + 1).padStart(2, '0')}`,
+            count: 2,
+          })),
+        },
         recent: [
           {
             id: 'drw-1',
@@ -228,6 +241,8 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
             meta: 'Revisi B · Disetujui',
             at: '2026-11-08T09:30:00.000Z',
             href: '/drawings',
+            value: 1,
+            unit: 'revisi',
           },
         ],
       },
@@ -240,11 +255,26 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
           json: {
             appId: 'rca',
             updatedAt: '2026-11-08T10:00:00.000Z',
+            headline: {
+              label: 'Investigasi aktif',
+              value: 2,
+              total: 11,
+              unit: 'kasus',
+              caption: '2 dari 11 kasus memerlukan investigasi.',
+              href: '/rca',
+            },
             metrics: [
-              { key: 'open', label: 'Investigasi aktif', value: 2 },
-              { key: 'closed', label: 'Selesai bulan ini', value: 9 },
+              { key: 'open', label: 'Investigasi aktif', value: 2, tone: 'warning' },
+              { key: 'closed', label: 'Selesai bulan ini', value: 9, tone: 'neutral' },
             ],
             attention: [],
+            activity: {
+              unitSingular: 'kasus',
+              weeks: Array.from({ length: 12 }, (_, i) => ({
+                start: `2026-11-${String(i + 1).padStart(2, '0')}`,
+                count: 1,
+              })),
+            },
             recent: [],
           },
         }),
@@ -254,19 +284,35 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
       json: {
         appId: 'part-cost',
         updatedAt: '2026-11-08T10:00:00.000Z',
+        headline: {
+          label: 'Estimasi aktif',
+          value: 7,
+          total: 8,
+          unit: 'part',
+          caption: '7 dari 8 estimasi selesai.',
+          href: '/part-cost',
+        },
         metrics: [
-          { key: 'estimates', label: 'Estimasi minggu ini', value: 7 },
-          { key: 'pending', label: 'Menunggu review', value: 1 },
+          { key: 'estimates', label: 'Estimasi minggu ini', value: 7, tone: 'neutral' },
+          { key: 'pending', label: 'Menunggu review', value: 1, tone: 'warning' },
         ],
         attention: [
           {
             key: 'cost-review',
+            group: { key: 'cost-review', label: 'Estimasi review', unit: 'part' },
             label: 'Estimasi menunggu review',
             value: 1,
-            severity: 'warning',
+            severity: 'warning' as const,
             href: '/part-cost',
           },
         ],
+        activity: {
+          unitSingular: 'part',
+          weeks: Array.from({ length: 12 }, (_, i) => ({
+            start: `2026-11-${String(i + 1).padStart(2, '0')}`,
+            count: 3,
+          })),
+        },
         recent: [],
         action: { label: 'Buat estimasi', href: '/part-cost', icon: 'cost' },
       },
@@ -304,16 +350,16 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
       await expect(page.locator('.portal-feed-filters')).toHaveCount(activeCount >= 3 ? 1 : 0);
     }
     if (activeCount === 3) {
-      await expect(page.locator('[data-app-id="drawings"] .summary-metrics dd')).toHaveCount(1);
-      await expect(page.locator('[data-app-id="drawings"] .portal-signal')).toHaveCount(0);
+      await expect(page.locator('[data-app-id="drawings"] .app-card-metric')).toHaveCount(1);
+      await expect(page.locator('[data-app-id="drawings"] .progress-track')).toBeVisible();
     }
     if (activeCount === 5) {
       const rcaCard = page.locator('[data-app-id="rca"]');
       await expect(rcaCard.locator('.portal-card-error')).toContainText('Layanan RCA sedang pemeliharaan.');
-      await expect(page.locator('[data-app-id="part-cost"] .summary-metrics dd')).toHaveCount(2);
+      await expect(page.locator('[data-app-id="part-cost"] .app-card-metric')).toHaveCount(2);
       rcaShouldFail = false;
       await rcaCard.getByRole('button', { name: 'Coba lagi' }).click();
-      await expect(rcaCard.locator('.summary-metrics dd')).toHaveCount(2);
+      await expect(rcaCard.locator('.app-card-metric')).toHaveCount(2);
     }
   }
 
@@ -321,7 +367,7 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
     await page.evaluate((t) => {
       document.documentElement.dataset.theme = t;
     }, theme);
-    const signalCheck = await page.evaluate(() => {
+    const contrastCheck = await page.evaluate(() => {
       const parse = (value: string) => {
         const m = value.match(/\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, 0];
         return m.slice(0, 3);
@@ -339,22 +385,18 @@ test('portal renders 0, 1, 2, 3 and 5 active apps from catalog, isolates errors 
         return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
       };
       const card = document.querySelector('.portal-app-card') as HTMLElement;
-      const bar = card.querySelector('.portal-signal-bar') as HTMLElement;
+      const track = card.querySelector('.progress-track') as HTMLElement;
+      const hatched = track.querySelector('i.hatched') as HTMLElement;
       const surfaceRgb = parse(getComputedStyle(card).backgroundColor);
-      const segs = Array.from(bar.querySelectorAll('.portal-signal-seg')) as HTMLElement[];
-      const minContrast = Math.min(
-        ...segs.map((seg) => {
-          const cs = getComputedStyle(seg);
-          const fillRatio = ratio(parse(cs.backgroundColor), surfaceRgb);
-          const shadowRgb = cs.boxShadow.match(/rgb\([^)]+\)/)?.[0];
-          const borderRatio = shadowRgb ? ratio(parse(shadowRgb), surfaceRgb) : 0;
-          return Math.max(fillRatio, borderRatio);
-        }),
-      );
-      return { gap: getComputedStyle(bar).columnGap, minContrast };
+      const trackRgb = parse(getComputedStyle(track).backgroundColor);
+      const hatchedRgb = parse(getComputedStyle(hatched).backgroundColor);
+      return {
+        trackHeight: getComputedStyle(track).height,
+        hatchedContrast: ratio(hatchedRgb, surfaceRgb),
+      };
     });
-    expect(signalCheck.gap).toBe('2px');
-    expect(signalCheck.minContrast).toBeGreaterThanOrEqual(3);
+    expect(contrastCheck.trackHeight).toBe('14px');
+    expect(contrastCheck.hatchedContrast).toBeGreaterThanOrEqual(1.5);
   }
 });
 test('filters and pagination fetch while browser timers are paused, retaining the current rows', async ({

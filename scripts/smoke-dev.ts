@@ -360,7 +360,9 @@ try {
     await page.getByLabel('Password', { exact: true }).fill(activePassword);
     await page.getByRole('button', { name: /Masuk/ }).click();
     await page.waitForURL((u) => u.pathname === '/');
-    await page.getByRole('heading', { name: /Selamat datang/ }).waitFor({ state: 'visible' });
+    await page
+      .getByRole('heading', { name: /Selamat (pagi|siang|sore|malam|datang)/ })
+      .waitFor({ state: 'visible' });
     await page.getByText('18.784').first().waitFor({ state: 'visible' });
     await page.screenshot({
       path: `${verificationDir}/03-portal-light.png`,

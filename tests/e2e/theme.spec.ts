@@ -240,7 +240,7 @@ test('all zones, responsive shell, real-data dashboard, command palette and noti
   await login(page);
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Ringkasan Bag Filter', exact: true })).toBeVisible();
-  await expect(page.locator('.portal-hub .bar-chart')).toHaveCount(0);
+  await expect(page.locator('.portal-hub .bar-chart')).toHaveCount(1);
   await page.getByRole('link', { name: 'Buka Bag Filter', exact: true }).click();
   await expect(page.locator('.hero-chart-card')).toBeVisible();
   const api = await (await page.request.get('/bag-filter/api/dashboard')).json();
