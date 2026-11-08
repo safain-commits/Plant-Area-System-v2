@@ -1,0 +1,275 @@
+{
+  "1536_light": {
+    "bag": {
+      "gridTemplateColumns": "864px 360px",
+      "columnGap": "16px",
+      "gridWidth": 1240,
+      "mainWidth": 864,
+      "railWidth": 360,
+      "gap": 16,
+      "mainHeight": 1422,
+      "railHeight": 1422
+    },
+    "portal": {
+      "gridTemplateColumns": "864px 360px",
+      "columnGap": "16px",
+      "gridWidth": 1240,
+      "mainWidth": 864,
+      "railWidth": 360,
+      "gap": 16,
+      "mainHeight": 1188,
+      "railHeight": 1188,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1196,
+      "featureWidgetCount": 1
+    }
+  },
+  "1536_dark": {
+    "bag": {
+      "gridTemplateColumns": "864px 360px",
+      "columnGap": "16px",
+      "gridWidth": 1240,
+      "mainWidth": 864,
+      "railWidth": 360,
+      "gap": 16,
+      "mainHeight": 1422,
+      "railHeight": 1422
+    },
+    "portal": {
+      "gridTemplateColumns": "864px 360px",
+      "columnGap": "16px",
+      "gridWidth": 1240,
+      "mainWidth": 864,
+      "railWidth": 360,
+      "gap": 16,
+      "mainHeight": 1188,
+      "railHeight": 1188,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1196,
+      "featureWidgetCount": 1
+    }
+  },
+  "1280_light": {
+    "bag": {
+      "gridTemplateColumns": "668px 300px",
+      "columnGap": "16px",
+      "gridWidth": 984,
+      "mainWidth": 668,
+      "railWidth": 300,
+      "gap": 16,
+      "mainHeight": 1507,
+      "railHeight": 1507
+    },
+    "portal": {
+      "gridTemplateColumns": "668px 300px",
+      "columnGap": "16px",
+      "gridWidth": 984,
+      "mainWidth": 668,
+      "railWidth": 300,
+      "gap": 16,
+      "mainHeight": 1208,
+      "railHeight": 1208,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1216,
+      "featureWidgetCount": 1
+    }
+  },
+  "1280_dark": {
+    "bag": {
+      "gridTemplateColumns": "668px 300px",
+      "columnGap": "16px",
+      "gridWidth": 984,
+      "mainWidth": 668,
+      "railWidth": 300,
+      "gap": 16,
+      "mainHeight": 1507,
+      "railHeight": 1507
+    },
+    "portal": {
+      "gridTemplateColumns": "668px 300px",
+      "columnGap": "16px",
+      "gridWidth": 984,
+      "mainWidth": 668,
+      "railWidth": 300,
+      "gap": 16,
+      "mainHeight": 1208,
+      "railHeight": 1208,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1216,
+      "featureWidgetCount": 1
+    }
+  },
+  "768_light": {
+    "bag": {
+      "gridTemplateColumns": "644px",
+      "columnGap": "16px",
+      "gridWidth": 644,
+      "mainWidth": 644,
+      "railWidth": 644,
+      "gap": -644,
+      "mainHeight": 1627,
+      "railHeight": 300
+    },
+    "portal": {
+      "gridTemplateColumns": "644px",
+      "columnGap": "16px",
+      "gridWidth": 644,
+      "mainWidth": 644,
+      "railWidth": 644,
+      "gap": -644,
+      "mainHeight": 1208,
+      "railHeight": 300,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1216,
+      "featureWidgetCount": 1
+    }
+  },
+  "768_dark": {
+    "bag": {
+      "gridTemplateColumns": "644px",
+      "columnGap": "16px",
+      "gridWidth": 644,
+      "mainWidth": 644,
+      "railWidth": 644,
+      "gap": -644,
+      "mainHeight": 1627,
+      "railHeight": 300
+    },
+    "portal": {
+      "gridTemplateColumns": "644px",
+      "columnGap": "16px",
+      "gridWidth": 644,
+      "mainWidth": 644,
+      "railWidth": 644,
+      "gap": -644,
+      "mainHeight": 1208,
+      "railHeight": 300,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1216,
+      "featureWidgetCount": 1
+    }
+  },
+  "375_light": {
+    "bag": {
+      "gridTemplateColumns": "343px",
+      "columnGap": "12px",
+      "gridWidth": 343,
+      "mainWidth": 343,
+      "railWidth": 343,
+      "gap": -343,
+      "mainHeight": 2392,
+      "railHeight": 525
+    },
+    "portal": {
+      "gridTemplateColumns": "343px",
+      "columnGap": "12px",
+      "gridWidth": 343,
+      "mainWidth": 343,
+      "railWidth": 343,
+      "gap": -343,
+      "mainHeight": 1704,
+      "railHeight": 497,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1676,
+      "featureWidgetCount": 1
+    }
+  },
+  "375_dark": {
+    "bag": {
+      "gridTemplateColumns": "343px",
+      "columnGap": "12px",
+      "gridWidth": 343,
+      "mainWidth": 343,
+      "railWidth": 343,
+      "gap": -343,
+      "mainHeight": 2392,
+      "railHeight": 525
+    },
+    "portal": {
+      "gridTemplateColumns": "343px",
+      "columnGap": "12px",
+      "gridWidth": 343,
+      "mainWidth": 343,
+      "railWidth": 343,
+      "gap": -343,
+      "mainHeight": 1704,
+      "railHeight": 497,
+      "heroAppAligned": true,
+      "cardHeightsEqual": true,
+      "cardCount": 2,
+      "aboveFold": false,
+      "maxCardBottom": 1676,
+      "featureWidgetCount": 1
+    }
+  },
+  "cls_slow_4g": {
+    "cls": 0.016,
+    "threshold": 0.02,
+    "pass": true
+  },
+  "scalability_fixtures": {
+    "0": {
+      "cardCount": 0,
+      "plannedCount": 5,
+      "hasEmptyPanel": true,
+      "hasFeedFilters": false,
+      "rcaHasError": false
+    },
+    "1": {
+      "cardCount": 1,
+      "plannedCount": 4,
+      "hasEmptyPanel": false,
+      "hasFeedFilters": false,
+      "rcaHasError": false
+    },
+    "2": {
+      "cardCount": 2,
+      "plannedCount": 3,
+      "hasEmptyPanel": false,
+      "hasFeedFilters": false,
+      "rcaHasError": false
+    },
+    "3": {
+      "cardCount": 3,
+      "plannedCount": 2,
+      "hasEmptyPanel": false,
+      "hasFeedFilters": true,
+      "rcaHasError": false
+    },
+    "5": {
+      "cardCount": 5,
+      "plannedCount": 0,
+      "hasEmptyPanel": false,
+      "hasFeedFilters": true,
+      "rcaHasError": true,
+      "rcaRecovered": true
+    }
+  },
+  "bag_filter_identity": {
+    "beforeBytes": 343738,
+    "currentBytes": 288773,
+    "byteDiff": 54965,
+    "ratio": 0.8401
+  }
+}

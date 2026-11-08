@@ -1,0 +1,323 @@
+// Portal brief v3 — TQ-CMMS
+// Sumber kebenaran untuk tata letak, komponen, data, dan state halaman Portal (apps/portal, "/").
+// Acuan visual: halaman Ringkasan Bag Filter (/bag-filter), gold standard yang disetujui pengguna 9 Nov 2026.
+// Prinsip: Portal memakai KOMPONEN dan CLASS yang sama dengan dashboard Bag Filter, bukan meniru-niru gayanya.
+// Nilai token mengacu ke packages/ui/src/tokens.css. Jangan menulis literal warna/ukuran baru.
+{
+  "meta": {
+    "version": "3.0",
+    "date": "2026-11-09",
+    "replaces": "Bagian Portal di UI-AUDIT-PORTAL-CONSUMABLES.md (D1, E2) dan UI-FOLLOWUP-FONT-PORTAL-MENU.md §3",
+    "keeps": [
+      "Kontrak PortalSummary per aplikasi + endpoint /<app>/api/portal-summary (diperluas, lihat dataContract)",
+      "Katalog aplikasi sebagai sumber daftar kartu (appCatalog)",
+      "Satu request ringkasan per aplikasi, timeout 5 detik, error terisolasi per aplikasi",
+      "Inter self-host, token tipe/spacing, reduced motion/transparency/contrast",
+      "Tidak ada count-up saat mount, tidak ada tilt di Portal, tidak ada tagline",
+    ],
+    "doNotChange": ["/bag-filter (semua halaman)", "/consumables (semua halaman)", "kontrak /api/dashboard"],
+  },
+
+  // ───────────────────────── KARAKTER VISUAL ─────────────────────────
+  "look": {
+    "summary": "Tenang, lapang, data-first. Satu titik fokus (hero chart lime bergaris miring), kartu putih tanpa border di kanvas abu-abu, ink untuk keputusan, oranye hanya untuk angka yang perlu ditindak.",
+    "focalPoint": "hero-chart-card: slot aktif berwarna lime + hatch 135°, slot lain abu-abu placeholder dengan bentuk sama",
+    "accentBudget": {
+      "lime": [
+        "slot aktif chart",
+        "progress bar kartu aplikasi (hatched)",
+        "widget Aksi cepat (satu-satunya permukaan lime)",
+      ],
+      "pumpkin/negativeText": ["angka perhatian bernilai > 0", "metrik kartu ber-tone warning/danger"],
+      "danger": ["hanya error"],
+      "forbidden": [
+        "lavender",
+        "--highlight pada permukaan terang",
+        "badge hijau dekoratif",
+        "gradien selain widget Aksi cepat",
+      ],
+    },
+    "density": "1280×800 dengan 2 aplikasi aktif: heading + hero + kartu aplikasi terlihat tanpa scroll; 'Segera hadir' boleh di bawah lipatan",
+  },
+
+  // ───────────────────────── TATA LETAK ─────────────────────────
+  "layout": {
+    "reuse": "Bungkus dengan .dashboard-grid > .dashboard-main + .dashboard-rail. Geometri, gap, dan breakpoint WAJIB sama dengan Bag Filter.",
+    "pageOrder": [
+      "heading",
+      "dashboard-grid[ main: hero, appCards, planned | rail: quickActions, activity ]",
+    ],
+    "breakpoints": {
+      "≥1536": {
+        "grid": "minmax(0,1fr) 360px",
+        "gap": "--space-4",
+        "heroKpiRail": "240px",
+        "appCards": "2 kolom; 3 kolom bila ≥3 aplikasi dan container main ≥ 66rem",
+      },
+      "1280–1535": {
+        "grid": "minmax(0,1fr) 300px",
+        "gap": "--space-4",
+        "heroKpiRail": "240px",
+        "appCards": "2 kolom",
+      },
+      "768–1279": {
+        "grid": "1 kolom; rail pindah ke bawah main dan menjadi 2 kolom (Aksi cepat | Aktivitas)",
+        "heroKpiRail": "200px",
+        "appCards": "2 kolom",
+      },
+      "<768": {
+        "grid": "1 kolom, gap --space-3",
+        "heroKpiRail": "baris horizontal di bawah chart, scroll-x",
+        "appCards": "1 kolom",
+        "chartSlots": "8 minggu terakhir",
+      },
+    },
+    "equalHeights": [
+      "Kartu aplikasi dalam satu baris sama tinggi; footer menempel ke bawah (margin-top:auto)",
+      "≥1280: kolom rail sama tinggi dengan kolom main; daftar aktivitas mengisi sisa tinggi dan scroll di dalam (grid-template-rows: auto 1fr)",
+    ],
+    "orphanRule": "Sel kosong hanya boleh ada di ujung baris terakhir grid kartu. Kartu tidak melebar untuk menutupinya.",
+    "noHoles": "Grid kartu memakai jumlah kolom eksplisit (class cols-1|2|3 dihitung dari jumlah aplikasi), BUKAN repeat(auto-fill, …).",
+  },
+
+  // ───────────────────────── HEADING ─────────────────────────
+  "heading": {
+    "component": "Heading (packages/ui) dengan slot kanan",
+    "eyebrow": {
+      "text": "TQ-CMMS / PORTAL",
+      "style": "sama persis dengan eyebrow Bag Filter ('EQUIPMENT PROCESS / BAG FILTER')",
+    },
+    "title": "{Selamat pagi|siang|sore|malam}, {nama depan}.",
+    "description": "Ringkasan pekerjaan dan perhatian di area Anda.",
+    "rightSlot": {
+      "content": "Senin, 9 Nov 2026 · WIB",
+      "position": "kanan atas, sejajar eyebrow — posisi yang sama dengan 'Data aktual' di Bag Filter",
+      "style": "--type-caption, --textSecondary",
+    },
+    "remove": ["tanggal inline di samping H1"],
+  },
+
+  // ───────────────────────── HERO ─────────────────────────
+  "hero": {
+    "component": "section.panel.hero-chart-card > .chart-panel + .kpi-rail (class Bag Filter, shadow --shadow-panel dari chart ke rail)",
+    "chartPanel": {
+      "eyebrow": "CATATAN PEKERJAAN",
+      "display": { "class": "display-xl", "value": "total catatan 12 minggu", "unitSmall": "catatan" },
+      "subtitle": "12 minggu terakhir · Senin–Minggu (WIB)",
+      "definitionTooltip": "Satu catatan = satu batch penggantian Bag Filter atau satu dokumen Consumable Room yang final. Batch yang dibatalkan tidak dihitung.",
+      "legend": "Satu entri per aplikasi aktif: swatch + nama aplikasi (class .chart-legend). Tampil hanya bila ≥2 aplikasi.",
+      "chart": {
+        "markup": "Pakai struktur Bag Filter: .bar-chart > .chart-grid-lines + .bar-slots > button.bar-slot > .bar-stack > i",
+        "slots": 12,
+        "slotLabel": "tanggal Senin, format '3 Nov'; <1024px tampilkan label selang-seling, nama aksesibel tetap lengkap",
+        "defaultActive": "minggu berjalan (slot terakhir)",
+        "active": "segmen per aplikasi berwarna seri + class hatched",
+        "inactive": "segmen var(--placeholder), bentuk sama, tanpa hatch",
+        "zero": ".empty-bar 4px",
+        "series": ["--primary-500", "--primary-800", "--primary-300", "--gray-700"],
+        "seriesNote": "Urutan mengikuti appCatalog. Segmen dipisah gap --space-1 (sudah ada di .bar-stack). Seri ke-3/4 memakai inset outline 1px --series-accent-outline.",
+        "scale": "countScale (chart-scale.ts), baseline nol, garis grid 5 tingkat",
+        "interaction": "pointer enter/focus/click memilih slot (sama dengan Bag Filter); ←/→ pindah slot; aria-pressed pada slot aktif",
+      },
+      "detailStrip": {
+        "component": ".chart-tooltip (aria-live=polite)",
+        "content": "Minggu 3–9 Nov 2026 · <b>12 catatan</b> · Bag Filter <b>9 batch</b> · Consumable Room <b>3 dokumen</b>",
+        "failedApp": "Aplikasi yang ringkasannya gagal ditulis 'Consumable Room belum termuat' di strip ini; total diberi keterangan 'sebagian'",
+      },
+      "trendRow": {
+        "component": ".trend-row",
+        "content": "Minggu ini {n} catatan · rata-rata 11 minggu sebelumnya {m}",
+        "color": "netral (--textSecondary). Jangan memakai hijau/merah: frekuensi pencatatan bukan nilai baik/buruk.",
+      },
+    },
+    "kpiRail": {
+      "title": "Perlu perhatian (h2 kecil --type-headline, ikon info)",
+      "content": "Maksimal 3 .metric-block dari GRUP perhatian, urut danger → warning → nilai terbesar",
+      "metricBlock": {
+        "label": "nama grup, mis. 'Bag ≥ 1.260 hari'",
+        "value": "jumlah grup, --type-large, warna --negativeText bila > 0",
+        "small": "'di 4 equipment · Bag Filter' atau 'Consumable Room'",
+        "link": "seluruh blok adalah link ke href grup (item pertama bila grup punya >1 item ditampilkan via overlay)",
+      },
+      "more": "Bila grup > 3 atau grup berisi >1 item: tombol ghost 'Lihat semua (n)' membuka Overlay kind=menu placement=bottom-end berisi semua item, dikelompokkan per aplikasi",
+      "calm": {
+        "value": "0",
+        "label": "Perlu perhatian",
+        "small": "Tidak ada yang perlu ditindaklanjuti",
+        "color": "--textPrimary",
+      },
+      "loading": "3 skeleton metric-block dengan tinggi final",
+    },
+    "hiddenWhen": "pengguna tidak punya aplikasi aktif",
+  },
+
+  // ───────────────────────── KARTU APLIKASI ─────────────────────────
+  "appCard": {
+    "reference": "Kartu 'Cakupan pemasangan' di Bag Filter",
+    "component": "PortalAppCard (section.panel)",
+    "anatomy": [
+      "header: h2 (--type-title, --weight-semibold) nama aplikasi + badge 'Hanya lihat' bila viewer; kanan: ikon aplikasi 24px --textPrimary (posisi ikon grid di kartu Cakupan)",
+      "headline: angka display-lg + <small>/ total satuan</small> (contoh '17.650 / 18.784')",
+      "progress: .progress-track 14px, isi <i class='hatched'> var(--primary-400) scaleX(value/total), sisa var(--placeholder)",
+      "caption: .fine satu kalimat, mis. '94,0% posisi mempunyai catatan pemasangan aktif.'",
+      "secondary: maksimal 2 metrik dalam satu baris dengan pemisah atas --divider; label --type-caption, nilai --type-title; tone warning/danger → --negativeText",
+      "footer: link .summary-open 'Buka {nama}' + ikon panah, selebar kartu, min-height 44px",
+    ],
+    "removeFromCard": [
+      "tombol aksi (pindah ke widget Aksi cepat)",
+      "bar komposisi/distribusi bersegmen 8px",
+      "tiga KPI sejajar berbobot sama",
+    ],
+    "padding": "--space-6 (mobile --space-5)",
+    "states": {
+      "loading": "skeleton dengan tinggi final: header, angka, track, caption, baris sekunder",
+      "error": "pesan --textSecondary + tombol secondary small 'Coba lagi'; footer tetap ada",
+      "emptyHeadline": "total = 0 → track placeholder penuh (bentuk sama), angka '0', caption dari server (mis. 'Belum ada material di stok R22.')",
+    },
+    "perApp": {
+      "bag-filter": {
+        "headline": {
+          "label": "Terpasang",
+          "value": "installed",
+          "total": "total",
+          "unit": "posisi",
+          "caption": "{pct}% posisi mempunyai catatan pemasangan aktif.",
+        },
+        "metrics": [
+          { "key": "older1260", "label": "Umur ≥ 1.260 hari", "tone": "danger bila > 0" },
+          { "key": "neverInstalled", "label": "Belum tercatat", "tone": "neutral" },
+        ],
+      },
+      "consumables": {
+        "headline": {
+          "label": "Tersedia",
+          "value": "available",
+          "total": "operational",
+          "unit": "material",
+          "caption": "{pct}% material dikelola mempunyai stok.",
+        },
+        "metrics": [
+          { "key": "empty", "label": "Stok nol", "tone": "danger bila criticalEmpty > 0, warning bila > 0" },
+          { "key": "uncounted", "label": "Belum dihitung", "tone": "neutral" },
+        ],
+      },
+    },
+  },
+
+  // ───────────────────────── SEGERA HADIR ─────────────────────────
+  "planned": {
+    "position": "di dalam .dashboard-main, di bawah kartu aplikasi; kolom grid SAMA dengan kartu aplikasi sehingga tepi kiri/kanan sejajar",
+    "title": "Segera hadir (--type-headline) + .fine 'Dalam pengembangan'",
+    "tile": {
+      "height": "≥ 64px",
+      "background": "transparent",
+      "border": "1px dashed var(--borderStrong) — metafora 'belum terpasang' yang sama dengan posisi bag kosong",
+      "icon": "ikon katalog 20px --textMuted",
+      "text": "nama --type-footnote --weight-medium --textSecondary; deskripsi --type-caption --textMuted (satu baris, ellipsis)",
+      "interaction": "tidak bisa diklik, tidak ada hover, tidak ada badge",
+    },
+    "whenActivated": "Aplikasi berpindah otomatis dari tile ini ke kartu aplikasi + seri chart + grup perhatian + feed + aksi cepat, tanpa mengubah kode Portal",
+  },
+
+  // ───────────────────────── RAIL ─────────────────────────
+  "rail": {
+    "quickActions": {
+      "component": "section.feature-widget (class Bag Filter) + .feature-contours statis",
+      "eyebrow": "AKSI CEPAT",
+      "rows": "maksimal 3 aksi dari summary.action, urut appCatalog; tiap baris: ikon 20px + label (--type-headline, --weight-semibold) + nama aplikasi (--type-caption) + panah; tinggi ≥ 48px; pemisah 1px color-mix(ink 12%)",
+      "textColor": "--gray-950 di kedua tema",
+      "forbidden": ["tilt/perspective", "tagline", "angka besar", "lebih dari 3 baris"],
+      "press": "baris memakai highlight background color-mix(ink 8%) saat :active, tanpa scale",
+      "hiddenWhen": "tidak ada aksi (mis. semua grant viewer) — kartu aktivitas mengisi seluruh rail",
+    },
+    "activity": {
+      "component": "section.panel.recent-card dengan .activity-row (class Bag Filter)",
+      "header": "h2 'Aktivitas terbaru' + ikon clock kanan (sama dengan Bag Filter); jumlah entri dihapus",
+      "filters": "chip Semua/{aplikasi} hanya bila ≥3 aplikasi aktif",
+      "row": {
+        "icon": ".app-icon 40px (surfaceSunken) berisi ikon aplikasi",
+        "title": "kalimat bermakna dari server (lihat dataContract.recent.titleRules), --type-footnote --weight-medium",
+        "meta": "baris 1: detail; baris 2: waktu relatif ('2 hari lalu', 'Kemarin 21.16'); title attr = tanggal WIB lengkap",
+        "value": "kanan: angka --weight-semibold + satuan <small> di bawah (sama dengan '348 bag' di Bag Filter)",
+      },
+      "limit": "8 baris, scroll internal + fade tepi",
+      "empty": "ikon clock + 'Belum ada aktivitas dalam cakupan Anda.' (pola empty Bag Filter)",
+    },
+  },
+
+  // ───────────────────────── KONTRAK DATA ─────────────────────────
+  "dataContract": {
+    "type": "PortalSummary v2 di packages/contracts/src/index.ts",
+    "shape": {
+      "appId": "AppId",
+      "updatedAt": "ISO string",
+      "headline": "{ label: string; value: number; total: number; unit: string; caption: string; href?: string }",
+      "metrics": "{ key: string; label: string; value: number; unit?: string; href?: string; tone?: 'neutral' | 'warning' | 'danger' }[]  // maks 2",
+      "attention": "{ key: string; group: { key: string; label: string; unit: string }; label: string; value: number; severity: 'warning' | 'danger'; href: string }[]",
+      "activity": "{ unitSingular: string; weeks: { start: string /* YYYY-MM-DD, Senin WIB */; count: number }[] }  // tepat 12, lama → baru",
+      "recent": "{ id: string; title: string; meta: string; at: string; href: string; value?: number; unit?: string }[]  // maks 5",
+      "action": "{ label: string; href: string; icon: PortalIconName } | undefined  // sudah difilter role di server",
+    },
+    "removed": ["signal (bar komposisi bersegmen)"],
+    "titleRules": {
+      "bag-filter": {
+        "title": "Penggantian {equipmentCode}",
+        "meta": "{brand atau 'Pabrikan belum diisi'} · {actorName}{wo ? ' · WO ' + wo : ''}",
+        "value": "positionCount",
+        "unit": "bag",
+      },
+      "consumables": {
+        "title": "{Consume Order|Return Order|Penerimaan Picklist} · {hec || 'R22'}",
+        "meta": "{number} · {actorName}",
+        "value": "lineCount",
+        "unit": "item",
+      },
+    },
+    "activityRules": {
+      "bag-filter": "COUNT batch per minggu WIB dalam scope equipment grant, kecuali batch yang ada di batch_cancellations; unitSingular 'batch'",
+      "consumables": "COUNT dokumen final per minggu WIB dalam scope lokasi grant; unitSingular 'dokumen'",
+    },
+    "attentionGroups": {
+      "bag-filter": "group { key: 'bag-age', label: 'Bag ≥ 1.260 hari', unit: 'bag' }; satu item per equipment",
+      "consumables": "group 'r22-critical' (label 'Kritis, stok nol', unit 'material', danger) dan 'r22-uncounted' (label 'Belum dihitung', unit 'material', warning)",
+    },
+    "performance": "Endpoint tetap ringan: satu query agregat per bagian; tidak ada seri kuartal; respons < 300 ms pada data uji 18.784 posisi",
+  },
+
+  // ───────────────────────── MOTION ─────────────────────────
+  "motion": {
+    "bars": "bar-grow Bag Filter hanya saat data pertama tiba; pergantian slot aktif instan (warna/hatch), tanpa animasi tinggi",
+    "progress": "transform scaleX dengan --duration-data --ease-enter, hanya saat data pertama/berubah",
+    "numbers": "tanpa count-up saat mount; AnimatedNumber hanya saat nilai berubah (≤300ms)",
+    "skeletonToContent": "cross-fade opacity --duration-fast; tinggi skeleton = tinggi akhir sehingga CLS ≈ 0",
+    "hover": "baris aktivitas dan baris aksi: perubahan background saja; kartu tidak terangkat",
+    "reducedMotion": "semua di atas menjadi instan; shimmer skeleton berhenti",
+  },
+
+  // ───────────────────────── AKSESIBILITAS ─────────────────────────
+  "accessibility": {
+    "landmarks": "hero = section aria-label 'Catatan pekerjaan dan perhatian'; rail = aside aria-label 'Aksi cepat dan aktivitas'",
+    "chart": "role=figure dengan ringkasan teks; slot = button aria-pressed + aria-label 'Minggu 3–9 Nov 2026: 12 catatan'",
+    "color": "Nilai perhatian selalu disertai label kata; seri chart diulang sebagai teks di detailStrip",
+    "contrast": "teks AA di kedua tema; batas segmen/track ≥ 3:1 terhadap surface",
+    "targets": "semua link/tombol ≥ 44px pada <768",
+  },
+
+  // ───────────────────────── SKALABILITAS ─────────────────────────
+  "scalability": {
+    "addApp": [
+      "1. appCatalog: status 'active', path, icon, portalSummary",
+      "2. Endpoint /<app>/api/portal-summary yang memenuhi PortalSummary v2",
+      "3. Grant pengguna",
+    ],
+    "noPortalCodeChange": true,
+    "limits": {
+      "chartSeries": "4 aplikasi pertama mendapat warna; aplikasi ke-5+ digabung sebagai 'Lainnya' dengan --gray-700",
+      "kpiRail": "3 grup; sisanya lewat 'Lihat semua'",
+      "quickActions": "3 baris",
+      "feedFilters": "muncul pada ≥3 aplikasi",
+    },
+    "headlineTotalRequired": "headline.total wajib. Aplikasi tanpa pembanding alami mengirim total = value (track penuh) dan caption yang menjelaskan angka tersebut.",
+    "fixtures": "Playwright route mock untuk 0, 1, 2, 3, dan 5 aplikasi, termasuk aplikasi fiktif 'drawings' dengan 1 metrik sekunder, tanpa aksi, dan satu aplikasi yang endpoint-nya gagal",
+  },
+}
