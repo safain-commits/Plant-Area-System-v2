@@ -189,9 +189,10 @@ async function setup() {
     )
     .replace('proxy_read_timeout 30s;', 'proxy_read_timeout 120s;');
   await writeFile(`${directory}/proxy.conf`, proxy, { mode: 0o600 });
-  const common = cores
-    .map((core) => `      - ./packages/${core}/src:/workspace/packages/${core}/src:ro`)
-    .join('\n');
+  const common = [
+    ...cores.map((core) => `      - ./packages/${core}/src:/workspace/packages/${core}/src:ro`),
+    '      - ./packages/ui/assets:/workspace/packages/ui/assets:ro',
+  ].join('\n');
   const services = apps
     .map(
       (app) => `  ${app}:

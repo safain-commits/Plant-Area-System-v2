@@ -16,7 +16,7 @@
   }
   .hero h2 {
     font-size: var(--type-large);
-    letter-spacing: -0.7px;
+    letter-spacing: -0.02em;
     max-width: 400px;
   }
   .hero p {
@@ -33,7 +33,7 @@
     font-size: var(--type-display);
     line-height: 1;
     color: var(--brand-lime);
-    letter-spacing: -10px;
+    letter-spacing: -0.025em;
     opacity: 0.45;
     padding-right: var(--space-5);
   }
@@ -786,7 +786,7 @@
     margin: var(--space-2) 0 0;
     font-size: var(--type-large);
     letter-spacing: -0.02em;
-    font-weight: 600;
+    font-weight: var(--weight-medium);
   }
   .summary-recent {
     flex: 1;

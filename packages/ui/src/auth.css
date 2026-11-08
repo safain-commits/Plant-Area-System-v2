@@ -30,7 +30,7 @@
   }
   .auth-story > small {
     font-size: var(--type-caption);
-    letter-spacing: 2px;
+    letter-spacing: 0.005em;
     color: var(--inverse-muted);
   }
   .auth-lines {

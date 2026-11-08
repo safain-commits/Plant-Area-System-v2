@@ -620,7 +620,7 @@ export function Workspace({
                   <Icon name="grid" />
                 </span>
                 <span>
-                  <strong>
+                  <strong className="code-text">
                     {item.wo || 'Tanpa WO'} · {item.equipmentCode}
                   </strong>
                   <small>

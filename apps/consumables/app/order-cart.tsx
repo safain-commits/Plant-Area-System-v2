@@ -382,7 +382,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
                       <div>
                         <strong>{l.material.commonName || l.material.description}</strong>
                         <small>
-                          {l.material.mmid} · {l.material.description}
+                          <span className="code-text">{l.material.mmid}</span> · {l.material.description}
                         </small>
                         <small>
                           Stok: {formatQuantity(l.material.quantity)} {l.material.unit}
@@ -438,7 +438,7 @@ export function OrderCart({ identity, type }: { identity: Identity; type: 'consu
             <dt>Jumlah item</dt>
             <dd>{draft.lines.length} item</dd>
             <dt>HAC/SAC</dt>
-            <dd>{normalizeHec(draft.hec) || 'Belum diisi'}</dd>
+            <dd className="code-text">{normalizeHec(draft.hec) || 'Belum diisi'}</dd>
             <dt>Peminta</dt>
             <dd>{self || 'Belum diisi'}</dd>
           </dl>

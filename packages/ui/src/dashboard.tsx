@@ -447,7 +447,7 @@ export function Dashboard({
               {data.perEquipment.map((e) => (
                 <a href={`/bag-filter/equipment/${e.code.toLowerCase()}`} key={e.code}>
                   <div>
-                    <strong>{e.code}</strong>
+                    <strong className="code-text">{e.code}</strong>
                     <span>
                       {n(e.installed)} <small>/ {n(e.total)}</small>
                     </span>
@@ -474,7 +474,7 @@ export function Dashboard({
         >
           <p className="eyebrow">EQUIPMENT PROCESS</p>
           <div className="feature-contours" aria-hidden="true" />
-          <h2>{featured?.code || 'Bag Filter'}</h2>
+          <h2 className="code-text">{featured?.code || 'Bag Filter'}</h2>
           <strong className="display-xl">{n(featured?.total || 0)}</strong>
           <p>posisi bag</p>
           <a href={featured ? `/bag-filter/equipment/${featured.code.toLowerCase()}` : '/bag-filter'}>
@@ -507,9 +507,10 @@ export function Dashboard({
                     <Icon name="grid" />
                   </span>
                   <span>
-                    <strong>{item.wo || 'Tanpa WO'}</strong>
+                    <strong className="code-text">{item.wo || 'Tanpa WO'}</strong>
                     <small>
-                      {item.equipmentCode} · {item.brand || 'Belum tercatat'}
+                      <span className="code-text">{item.equipmentCode}</span> ·{' '}
+                      {item.brand || 'Belum tercatat'}
                     </small>
                     <small>{item.actorName}</small>
                     <small>{formatDate(item.createdAt)} WIB</small>

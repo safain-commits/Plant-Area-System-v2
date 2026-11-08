@@ -368,7 +368,7 @@ export function Picklist({ identity }: { identity: Identity }) {
                   <div className="r22-picklist-material" role="cell">
                     <strong>{m.commonName || m.description}</strong>
                     <small className="r22-picklist-description">
-                      <span>{m.mmid}</span> · {m.description}
+                      <span className="code-text">{m.mmid}</span> · {m.description}
                     </small>
                     <div className="r22-picklist-meta">
                       <small>

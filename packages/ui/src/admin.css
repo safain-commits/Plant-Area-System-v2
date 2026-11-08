@@ -39,7 +39,7 @@
     white-space: nowrap;
   }
   .audit-table th {
-    letter-spacing: 0.5px;
+    letter-spacing: 0.005em;
   }
   @media (max-width: 767px) {
     .user-row {

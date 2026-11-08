@@ -180,15 +180,15 @@ export function StockHistory({ identity }: { identity: Identity }) {
                 onClick={() => open(d.id)}
               >
                 <span>
-                  <strong>{d.number}</strong>
+                  <strong className="code-text">{d.number}</strong>
                   <small>
                     {stockDocumentLabels[d.type]} · {d.requesterName}
                   </small>
                 </span>
                 <span>
-                  {d.hec || 'R22'}
+                  <span className="code-text">{d.hec || 'R22'}</span>
                   <small>
-                    WO {d.wo || '—'}
+                    WO <span className="code-text">{d.wo || '—'}</span>
                     {d.reservationNo ? ' · Reservasi ' + d.reservationNo : ''}
                   </small>
                 </span>
@@ -254,21 +254,21 @@ export function StockHistory({ identity }: { identity: Identity }) {
         {detail && (
           <>
             <span className="badge neutral">{stockDocumentLabels[detail.document.type]}</span>
-            <h2>{detail.document.number}</h2>
+            <h2 className="code-text">{detail.document.number}</h2>
             <dl className="stock-detail-grid">
               {[
-                ['HAC/SAC', detail.document.hec || '—'],
-                ['WO', detail.document.wo || '—'],
-                ['Keterangan', detail.document.note || '—'],
-                ['Peminta', detail.document.requesterName],
-                ['NIK', detail.document.requesterNik || '—'],
-                ['Pencatat', detail.document.actorName],
-                ['Waktu WIB', formatDate(detail.document.createdAt)],
-                ['Reservasi', detail.document.reservationNo || '—'],
-              ].map(([label, value]) => (
-                <div key={label}>
+                ['HAC/SAC', detail.document.hec || '—', true],
+                ['WO', detail.document.wo || '—', true],
+                ['Keterangan', detail.document.note || '—', false],
+                ['Peminta', detail.document.requesterName, false],
+                ['NIK', detail.document.requesterNik || '—', true],
+                ['Pencatat', detail.document.actorName, false],
+                ['Waktu WIB', formatDate(detail.document.createdAt), false],
+                ['Reservasi', detail.document.reservationNo || '—', true],
+              ].map(([label, value, code]) => (
+                <div key={String(label)}>
                   <dt>{label}</dt>
-                  <dd>{value}</dd>
+                  <dd className={code ? 'code-text' : undefined}>{value}</dd>
                 </div>
               ))}
             </dl>
@@ -279,7 +279,7 @@ export function StockHistory({ identity }: { identity: Identity }) {
                   {l.lineNo}. {l.commonName || l.description}
                 </strong>
                 <small>
-                  {l.mmid} · {l.description}
+                  <span className="code-text">{l.mmid}</span> · {l.description}
                 </small>
                 <span>
                   {formatQuantity(l.quantity.replace('-', ''))} {l.unit}

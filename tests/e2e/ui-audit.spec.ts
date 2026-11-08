@@ -333,7 +333,7 @@ test('menu exit preserves focus, anchored origin and a visible intermediate pres
   await expect(menu).toBeVisible();
   await expect(menu).toHaveCSS('opacity', '1');
   expect(await menu.evaluate((el) => el.style.getPropertyValue('--anchor-origin'))).toMatch(
-    /top (left|right)/,
+    /^\d+(\.\d+)?px 0px$/,
   );
   await page.keyboard.press('Escape');
   await expect(menu).toHaveAttribute('data-closing', '');
@@ -527,5 +527,74 @@ test('RSC page requests keep their grants without forwarding framework headers i
     const response = await page.request.get(path, { headers: { RSC: '1' } });
     expect(response.status(), path).toBe(200);
     expect(response.headers()['content-type'], path).toContain('text/x-component');
+  }
+});
+
+test('self-hosted Inter font, basePath preload, code-text features, and sidebar S1 typography stay consistent across apps', async ({
+  page,
+}) => {
+  await start(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const origin = process.env.PUBLIC_ORIGIN!;
+  for (const [route, prefix] of [
+    ['/auth/login', '/auth/_next/'],
+    ['/', '/_next/'],
+    ['/bag-filter', '/bag-filter/_next/'],
+    ['/consumables', '/consumables/_next/'],
+  ] as const) {
+    const external: string[] = [];
+    const onRequest = (req: import('@playwright/test').Request) => {
+      if (!req.url().startsWith(origin) && !req.url().startsWith('data:')) external.push(req.url());
+    };
+    page.on('request', onRequest);
+    await page.goto(route);
+    await page.evaluate(() => document.fonts.ready);
+    page.off('request', onRequest);
+    expect(external, `No external requests on ${route}`).toEqual([]);
+    const fontCheck = await page.evaluate((expectedPrefix) => {
+      const preloads = Array.from(document.querySelectorAll('link[rel="preload"][as="font"]')).map((l) =>
+        l.getAttribute('href'),
+      );
+      const interLoaded = Array.from(document.fonts).some(
+        (f) => f.status === 'loaded' && f.family.toLowerCase().includes('inter'),
+      );
+      return {
+        hasPrefixPreload: preloads.some((h) => h?.startsWith(expectedPrefix)),
+        interLoaded,
+        fontFamily: getComputedStyle(document.documentElement).fontFamily.toLowerCase(),
+      };
+    }, prefix);
+    expect(fontCheck.hasPrefixPreload, `Preload on ${route}`).toBe(true);
+    expect(fontCheck.interLoaded, `Inter loaded on ${route}`).toBe(true);
+    expect(fontCheck.fontFamily).toContain('inter');
+  }
+  await page.goto('/bag-filter');
+  const s1 = await page.evaluate(() => {
+    const topLabels = Array.from(
+      document.querySelectorAll(
+        '.sidebar nav > a .sidebar-label, .sidebar nav .application-link .sidebar-label',
+      ),
+    ).map((el) => ({
+      text: el.textContent?.trim(),
+      fontSize: getComputedStyle(el).fontSize,
+      fontWeight: getComputedStyle(el).fontWeight,
+    }));
+    const treeRows = Array.from(document.querySelectorAll('.sidebar .nav-tree .nav-tree-row')).map((el) => ({
+      text: el.textContent?.trim(),
+      current: el.getAttribute('aria-current'),
+      fontSize: getComputedStyle(el).fontSize,
+      fontWeight: getComputedStyle(el).fontWeight,
+    }));
+    return { topLabels, treeRows };
+  });
+  for (const label of s1.topLabels) {
+    expect(label.fontSize, `S1 top-level font-size (${label.text})`).toBe('14px');
+    expect(label.fontWeight, `S1 top-level font-weight (${label.text})`).toBe('500');
+  }
+  for (const row of s1.treeRows) {
+    expect(row.fontSize, `S1 tree-row font-size (${row.text})`).toBe('14px');
+    expect(row.fontWeight, `S1 tree-row font-weight (${row.text})`).toBe(
+      row.current === 'page' ? '500' : '400',
+    );
   }
 });

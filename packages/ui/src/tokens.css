@@ -274,6 +274,10 @@
   /* Shared type and spacing scales. Root remains user-controlled. */
   :root {
     --font-system: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-sans: var(--font-inter, 'Inter'), var(--font-system);
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
     --type-caption: 0.75rem;
     --type-footnote: 0.8125rem;
     --type-body: 0.875rem;

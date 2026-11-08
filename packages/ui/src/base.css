@@ -30,7 +30,7 @@
     padding: var(--space-3) var(--space-4);
     border-radius: 7px;
     font-size: var(--type-body);
-    font-weight: 600;
+    font-weight: var(--weight-medium);
     cursor: pointer;
     transition: background var(--duration-fast);
   }
@@ -71,10 +71,10 @@
   label {
     display: flex;
     flex-direction: column;
-    font-weight: 600;
+    font-weight: var(--weight-medium);
   }
   label small {
-    font-weight: 400;
+    font-weight: var(--weight-regular);
   }
   h1,
   h2,
@@ -233,7 +233,7 @@
     }
     .section-head .eyebrow {
       font-size: var(--type-caption);
-      letter-spacing: 1px;
+      letter-spacing: 0.005em;
     }
     .section-head .badge {
       font-size: var(--type-caption);

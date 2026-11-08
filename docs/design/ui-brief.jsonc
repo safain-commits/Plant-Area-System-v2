@@ -319,8 +319,8 @@
   // ─────────────────────────── TYPOGRAPHY ───────────────────────────
   "typography": {
     "family": {
-      "sans": "Geometric grotesk (reference ≈ Satoshi / General Sans); fallback Inter, system-ui",
-      "numerals": "tabular-nums + lining figures on every amount, count, date, coordinate",
+      "sans": "Inter variable self-hosted via next/font/local (--font-inter, packages/ui/assets/fonts/InterVariable.woff2); fallback system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+      "numerals": "tabular-nums + lining figures on every amount, count, date, coordinate; ss02 + tnum on .code-text (MMID, equipment codes, HAC/SAC, R22 doc numbers, WO, bag coordinates)",
     },
     "scale": {
       "display-xl": { "size": 40, "line": 44, "weight": 500, "tracking": "-0.02em", "use": "Hero metric" },

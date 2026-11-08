@@ -40,31 +40,31 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <header>
           <p className="fine">TQ-CMMS / Consumable Room</p>
           <h1>{titles[d.type]}</h1>
-          <strong className="r22-document-number">{d.number}</strong>
+          <strong className="r22-document-number code-text">{d.number}</strong>
           <p>{formatDate(d.createdAt)} WIB</p>
         </header>
         <dl className="stock-detail-grid">
           {[
-            ['HAC/SAC / Lokasi fungsional', d.hec || d.functionalLocation || '—'],
-            ['Nomor WO', d.wo || '—'],
-            ['Keterangan', d.note || '—'],
-            ['Peminta', d.requesterName + (d.requesterNik ? ' · ' + d.requesterNik : '')],
-            ['Pencatat', d.actorName],
-            ['Kanal', d.channel === 'cashier' ? 'R22 Cashier' : 'Mandiri'],
-            ...(d.sourceRef ? [['Consume Order asal', d.sourceRef]] : []),
+            ['HAC/SAC / Lokasi fungsional', d.hec || d.functionalLocation || '—', true],
+            ['Nomor WO', d.wo || '—', true],
+            ['Keterangan', d.note || '—', false],
+            ['Peminta', d.requesterName + (d.requesterNik ? ' · ' + d.requesterNik : ''), false],
+            ['Pencatat', d.actorName, false],
+            ['Kanal', d.channel === 'cashier' ? 'R22 Cashier' : 'Mandiri', false],
+            ...(d.sourceRef ? ([['Consume Order asal', d.sourceRef, true]] as const) : []),
             ...(d.type === 'picklist'
-              ? [
-                  ['Nomor reservasi', d.reservationNo],
-                  ['Nomor equipment', d.equipmentNo || '—'],
-                  ['Lokasi fungsional SAP', d.functionalLocation || '—'],
-                  ['Pusat biaya', d.costCenter || '—'],
-                  ['Tanggal kebutuhan', d.requiredDate || '—'],
-                ]
+              ? ([
+                  ['Nomor reservasi', d.reservationNo, true],
+                  ['Nomor equipment', d.equipmentNo || '—', true],
+                  ['Lokasi fungsional SAP', d.functionalLocation || '—', true],
+                  ['Pusat biaya', d.costCenter || '—', true],
+                  ['Tanggal kebutuhan', d.requiredDate || '—', false],
+                ] as const)
               : []),
-          ].map(([label, value]) => (
-            <div key={label}>
+          ].map(([label, value, code]) => (
+            <div key={String(label)}>
               <dt>{label}</dt>
-              <dd>{value}</dd>
+              <dd className={code ? 'code-text' : undefined}>{value}</dd>
             </div>
           ))}
         </dl>
@@ -85,7 +85,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   <td>{l.lineNo}</td>
                   <td>
                     <strong>
-                      {l.mmid} · {l.commonName || l.description}
+                      <span className="code-text">{l.mmid}</span> · {l.commonName || l.description}
                     </strong>
                     <small>{l.description}</small>
                   </td>

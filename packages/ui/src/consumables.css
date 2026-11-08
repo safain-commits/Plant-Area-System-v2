@@ -28,7 +28,7 @@
   }
   .r22-required {
     color: var(--danger);
-    font-weight: 700;
+    font-weight: var(--weight-semibold);
     margin-left: var(--space-half);
   }
   .r22-span-all {
@@ -175,7 +175,7 @@
     overflow-wrap: anywhere;
   }
   .r22-picklist-table .r22-picklist-material > strong {
-    font-weight: 600;
+    font-weight: var(--weight-medium);
   }
   .r22-picklist-description > span {
     font-variant-numeric: tabular-nums;
@@ -249,7 +249,7 @@
   }
   .r22-picklist-table .r22-picklist-result strong {
     font-size: var(--type-body);
-    font-weight: 600;
+    font-weight: var(--weight-medium);
   }
   .r22-picklist-result > span {
     color: var(--textSecondary);
@@ -487,6 +487,7 @@
     display: block;
     font-size: var(--type-title);
     letter-spacing: -0.01em;
+    font-feature-settings: 'ss02', 'tnum';
   }
   .r22-receipt-table {
     overflow: auto;
@@ -584,6 +585,7 @@
     }
     html,
     body {
+      font-family: var(--font-sans);
       background: white !important;
       color: black !important;
     }

@@ -194,7 +194,8 @@
   }
   .coordinate-links button {
     line-height: 1.4;
-    font-weight: 600;
+    font-weight: var(--weight-medium);
+    font-feature-settings: 'ss02', 'tnum';
     border-radius: 6px;
   }
   .coordinate-links details {

@@ -149,7 +149,7 @@ export function MaterialSearch({
                 }}
               >
                 <strong>
-                  {m.mmid} · {m.commonName || m.description}
+                  <span className="code-text">{m.mmid}</span> · {m.commonName || m.description}
                 </strong>
                 <small>{m.description}</small>
                 <span>

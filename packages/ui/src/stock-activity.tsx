@@ -15,9 +15,10 @@ export function StockActivity({ items, compact = false }: { items: StockDocument
           items.slice(0, 3).map((d) => (
             <a key={d.id} href={`/consumables/history?document=${encodeURIComponent(d.id)}`}>
               <span>
-                <strong>{d.number}</strong>
+                <strong className="code-text">{d.number}</strong>
                 <small>
-                  {stockDocumentLabels[d.type]} · {d.hec || 'R22'} · {formatDate(d.createdAt)} WIB
+                  {stockDocumentLabels[d.type]} · <span className="code-text">{d.hec || 'R22'}</span> ·{' '}
+                  {formatDate(d.createdAt)} WIB
                 </small>
               </span>
               <span>{d.lineCount} item</span>
@@ -55,9 +56,9 @@ export function StockActivity({ items, compact = false }: { items: StockDocument
                 <Icon name={d.type === 'consume' ? 'issue' : 'receipt'} />
               </span>
               <span className="stock-activity-description">
-                <strong>{d.number}</strong>
+                <strong className="code-text">{d.number}</strong>
                 <small>
-                  {stockDocumentLabels[d.type]} · {d.hec || 'R22'}
+                  {stockDocumentLabels[d.type]} · <span className="code-text">{d.hec || 'R22'}</span>
                 </small>
                 <small title={d.requesterName}>{d.requesterName}</small>
                 <small>
